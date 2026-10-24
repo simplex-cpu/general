@@ -9053,7 +9053,7 @@ export default function Block() {
           </span>
           <div style={{
             flex: 1, minWidth: 0,
-            fontFamily: "'Geist', sans-serif", fontWeight: 700, fontSize: "16px",
+            fontFamily: "'Geist', sans-serif", fontWeight: 700, fontSize: "19px",
             lineHeight: 1.15, letterSpacing: "-0.02em", color: "#16171A",
           }}>Flowy</div>
           <button
@@ -9085,10 +9085,10 @@ export default function Block() {
             New
           </button>
         </div>
-        {/* Recents label, right above the list. */}
+        {/* Recents label, right above the list: darker and bolder than the rows under it. */}
         <div style={{
           flexShrink: 0, padding: isDesktop ? "20px 20px 6px" : "20px 18px 6px",
-          fontFamily: "'Geist', sans-serif", fontSize: "12.5px", fontWeight: 600, color: "#525252",
+          fontFamily: "'Geist', sans-serif", fontSize: "13px", fontWeight: 600, color: "#171717",
         }}>
           Recents
         </div>
@@ -9107,7 +9107,7 @@ export default function Block() {
                 className={(on ? "" : "fs-ghost ") + "border-none cursor-pointer"}
                 style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", margin: "0 0 2px", borderRadius: "8px", background: on ? "#EFEFEF" : "transparent", fontFamily: "'Geist', sans-serif" }}
               >
-                <span style={{ display: "block", fontSize: "13px", lineHeight: 1.35, color: "#171717", fontWeight: on ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                <span style={{ display: "block", fontSize: "13px", lineHeight: 1.35, color: on ? "#171717" : "#525252", fontWeight: on ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
               </button>
             );
           })}
@@ -9504,7 +9504,7 @@ export default function Block() {
                     </span>
                     <div style={{
                       flex: 1, minWidth: 0, fontFamily: "'Geist', sans-serif", fontWeight: 700,
-                      fontSize: "19px", lineHeight: 1.15, letterSpacing: "-0.02em", color: "#16171A",
+                      fontSize: "22px", lineHeight: 1.15, letterSpacing: "-0.02em", color: "#16171A",
                       whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                     }}>
                       Flowy
@@ -28453,6 +28453,10 @@ function ScriptModal({
   );
 }
 
+// Flowy's lines type one at a time: each reveal waits for the previous line to
+// finish before it begins, so two or three lines never type at once (Karen
+// 2026-10-24). Module-level so sibling BotLines share the same running clock.
+let flowyTypeChainEndsAt = 0;
 // A line of Flowy's chat. `reveal` turns on the soft character-by-character
 // walk (Karen 2026-10-24, three motion effects). Pure text lines reveal with a
 // soft caret; non-string children fall back to the old fade. The reveal only
@@ -28488,8 +28492,16 @@ function BotLine({
   const [done, setDone] = useState(!canWalk);
   useEffect(() => {
     if (!canWalk || !plain) return;
-    // Hold until the staggered delay elapses, then walk ~30ms per character.
-    const startMs = (base + delayIndex * 0.35) * 1000;
+    // Start no sooner than this line's own stagger floor, but also not until the
+    // previous line has finished typing — so lines reveal in sequence instead of
+    // several at once. ~30ms per character, 200ms gap between lines.
+    const now = Date.now();
+    const floorMs = (base + delayIndex * 0.35) * 1000;
+    let startAt = now + floorMs;
+    if (flowyTypeChainEndsAt > startAt) startAt = flowyTypeChainEndsAt;
+    startAt = Math.min(startAt, now + 8000); // never queue absurdly far out
+    flowyTypeChainEndsAt = startAt + plain.length * 30 + 200;
+    const startMs = Math.max(0, startAt - now);
     let i = 0;
     const t0 = window.setTimeout(() => {
       const step = () => {
