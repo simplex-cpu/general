@@ -4176,7 +4176,7 @@ export default function Block() {
     }
     const scripts = M.cards.map((c, i) => ({
       idx: i, recordId: c.recordId, name: `${M.kind === "video" ? "Video" : "Design"} ${i + 1}`,
-      outcome: c.handed ? "added" : c.result ? "added" : "paused",
+      outcome: c.handed ? "added" : "paused",
       // The card's choices, in words.
       choices: threadClip(M.kind === "video"
         ? [c.editType ? `Edit type: ${c.editType}` : "", `${c.clips.length} clip${c.clips.length === 1 ? "" : "s"}`].filter(Boolean).join(" · ")
@@ -4189,7 +4189,7 @@ export default function Block() {
     if (after.length) chat.all = after;
     M.cards.forEach((c, i) => { if (c.redoNote.trim()) chat[String(i)] = [{ from: "user", text: threadClip(c.redoNote) }]; });
     const json = threadToJson({ v: 1, route: "media", brandId: M.brandId, startedAt: new Date(convoStarted(id)).toISOString(), steps, scripts, chat });
-    const major = [id, steps.length, recIds.length, M.after.length, M.cards.filter((c) => c.handed || c.result).length].join("|");
+    const major = [id, steps.length, recIds.length, M.after.length, M.cards.filter((c) => c.handed).length].join("|");
     const now = major !== convoMajorRef.current;
     convoMajorRef.current = major;
     convoQueue(id, json, now);
@@ -9040,58 +9040,63 @@ export default function Block() {
     if (railScrollRef.current) railScrollRef.current.scrollTop = 0;
   };
   const renderConvoPanel = () => {
-    // Recents: newest first, one plain list. "Show all" still hides anything older than a week.
+    // Recents: newest first, one row per conversation, no dates. "Show all" reveals anything older than a week.
     const recent = convoRows.filter((c) => convoGroupOf(c.at) !== "Earlier");
     const hasOlder = recent.length < convoRows.length;
     const shown = convoShowAll ? convoRows : recent;
+    const closeBtn = (
+      <button
+        type="button"
+        onClick={() => (isDesktop ? setConvoPanelOpen(false) : setConvoDrawer(false))}
+        title={isDesktop ? "Hide conversations" : "Close"}
+        aria-label={isDesktop ? "Hide conversations" : "Close"}
+        className="fs-ghost inline-flex items-center justify-center border-none cursor-pointer"
+        style={{ width: "30px", height: "30px", borderRadius: "8px", background: "transparent", color: "#737373", padding: 0, flexShrink: 0 }}
+      >
+        {isDesktop ? <ChevronsLeft className="w-4 h-4" strokeWidth={2} /> : <X className="w-4 h-4" strokeWidth={2} />}
+      </button>
+    );
+    const newBtn = (
+      <button
+        type="button"
+        onClick={() => startNewChat()}
+        aria-label="New chat"
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#EBDCFD"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "#F3E8FF"; }}
+        style={{
+          flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: "8px", height: "36px",
+          padding: "0 10px", borderRadius: "8px", border: "none", cursor: "pointer",
+          background: "#F3E8FF", color: "#7E22CE",
+          fontFamily: "'Geist', sans-serif", fontSize: "13.5px", fontWeight: 500, textAlign: "left",
+        }}
+      >
+        <Plus size={15} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+        New
+      </button>
+    );
     return (
       <>
-        {/* Row 1: Flowy, with collapse (desktop) or close (phone) on the right. */}
-        <div style={{ flexShrink: 0, padding: isDesktop ? "26px 12px 0 18px" : "20px 12px 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-          <span className={railBusy ? "fs-think-pulse" : undefined} style={{ display: "inline-flex" }}>
-            <WaveAvatar />
-          </span>
-          <div style={{
-            flex: 1, minWidth: 0,
-            fontFamily: "'Geist', sans-serif", fontWeight: 700, fontSize: "19px",
-            lineHeight: 1.15, letterSpacing: "-0.02em", color: "#16171A",
-          }}>Flowy</div>
-          <button
-            type="button"
-            onClick={() => (isDesktop ? setConvoPanelOpen(false) : setConvoDrawer(false))}
-            title={isDesktop ? "Hide conversations" : "Close"}
-            aria-label={isDesktop ? "Hide conversations" : "Close"}
-            className="fs-ghost inline-flex items-center justify-center border-none cursor-pointer"
-            style={{ width: "30px", height: "30px", borderRadius: "8px", background: "transparent", color: "#737373", padding: 0, flexShrink: 0 }}
-          >
-            {isDesktop ? <ChevronsLeft className="w-4 h-4" strokeWidth={2} /> : <X className="w-4 h-4" strokeWidth={2} />}
-          </button>
+        {isDesktop && (
+          <div style={{ flexShrink: 0, padding: "26px 12px 0 18px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className={railBusy ? "fs-think-pulse" : undefined} style={{ display: "inline-flex" }}>
+              <WaveAvatar />
+            </span>
+            <div style={{
+              flex: 1, minWidth: 0,
+              fontFamily: "'Geist', sans-serif", fontWeight: 700, fontSize: "19px",
+              lineHeight: 1.15, letterSpacing: "-0.02em", color: "#16171A",
+            }}>Flowy</div>
+            {closeBtn}
+          </div>
+        )}
+        <div style={{ flexShrink: 0, padding: isDesktop ? "14px 10px 0" : "20px 8px 0", display: "flex", alignItems: "center", gap: "6px" }}>
+          {newBtn}
+          {!isDesktop && closeBtn}
         </div>
-        {/* Row 2: + New, in soft purple. */}
-        <div style={{ flexShrink: 0, padding: isDesktop ? "14px 10px 0" : "14px 8px 0" }}>
-          <button
-            type="button"
-            onClick={() => startNewChat()}
-            className="fs-newchat"
-            aria-label="New chat"
-            style={{
-              display: "flex", alignItems: "center", gap: "8px", width: "100%", height: "36px",
-              padding: "0 10px", borderRadius: "8px", border: "none", cursor: "pointer",
-              background: "#F3E8FF", color: "#7E22CE",
-              fontFamily: "'Geist', sans-serif", fontSize: "13.5px", fontWeight: 500, textAlign: "left",
-            }}
-          >
-            <Plus size={15} strokeWidth={2.2} style={{ flexShrink: 0 }} />
-            New
-          </button>
-        </div>
-        {/* Recents label, right above the list: darker and bolder than the rows under it. */}
         <div style={{
           flexShrink: 0, padding: isDesktop ? "20px 20px 6px" : "20px 18px 6px",
           fontFamily: "'Geist', sans-serif", fontSize: "13px", fontWeight: 600, color: "#171717",
-        }}>
-          Recents
-        </div>
+        }}>Recents</div>
         <div className="fs-thinscroll" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "0 8px 16px" }}>
           {convoListReady && convoRows.length === 0 && (
             <div style={{ padding: "10px", fontFamily: "'Geist', sans-serif", fontSize: "13px", color: "#a3a3a3" }}>No conversations yet</div>
@@ -9447,7 +9452,6 @@ export default function Block() {
         .fs-outline:hover { border-color: #171717 !important; }
         /* Kanban: the column's + and the thin scrollbars inside and under it. */
         .fs-ghost:hover { background: #F4F4F5 !important; }
-        .fs-newchat:hover { background: #EBDCFD !important; }
         .fs-thinscroll::-webkit-scrollbar { height: 6px; width: 6px; }
         .fs-thinscroll::-webkit-scrollbar-thumb { background: #DCDEE3; border-radius: 999px; }
         .fs-thinscroll::-webkit-scrollbar-track { background: transparent; }
@@ -28453,15 +28457,15 @@ function ScriptModal({
   );
 }
 
-// Flowy's lines type one at a time: each reveal waits for the previous line to
-// finish before it begins, so two or three lines never type at once (Karen
-// 2026-10-24). Module-level so sibling BotLines share the same running clock.
-let flowyTypeChainEndsAt = 0;
 // A line of Flowy's chat. `reveal` turns on the soft character-by-character
 // walk (Karen 2026-10-24, three motion effects). Pure text lines reveal with a
 // soft caret; non-string children fall back to the old fade. The reveal only
 // runs on first mount — if the line is already in the thread (resumed chat,
 // re-render), it shows at full opacity, so saved history never retypes.
+// Flowy's lines type one at a time: each reveal waits for the previous line to
+// finish before it begins, so two or three lines never type at once (Karen
+// 2026-10-24). Module-level so sibling BotLines share the same running clock.
+let flowyTypeChainEndsAt = 0;
 function BotLine({
   children,
   delayIndex = 0,
@@ -30875,16 +30879,11 @@ function RailFlowyLine({ children, delayIndex = 0 }: { children: React.ReactNode
 
 // ── Create Media (Karen 2026-10-22, the approved mockup create_media_mock.html) ─────────────────────────────
 // The rail's second route: the workspace, the brand, video or static, how many, then one card per item. The
-// button under the cards wakes up once every card has what it needs. Editing and designing are not connected
-// yet, so that button only says so and sends nothing, and nothing is written to Airtable. Footage stays on the
-// device: it shows as a preview and is never uploaded. Write with Flowy on the slides is live: the FD5 slides
-// writer answers with words only and saves nothing. The results (Ready to Schedule, Re-do) are built and show
-// only with ?mediaResults=1 until the edit and design calls are wired in, then MEDIA_RESULTS_LIVE turns them on.
-const MEDIA_RESULTS_LIVE = false;
-const mediaResultsOn = (): boolean => {
-  if (MEDIA_RESULTS_LIVE) return true;
-  try { return new URLSearchParams(window.location.search).has("mediaResults"); } catch { return false; }
-};
+// button under the cards wakes up once every card has what it needs. It moves them to the Production board
+// (Active, To Edit or To Design) and shows "Open in Production board". The Studio's Edit and Design buttons
+// trigger the actual n8n editing and designing calls. Write with Flowy on the slides is live (FD5).
+// The Production board page, where Edit and Design start from.
+const STUDIO_PAGE = "/creative-studio";
 const MEDIA_MAX = 10;
 // The Studio's own names and words (creative-hub-v1.tsx EDIT_STYLES and FLOWY_LOOKS), the first sentence of each.
 const MEDIA_EDIT_TYPES: { key: string; name: string; says: string }[] = [
@@ -30892,6 +30891,18 @@ const MEDIA_EDIT_TYPES: { key: string; name: string; says: string }[] = [
   { key: "talking", name: "Talking Clips", says: "Your clips cut together, with a hook and captions." },
   { key: "voiceover", name: "Clips and Voiceover", says: "Your clips under your voiceover, with a hook and captions." },
 ];
+// The card's general field defaults, written to its Content record on hand-off so
+// the edit/design flow and the board read a real Format, Delivery Style and
+// Subformat (Karen 2026-10-24). Subformat links by exact Subformats record id.
+const MEDIA_VIDEO_DEFAULTS: Record<string, { deliveryStyle: string; format: string; subformat: string }> = {
+  loop:      { deliveryStyle: "No-talking Video", format: "Loop Broll",   subformat: "recsNT9DQ2TihS1qI" }, // Loop Broll - General (for recreate)
+  talking:   { deliveryStyle: "Talking Video",    format: "Talking Head", subformat: "rec8WKxXzBLkWsj44" }, // Talking Head - Extended Value
+  voiceover: { deliveryStyle: "Talking Video",    format: "Tutorial",     subformat: "recqQoZDDshivjgWG" }, // Talking Head - Tutorial
+};
+const MEDIA_STATIC_DEFAULTS: Record<"carousel" | "graphic", { format: string; subformat: string }> = {
+  carousel: { format: "Storytelling Carousel", subformat: "recpUgfyuxLlkt8Dh" }, // Carousel General - for recreate
+  graphic:  { format: "Visual Explainer",      subformat: "recsS1eGvomdplVuD" }, // Still graphic for recreate
+};
 const MEDIA_LOOKS: { key: string; name: string; says: string }[] = [
   { key: "listicle", name: "List", says: "Numbered points, one per slide." },
   { key: "quotes", name: "Text-lead", says: "Short, bold lines that carry each slide on their own." },
@@ -30926,6 +30937,10 @@ type MediaCard = {
   // on the board, so Start Over leaves it there.
   recordId: string; handed: boolean;
   clips: MediaFile[]; editType: string;
+  // The on-screen line for a Loop clip, and the clip ids that keep their own
+  // sound under a voiceover (item 7 — the decisions Flowy can't make). Clip
+  // order is the order of the `clips` array.
+  overlayLine: string; keepSound: string[];
   format: "carousel" | "graphic"; look: string; groups: string[]; pieces: Record<string, string>;
   photos: MediaFile[]; copyReady: boolean;
   // The results, built for when editing and designing are wired in.
@@ -30957,7 +30972,7 @@ const newMediaCard = (i: number, recordId = ""): MediaCard => ({
   // Every card starts closed, and Flowy's line above them says what to do (Karen, 2026-10-23).
   id: "m" + i + "-" + Math.random().toString(36).slice(2, 7), open: false, recordId, handed: false,
   // The Studio's carousel: the cover, one slide and the closing (creative-hub-v1.tsx copyEditor).
-  clips: [], editType: "", format: "carousel", look: "", groups: ["cover", "s1", "closing"], pieces: {},
+  clips: [], editType: "", overlayLine: "", keepSound: [], format: "carousel", look: "", groups: ["cover", "s1", "closing"], pieces: {},
   photos: [], copyReady: false, result: null, redo: false, redoNote: "",
 });
 const mediaGroupsOf = (c: MediaCard) => (c.format === "graphic" ? ["s1"] : c.groups);
@@ -30967,9 +30982,14 @@ function mediaMissing(kind: "video" | "static" | null, c: MediaCard): string[] {
   if (kind === "video") {
     if (!c.clips.length) m.push("footage");
     if (!c.editType) m.push("edit type");
+    // A Loop clip needs its one on-screen line; Flowy can't invent the words.
+    if (c.editType === "loop" && !c.overlayLine.trim()) m.push("the on-screen line");
     return m;
   }
-  if (!c.look) m.push("design style");
+  // The design style / look is NOT required: Flowy decides it unless the user
+  // personalizes (Karen 2026-10-24, item 7 — design and styles are never
+  // mandatory). Only the copy the user must write, plus a photo if they DID
+  // pick the story look, are required.
   const groups = mediaGroupsOf(c);
   const words = groups.filter((g) => g !== "closing").every((g) => String(c.pieces[mediaPieceKey(g, "Title")] || "").trim());
   if (!words) m.push("copy");
@@ -31010,7 +31030,7 @@ function MediaTileArt({ k }: { k: string }) {
 // "Flowy decides": Flowy's own wordmark, the colour-cycling wave and the mono caps, as the rail's header wears it.
 function MediaFlowyDecides() {
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontFamily: "'Geist Mono', monospace", fontSize: "11.5px", fontWeight: 400, letterSpacing: "0.1em", textTransform: "uppercase", color: "#171717", whiteSpace: "nowrap" }}>
+    <span data-fs-animate="true" style={{ display: "inline-flex", alignItems: "center", gap: "7px", fontFamily: "'Geist Mono', monospace", fontSize: "9.5px", fontWeight: 400, letterSpacing: "0.1em", textTransform: "uppercase", color: "#171717", whiteSpace: "nowrap", animation: "fsPulseDot 1.6s ease-in-out infinite" }}>
       <svg viewBox="0 0 31 8" fill="none" aria-hidden="true" style={{ width: "30px", height: "9px", flexShrink: 0, filter: "drop-shadow(0 0 4px rgba(168,85,247,.25))" }}>
         <defs>
           <linearGradient id="mediaWaveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -31135,8 +31155,13 @@ function MediaPickerSheet({ title, subtitle, only, onCard, dropped, isDesktop, o
 
   // ── The reads, as the Studio does them: newest first, re-read on every open, a plain read behind the sorted one ──
   const libraryRead = useRecords({ from: ds.uploads, select: filesSelect, count: 200, sort: [{ fieldId: "Created date", direction: "desc" }] as any });
+  // Pull every page, not just the first, so My Uploads shows the whole library,
+  // not a first slice (Karen 2026-10-24). Workspace scoping is Softr's row
+  // visibility on Uploads, same as the Studio's own picker.
+  useAllPages(libraryRead as any);
   const libraryFailed = !!(libraryRead as any)?.error;
   const libraryPlainRead = useRecords({ from: ds.uploads, select: filesSelect, count: 200, enabled: libraryFailed });
+  useAllPages(libraryPlainRead as any);
   const plainFailed = libraryFailed && !!(libraryPlainRead as any)?.error;
   const libraryRows: any[] = useMemo(() => {
     const src = libraryFailed ? (libraryPlainRead as any) : (libraryRead as any);
@@ -31145,6 +31170,7 @@ function MediaPickerSheet({ title, subtitle, only, onCard, dropped, isDesktop, o
   const libraryLoading = !plainFailed && !(libraryFailed ? (libraryPlainRead as any)?.data : (libraryRead as any)?.data);
   const mediaReady = ds.flowshiftMedia !== MEDIA_LIBRARY_DS_UNSET;
   const mediaRead = useRecords({ from: ds.flowshiftMedia, select: mediaLibrarySelect, count: 200, enabled: tab === "media" && mediaReady });
+  useAllPages(mediaRead as any);
   const mediaRows: any[] = useMemo(() => ((mediaRead as any)?.data?.pages?.flatMap((pg: any) => pg.items) ?? []), [(mediaRead as any)?.data]);
   const mediaFailed = !!(mediaRead as any)?.error;
   const mediaLoading = tab === "media" && mediaReady && !mediaFailed && !(mediaRead as any)?.data;
@@ -31526,10 +31552,15 @@ const mediaRecordUpdateFields = q.select({
   status: "Status",
   postProductionStatus: "Post-production status",
   deliveryStyle: "Delivery Style",
+  format: "Format",
   visibility: "Visibility",
   discardedDate: "Discarded date",
 });
 const mediaOrderFields = q.select({ flowyOrder: "Flowy edit order" });
+// Subformat is a link; it goes through its own single-field update hook so Softr
+// does not disable the main update hook (a link in a multi-field update select
+// disables it). Links write as an array of record ids.
+const mediaSubformatLinkFields = q.select({ subformat: "Subformat" });
 const mediaUploadsLinkFields = q.select({ uploads: "Uploads" });
 const mediaPairBareFields = q.select({ content: "Content", upload: "Upload", usedAs: "Used as" });
 const mediaPairDetachFields = q.select({ content: "Content" });
@@ -31581,19 +31612,15 @@ function CreateMediaRoute({
   //     Format: deliveryStyle "Carousel" or "Still Graphic" (the rail's draftFields).
   //     Slide words: the piece fields (Cover Title, Slide 1 Title, Closing CTA...) through pieceWriteFields, the
   //     same map as the rail's railPieceUpdate, saved a moment after typing stops.
-  //  4. Edit N now / Design N now: no edit or design call (MEDIA_RESULTS_LIVE is false), and ON HOLD the records stay
-//     Hidden where they are (Karen 2026-10-23). Once live, each record is put
-  //     where the Studio's Edit and Design buttons start from: visibility "Active" (the rail's Add, this file),
-  //     video stage "To Edit" with postProductionStatus "Creatives Queue" (ppValueFor), static stays "To Design".
-  //     The order is rewritten whole: video {"style"}, static {"design": true, "designLook"}. The future call
-  //     adds "sentAt" to the order and moves the stage to "In Progress" (postProductionStatus "In Progress"),
-  //     as the Studio's onStatus("In Progress") does once the job is taken.
+  //  4. Edit N now / Design N now: each record goes Active on the board in To Edit (videos) or To Design
+  //     (statics), with the order written. The Studio's Edit and Design buttons trigger the n8n calls.
   //  5. Start Over: every record not yet handed over gets visibility "Deleted" and discardedDate now (the
   //     board's discard in this file, never a hard delete). A record that lands after Start Over goes the same way.
   const mediaCreate = useRecordCreate({ from: ds.content, fields: mediaRecordCreateFields });
   const mediaCreateBare = useRecordCreate({ from: ds.content, fields: mediaRecordBareFields });
   const mediaUpdate = useRecordUpdate({ from: ds.content, fields: mediaRecordUpdateFields });
   const mediaOrder = useRecordUpdate({ from: ds.content, fields: mediaOrderFields });
+  const mediaSubformatLink = useRecordUpdate({ from: ds.content, fields: mediaSubformatLinkFields });
   const mediaPieces = useRecordUpdate({ from: ds.content, fields: pieceWriteFields });
   const mediaUploadsLink = useRecordUpdate({ from: ds.content, fields: mediaUploadsLinkFields });
   const mediaPairCreate = useRecordCreate({ from: ds.scriptFiles, fields: scriptFileCreateFields });
@@ -31625,7 +31652,7 @@ function CreateMediaRoute({
   const S = state;
   const noun = (n: number) => (S.kind === "video" ? (n === 1 ? "video" : "videos") : (n === 1 ? "design" : "designs"));
   const itemName = (i: number) => `${S.kind === "video" ? "Video" : "Design"} ${i + 1}`;
-  const showResults = mediaResultsOn();
+  const studioUrl = (recordId?: string) => { try { return `${window.location.origin}${STUDIO_PAGE}${recordId ? `?record=${recordId}` : ""}`; } catch { return STUDIO_PAGE; } };
   const say = (lines: MediaLine[]) => setState((s) => ({ ...s, after: [...s.after, ...lines] }));
   const patchCard = (id: string, patch: Partial<MediaCard> | ((c: MediaCard) => Partial<MediaCard>)) =>
     setState((s) => ({ ...s, cards: s.cards.map((c) => (c.id === id ? { ...c, ...(typeof patch === "function" ? patch(c) : patch) } : c)) }));
@@ -31703,11 +31730,35 @@ function CreateMediaRoute({
   };
   const discardRecord = (recordId: string) => recUpdate(recordId, { visibility: "Deleted", discardedDate: new Date().toISOString() }, "the discard");
   const orderOf = (c: MediaCard, handing = false): Record<string, any> => (S.kind === "video"
-    ? (c.editType ? { style: c.editType } : {})
+    ? (c.editType ? {
+        style: c.editType,
+        // Footage in the order the user set it (the clips array order).
+        clips: c.clips.map((f) => f.uploadId || f.id),
+        // Loop: the one line that sits over the clip. Voiceover: the clips that
+        // keep their own sound under the voiceover.
+        ...(c.editType === "loop" && c.overlayLine.trim() ? { overlay: c.overlayLine.trim() } : {}),
+        ...(c.editType === "voiceover" ? { sound: c.keepSound } : {}),
+      } : {})
     : { ...(handing ? { design: true } : {}), ...(c.look ? { designLook: c.look } : {}) });
   const writeOrder = (c: MediaCard, handing = false) => {
     if (c.recordId) mediaOrder.mutate({ recordId: c.recordId, fields: { flowyOrder: JSON.stringify(orderOf(c, handing)) } }, { onError: warn("the Flowy edit order") });
   };
+  // Reorder a card's clips (the clips array order is the clip order), and toggle
+  // which clips keep their own sound under a voiceover. Both persist the order.
+  const moveClip = (c: MediaCard, i: number, dir: 1 | -1) => {
+    const j = i + dir;
+    if (j < 0 || j >= c.clips.length) return;
+    const arr = [...c.clips];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    patchCard(c.id, { clips: arr });
+    writeOrder({ ...c, clips: arr });
+  };
+  const toggleSound = (c: MediaCard, key: string) => {
+    const next = c.keepSound.includes(key) ? c.keepSound.filter((k) => k !== key) : [...c.keepSound, key];
+    patchCard(c.id, { keepSound: next });
+    writeOrder({ ...c, keepSound: next });
+  };
+  const onOverlayBlur = (id: string) => { const cc = cardsRef.current.find((x) => x.id === id); if (cc) writeOrder(cc); };
   const flushPieces = (cardId: string) => {
     const q0 = pieceQueueRef.current[cardId];
     if (!q0) return;
@@ -31791,14 +31842,21 @@ function CreateMediaRoute({
     const vid = S.kind === "video";
     const run = ++createRunRef.current;
     setState((s) => ({ ...s, creating: true }));
-    const ids = await Promise.all(Array.from({ length: n }, (_, i) => makeRecord({
-      ...(vid
-        ? { stage: "Attach Raw", status: "Post Production", postProductionStatus: "New Shots", contentType: "Video" }
-        : { stage: "To Design", status: "Post Production", postProductionStatus: "To Design", contentType: "Graphic", deliveryStyle: "Carousel" }),
-      visibility: "Hidden", source: "Manual-Original", recordType: "Original script", version: "Active",
-      ...(S.brandId ? { brand: [S.brandId] } : {}),
-      customPostName: `Create Media · ${vid ? "Video" : "Design"} ${i + 1}`,
-    })));
+    // One at a time, not Promise.all: these share a single Softr create hook, and
+    // firing it several times at once made all but one come back empty ("3 of 4
+    // cards couldn't be saved"). Sequential keeps every card (Karen 2026-10-24).
+    const ids: (string | null)[] = [];
+    for (let i = 0; i < n; i++) {
+      if (run !== createRunRef.current) break;
+      ids.push(await makeRecord({
+        ...(vid
+          ? { stage: "Attach Raw", status: "Post Production", postProductionStatus: "New Shots", contentType: "Video" }
+          : { stage: "To Design", status: "Post Production", postProductionStatus: "To Design", contentType: "Graphic", deliveryStyle: "Carousel" }),
+        visibility: "Hidden", source: "Manual-Original", recordType: "Original script", version: "Active",
+        ...(S.brandId ? { brand: [S.brandId] } : {}),
+        customPostName: `Create Media · ${vid ? "Video" : "Design"} ${i + 1}`,
+      }));
+    }
     // Started over while they were being made.
     if (run !== createRunRef.current) { ids.forEach((id) => { if (id) discardRecord(id); }); return; }
     const missed = ids.filter((id) => !id).length;
@@ -31821,32 +31879,33 @@ function CreateMediaRoute({
   const go = () => {
     if (!allReady || S.working) return;
     const user: MediaLine = { from: "user", text: goLabel, at: Date.now() };
-    // Each record goes where the Studio's Edit and Design start from (the map at the top): on the board, in
-    // To Edit or To Design, with the whole order. Nothing is sent to Flowy yet.
     for (const c of S.cards) {
       flushPieces(c.id);
       if (!c.recordId || c.handed) continue;
-      // On hold (Karen 2026-10-23): until editing and designing are connected the records stay Hidden where they
-      // are, so nothing lands on the board or in the editors' queue. Only the order and the words are saved.
-      if (!MEDIA_RESULTS_LIVE) { writeOrder(c, true); continue; }
+      // The general defaults for this card's type: Delivery Style, Format and
+      // Subformat, so the edit/design flow and the board read a real format.
+      const staticKey: "carousel" | "graphic" = c.format === "graphic" ? "graphic" : "carousel";
+      const def = S.kind === "video" ? MEDIA_VIDEO_DEFAULTS[c.editType] : MEDIA_STATIC_DEFAULTS[staticKey];
       recUpdate(c.recordId, S.kind === "video"
-        ? { visibility: "Active", stage: "To Edit", status: "Post Production", postProductionStatus: "Creatives Queue" }
-        : { visibility: "Active", stage: "To Design", status: "Post Production", postProductionStatus: "To Design", deliveryStyle: c.format === "graphic" ? "Still Graphic" : "Carousel" }, "the hand-over");
+        ? { visibility: "Active", stage: "To Edit", status: "Post Production", postProductionStatus: "Creatives Queue",
+            ...(def ? { deliveryStyle: (def as any).deliveryStyle, format: def.format } : {}) }
+        : { visibility: "Active", stage: "To Design", status: "Post Production", postProductionStatus: "To Design",
+            deliveryStyle: staticKey === "graphic" ? "Still Graphic" : "Carousel",
+            ...(def ? { format: def.format } : {}) }, "the hand-over");
+      // Subformat is a link, written on its own hook (see mediaSubformatLink).
+      if (def && def.subformat) mediaSubformatLink.mutate({ recordId: c.recordId, fields: { subformat: [def.subformat] } }, { onError: warn("the subformat") });
       writeOrder(c, true);
     }
-    if (MEDIA_RESULTS_LIVE) setState((s) => ({ ...s, cards: s.cards.map((c) => (c.recordId ? { ...c, handed: true } : c)) }));
-    if (showResults) {
-      setState((s) => ({ ...s, after: [...s.after, user, { from: "flowy", at: Date.now(), text: `On it. I'm ${s.kind === "video" ? "cutting" : "designing"} ${s.cards.length === 1 ? "it" : "them"} now.` }],
-        cards: s.cards.map((c) => ({ ...c, open: false })), working: { ids: s.cards.map((c) => c.id), idx: 0, startedAt: Date.now() } }));
-      return;
-    }
-    // Not connected yet (Karen 2026-10-22): nothing is sent and the cards stay as they are.
-    const text = S.kind === "video"
-      ? "Got it. Editing is being connected, so nothing was sent yet. Your cards stay here."
-      : "Got it. Designing is being connected, so nothing was sent yet. Your cards stay here.";
-    const last = S.after[S.after.length - 1];
-    if (last && last.text === text) return;
-    say([user, { from: "flowy", text, at: Date.now() }]);
+    const n = S.cards.length;
+    const where = S.kind === "video" ? "To Edit" : "To Design";
+    const text = n === 1
+      ? `Done! Your ${S.kind === "video" ? "video" : "design"} is on the Production board in ${where}. Open it there to start ${S.kind === "video" ? "editing" : "designing"}.`
+      : `Done! Your ${n} ${noun(n)} are on the Production board in ${where}. Open them there to start ${S.kind === "video" ? "editing" : "designing"}.`;
+    setState((s) => ({
+      ...s,
+      cards: s.cards.map((c) => (c.recordId ? { ...c, handed: true, open: false } : c)),
+      after: [...s.after, user, { from: "flowy", text, at: Date.now() }],
+    }));
   };
 
   // Write with Flowy (FD5, the Studio's slides writer): one slide or all of them, copy only, nothing saved.
@@ -32086,10 +32145,11 @@ function CreateMediaRoute({
     </>
   );
   const bottomRow = (label: string) => (
-    // Flowy decides first, Personalize on the right, greyed until it is built (Karen 2026-10-22).
-    <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap", marginTop: "18px", paddingTop: "14px", borderTop: "1px solid #f4f4f4" }}>
-      <MediaFlowyDecides />
+    // "Flowy decides" sits right before the Personalize button, pushed to the
+    // right (Karen 2026-10-24). Personalize is greyed until it is built.
+    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "18px", paddingTop: "14px", borderTop: "1px solid #f4f4f4" }}>
       <span style={{ flex: 1 }} />
+      <MediaFlowyDecides />
       <button type="button" aria-disabled="true" title="Coming soon" style={offSm}>{label}</button>
     </div>
   );
@@ -32253,6 +32313,45 @@ function CreateMediaRoute({
       {sec("Footage", req(c.clips.length ? "ok" : "miss", c.clips.length ? "Added" : "Required"), footage(c, "clips"))}
       {sec("Edit Type", req(c.editType ? "ok" : "miss", c.editType ? (MEDIA_EDIT_TYPES.find((x) => x.key === c.editType) || { name: "" }).name : "Required · Pick one"),
         tiles("Edit Type", MEDIA_EDIT_TYPES, c.editType, (k) => { patchCard(c.id, { editType: k }); writeOrder({ ...c, editType: k }); }))}
+      {/* Loop: the one line that sits over the clip (Flowy can't invent the words). */}
+      {c.editType === "loop" && sec("On-screen line",
+        req(c.overlayLine.trim() ? "ok" : "miss", c.overlayLine.trim() ? "Set" : "Required"),
+        <input
+          value={c.overlayLine}
+          onChange={(e) => patchCard(c.id, { overlayLine: e.target.value })}
+          onBlur={() => onOverlayBlur(c.id)}
+          placeholder="The line that sits over your clip"
+          style={{ width: "100%", boxSizing: "border-box", border: "1px solid #E4E4E7", borderRadius: "8px", padding: "9px 11px", fontFamily: "'Geist', sans-serif", fontSize: "14px", color: "#171717", outline: "none" }}
+        />)}
+      {/* Talking / Voiceover with two or more clips: the order they play in. */}
+      {(c.editType === "talking" || c.editType === "voiceover") && c.clips.length >= 2 && sec("Clip order",
+        req("", "Tap the arrows to set the play order"),
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {c.clips.map((f, i) => (
+            <div key={f.id} style={{ display: "flex", alignItems: "center", gap: "8px", border: "1px solid #EEEEEE", borderRadius: "8px", padding: "7px 9px" }}>
+              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: "11px", color: "#A855F7", width: "16px", flexShrink: 0 }}>{i + 1}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: "13.5px", color: "#171717", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => moveClip(c, i, -1)} className="border-none bg-transparent" style={{ cursor: i === 0 ? "default" : "pointer", opacity: i === 0 ? 0.3 : 1, color: "#525252", padding: "2px" }}><ChevronUp className="w-4 h-4" strokeWidth={2} /></button>
+              <button type="button" aria-label="Move down" disabled={i === c.clips.length - 1} onClick={() => moveClip(c, i, 1)} className="border-none bg-transparent" style={{ cursor: i === c.clips.length - 1 ? "default" : "pointer", opacity: i === c.clips.length - 1 ? 0.3 : 1, color: "#525252", padding: "2px" }}><ChevronDown className="w-4 h-4" strokeWidth={2} /></button>
+            </div>
+          ))}
+        </div>)}
+      {/* Voiceover: which clips keep their own sound; the rest go under the voiceover. */}
+      {c.editType === "voiceover" && c.clips.length > 0 && sec("Keep original sound",
+        req("", "Optional · the rest play under your voiceover"),
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {c.clips.map((f) => {
+            const key = f.uploadId || f.id;
+            const on = c.keepSound.includes(key);
+            return (
+              <button key={f.id} type="button" onClick={() => toggleSound(c, key)} className="border-none"
+                style={{ display: "flex", alignItems: "center", gap: "9px", border: "1px solid " + (on ? "#A855F7" : "#EEEEEE"), borderRadius: "8px", padding: "8px 10px", background: on ? "#FAF5FF" : "white", cursor: "pointer", textAlign: "left" }}>
+                <span aria-hidden="true" style={{ width: "16px", height: "16px", borderRadius: "5px", border: "1.5px solid " + (on ? "#A855F7" : "#D4D4D8"), background: on ? "#A855F7" : "white", flexShrink: 0, display: "grid", placeItems: "center" }}>{on && <Check size={11} strokeWidth={3} style={{ color: "white" }} />}</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: "13.5px", color: "#171717", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              </button>
+            );
+          })}
+        </div>)}
       {bottomRow("Personalize edit")}
     </>
   );
@@ -32280,109 +32379,32 @@ function CreateMediaRoute({
     );
   };
 
-  // ── A result on its own card: drawn thumbnails (never pictures), Re-do and Ready to Schedule ──
-  const resultBlock = (c: MediaCard, i: number) => {
-    const r = c.result!;
-    const vid = S.kind === "video";
-    const groups = mediaGroupsOf(c);
-    const sthumb = (k: number, cover: boolean, big?: boolean) => (
-      <div key={k} style={{ position: "relative", width: big ? "96px" : "84px", height: big ? "120px" : "105px", borderRadius: "7px", overflow: "hidden", flexShrink: 0, background: cover ? "#2b2540" : "#F5F1EA", boxShadow: "0 0 0 1px #ece7de", padding: "9px 8px", boxSizing: "border-box" }}>
-        <div style={{ height: cover ? "8px" : "6px", borderRadius: "2px", background: cover ? "#fff" : "#2b2540", marginBottom: "4px" }} />
-        <div style={{ height: cover ? "8px" : "6px", width: "70%", borderRadius: "2px", background: cover ? "#fff" : "#2b2540", marginBottom: "4px" }} />
-        <div style={{ height: "3px", borderRadius: "2px", background: cover ? "rgba(255,255,255,.55)" : "#b9b2a6", marginBottom: "3px" }} />
-        <div style={{ height: "3px", width: "80%", borderRadius: "2px", background: cover ? "rgba(255,255,255,.55)" : "#b9b2a6" }} />
-        {!big && <span style={{ position: "absolute", right: "6px", bottom: "5px", fontFamily: "'Geist Mono', monospace", fontSize: "8.5px", color: cover ? "rgba(255,255,255,.6)" : "#8b8478" }}>{k + 1}</span>}
-      </div>
-    );
-    const queuedText = r.queued === "captions" ? "Queued to schedule. Flowy writes the captions." : "Queued to schedule.";
-    return (
-      <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", flexWrap: "wrap", padding: "14px", borderTop: "1px solid #f4f4f4" }}>
-        <div className="fs-thinscroll" style={{ display: "flex", gap: "8px", overflowX: "auto", maxWidth: "100%", paddingBottom: "2px" }}>
-          {vid ? (
-            <div style={{ position: "relative", width: "84px", height: "150px", borderRadius: "9px", overflow: "hidden", flexShrink: 0, background: "linear-gradient(165deg,#56636e,#22303a)" }}>
-              <div style={{ position: "absolute", left: "7px", right: "7px", top: "16px", height: "16px", borderRadius: "4px", background: "#fff" }} />
-              <span aria-hidden="true" style={{ position: "absolute", left: "50%", top: "54%", transform: "translate(-40%,-50%)", borderLeft: "14px solid rgba(255,255,255,.85)", borderTop: "9px solid transparent", borderBottom: "9px solid transparent" }} />
-              <div style={{ position: "absolute", left: "12px", right: "12px", bottom: "34px", height: "5px", borderRadius: "2px", background: "#FACC15" }} />
-              <div style={{ position: "absolute", left: "18px", right: "18px", bottom: "26px", height: "4px", borderRadius: "2px", background: "rgba(255,255,255,.9)" }} />
-            </div>
-          ) : c.format === "carousel" ? groups.map((_, k) => sthumb(k, k === 0)) : sthumb(0, true, true)}
-        </div>
-        <div style={{ flex: 1, minWidth: "160px", display: "flex", flexDirection: "column", gap: "6px" }}>
-          <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "13.5px", fontWeight: 500, color: "#171717" }}>
-            {vid ? "Edited video" : c.format === "carousel" ? "Designed carousel" : "Designed graphic"}{r.version > 1 ? ` · Version ${r.version}` : ""}
-          </span>
-          <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "12.5px", color: "#737373", lineHeight: 1.45 }}>
-            {vid ? "9:16 · attached to this card" : c.format === "carousel" ? `${groups.length} slides · 4:5 · attached to this card` : "4:5 · attached to this card"}
-          </span>
-          {r.queued ? (
-            <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "12.5px", color: "#047857", lineHeight: 1.45 }}>
-              {queuedText}{" "}
-              <button type="button" onClick={() => { patchCard(c.id, { result: { ...r, queued: "" } }); say([{ from: "flowy", at: Date.now(), text: `${itemName(i)} is off the schedule queue.` }]); }} style={{ ...linkBtn, fontSize: "12.5px" }}>Undo</button>
-            </span>
-          ) : c.redo ? (
-            // Re-do: a design takes a note on what to change, a video is just cut again (Karen 2026-10-22).
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
-              {vid ? (
-                <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "13px", color: "#525252", lineHeight: 1.45 }}>Re-do this video? Flowy cuts it again from the same footage.</span>
-              ) : (
-                <AutoGrowTextarea autoFocus value={c.redoNote} aria-label="What should change?"
-                  onChange={(e: any) => patchCard(c.id, { redoNote: e.target.value })}
-                  placeholder="What should change?"
-                  style={{ display: "block", width: "100%", boxSizing: "border-box", minHeight: "60px", border: "1px solid #ededed", borderRadius: "10px", padding: "8px 10px", outline: "none", background: "white", fontFamily: "'Geist', sans-serif", fontSize: "14px", lineHeight: 1.45, color: "#171717" }} />
-              )}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", flexWrap: "wrap" }}>
-                <button type="button" onClick={() => patchCard(c.id, { redo: false, redoNote: "" })} style={{ ...outlineSm, border: "none", color: "#737373" }}>Cancel</button>
-                <button type="button" disabled={!vid && !c.redoNote.trim()}
-                  onClick={() => {
-                    if (!vid && !c.redoNote.trim()) return;
-                    patchCard(c.id, { redo: false, redoNote: "", result: { version: r.version + 1, queued: "" } });
-                    say([{ from: "flowy", at: Date.now(), text: vid ? `Re-doing ${itemName(i).toLowerCase()}. The new cut lands on its card.` : `Re-doing ${itemName(i).toLowerCase()} with your note. The new version lands on its card.` }]);
-                  }}
-                  style={gradSm(!vid && !c.redoNote.trim())}><RotateCcw size={13} strokeWidth={2.2} /> Re-do This One</button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
-              <button type="button" onClick={() => { setMenuFor(null); patchCard(c.id, { redo: true }); }} style={outlineSm}><RotateCcw size={13} strokeWidth={2.2} /> Re-do</button>
-              {/* The Add to Production split button's look: its list opens above it. */}
-              <div ref={menuFor === c.id ? menuWrapRef : undefined} style={{ position: "relative", display: "inline-flex", borderRadius: "8px", boxShadow: "0 6px 16px -8px rgba(168,85,247,0.7)" }}>
-                <button type="button" aria-haspopup="menu" aria-expanded={menuFor === c.id ? "true" : "false"} onClick={() => setMenuFor(menuFor === c.id ? null : c.id)}
-                  style={{ ...gradSm(), padding: "0 10px 0 12px" }}>
-                  <Check size={13} strokeWidth={2.4} /> Ready to Schedule
-                  <ChevronUp size={14} strokeWidth={2.4} style={{ marginLeft: "2px", transform: menuFor === c.id ? "rotate(180deg)" : "none", transition: "transform 0.18s ease" }} />
-                </button>
-                {menuFor === c.id && (
-                  <div role="menu" style={{ position: "absolute", right: 0, bottom: "38px", zIndex: 40, minWidth: "230px", background: "white", border: "1px solid #ededed", borderRadius: "12px", overflow: "hidden", boxShadow: "0 1px 2px rgba(22,23,26,.04),0 12px 28px -16px rgba(30,32,40,.28)", animation: "fsBubbleIn 0.16s cubic-bezier(0.16,1,0.3,1) both" }}>
-                    <button role="menuitem" className="fs-menu-row" style={menuRow}
-                      onClick={() => { setMenuFor(null); patchCard(c.id, { result: { ...r, queued: "queue" } }); say([{ from: "flowy", at: Date.now(), text: `${itemName(i)} is queued to schedule.` }]); }}>
-                      <Calendar size={15} strokeWidth={2} style={{ color: "#A855F7" }} /> Queue
-                    </button>
-                    <button role="menuitem" className="fs-menu-row" style={{ ...menuRow, borderTop: "1px solid #f4f4f4" }}
-                      onClick={() => { setMenuFor(null); patchCard(c.id, { result: { ...r, queued: "captions" } }); say([{ from: "flowy", at: Date.now(), text: `${itemName(i)} is queued, and I'm writing its captions.` }]); }}>
-                      <MessageSquare size={15} strokeWidth={2} style={{ color: "#A855F7" }} /> Queue and Create Captions
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const handedBlock = (c: MediaCard) => (
+    <div style={{ padding: "10px 14px", borderTop: "1px solid #f4f4f4", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+      <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "12.5px", color: "#737373" }}>
+        {S.kind === "video" ? "To Edit" : "To Design"} on the board
+      </span>
+      {c.recordId && (
+        <a href={studioUrl(c.recordId)} onClick={(e: any) => { e.preventDefault(); try { window.location.assign(studioUrl(c.recordId)); } catch { /* noop */ } }}
+          style={{ fontFamily: "'Geist', sans-serif", fontSize: "12.5px", fontWeight: 500, color: "#7E22CE", textDecoration: "none" }}>
+          Open
+        </a>
+      )}
+    </div>
+  );
 
   const card = (c: MediaCard, i: number) => {
     const m = mediaMissing(S.kind, c);
     const w = mediaListWords(m);
     const working = !!S.working && S.working.ids.includes(c.id);
     const tag = working ? <span style={runPill}>{S.kind === "video" ? "Editing" : "Designing"}</span>
-      : c.result ? <span style={okPill}>{c.result.queued ? "Queued" : "Ready to review"}</span>
+      : c.handed ? <span style={okPill}>On the board</span>
       : !m.length ? <span style={okPill}>Ready</span>
       : <span style={greyPill} title={`Needs ${w}`}>{w.length <= (isDesktop ? 26 : 16) ? `Needs ${w}` : `Needs ${m.length} things`}</span>;
     const sub = S.kind === "video"
       ? `${c.clips.length ? `${c.clips.length} ${c.clips.length === 1 ? "clip" : "clips"}` : "No footage yet"}${c.editType ? ` · ${(MEDIA_EDIT_TYPES.find((x) => x.key === c.editType) || { name: "" }).name}` : ""}`
       : `${c.format === "carousel" ? `Carousel · ${c.groups.length} slides` : "Single Graphic"}${c.look ? ` · ${(MEDIA_LOOKS.find((x) => x.key === c.look) || { name: "" }).name}` : ""}`;
-    const editable = !c.result && !working;
+    const editable = !c.handed && !working;
     return (
       <div key={c.id} style={{ position: "relative", zIndex: menuFor === c.id ? 5 : undefined, background: "white", border: "1px solid #ededed", borderRadius: "14px", minWidth: 0 }}>
         <button type="button" onClick={() => patchCard(c.id, { open: !c.open })} aria-expanded={c.open ? "true" : "false"} disabled={!editable}
@@ -32395,7 +32417,7 @@ function CreateMediaRoute({
           {tag}
           {editable && <ChevronDown size={15} strokeWidth={2} style={{ color: "#a3a3a3", flexShrink: 0, transform: c.open ? "rotate(180deg)" : "none", transition: "transform 0.15s ease" }} />}
         </button>
-        {c.result && showResults && !working && resultBlock(c, i)}
+        {c.handed && !working && handedBlock(c)}
         {c.open && editable && (
           <div style={{ padding: "2px 14px 16px", borderTop: "1px solid #f4f4f4" }}>
             {S.kind === "video" ? videoBody(c) : staticBody(c)}
@@ -32405,8 +32427,7 @@ function CreateMediaRoute({
     );
   };
 
-  const hasResults = showResults && S.cards.some((c) => c.result);
-  const unqueued = S.cards.filter((c) => c.result && !c.result.queued);
+  const allHanded = S.cards.length > 0 && S.cards.every((c) => c.handed);
   return (
     <>
       {/* The Studio's hovers for the copy section's buttons (creative-hub-v1.tsx ~4919-4981). */}
@@ -32430,27 +32451,14 @@ function CreateMediaRoute({
               />
             </div>
           )}
-          {hasResults && !S.working && (
+          {allHanded && !S.working && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px", margin: "4px 0 16px" }}>
-              {S.redoAll ? (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", flexWrap: "wrap" }}>
-                  <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "13.5px", color: "#525252" }}>{S.cards.length === 2 ? "Re-do both?" : `Re-do all ${S.cards.length}?`}</span>
-                  <button type="button" onClick={() => setState((s) => ({ ...s, redoAll: false }))} style={{ ...outlineSm, border: "none", color: "#737373" }}>Cancel</button>
-                  {/* Re-do All covers every item, queued ones too: once wired, a re-do moves the record back to To Edit and into the editing queue, so it comes off the schedule queue. */}
-                  <button type="button" onClick={() => setState((s) => ({ ...s, redoAll: false, after: [...s.after, { from: "user", text: "Re-do All", at: Date.now() }, { from: "flowy", at: Date.now(), text: s.cards.some((c) => c.result?.queued) ? `Re-doing ${s.cards.length === 2 ? "both" : `all ${s.cards.length}`}, queued ones too. They come off the schedule queue and the new versions land on their cards.` : `Re-doing ${s.cards.length === 2 ? "both" : `all ${s.cards.length}`}. The new versions land on their cards.` }],
-                    cards: s.cards.map((c) => (c.result ? { ...c, redo: false, redoNote: "", result: { version: c.result.version + 1, queued: "" as const } } : c)) }))} style={gradSm()}>Re-do All</button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", flexWrap: "wrap" }}>
-                  <ReplyChip onClick={() => { setMenuFor(null); setState((s) => ({ ...s, redoAll: true })); }}>Re-do All</ReplyChip>
-                  <ReplyChip primary disabled={!unqueued.length} onClick={() => setState((s) => ({ ...s, after: [...s.after, { from: "user", text: "Send All to Schedule", at: Date.now() }, { from: "flowy", at: Date.now(), text: (() => { const n = s.cards.filter((c) => c.result && !c.result.queued).length; return s.cards.length === 1 ? "It's queued to schedule." : n === s.cards.length ? (n === 2 ? "Both are queued to schedule." : `All ${n} are queued to schedule.`) : `${n} more queued to schedule. All ${s.cards.length} are on the queue now.`; })() }],
-                    cards: s.cards.map((c) => (c.result && !c.result.queued ? { ...c, redo: false, result: { ...c.result, queued: "queue" as const } } : c)) }))}>Send All to Schedule</ReplyChip>
-                </div>
-              )}
+              <button type="button" onClick={() => { try { window.location.assign(studioUrl()); } catch { /* noop */ } }}
+                style={{ ...gradSm(), fontSize: "13.5px", padding: "8px 16px" }}>Open in Production board</button>
               <button type="button" onClick={startOver} style={{ ...linkBtn, fontSize: "13px" }}>Start Over</button>
             </div>
           )}
-          {!hasResults && !S.working && (
+          {!allHanded && !S.working && (
             <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: "14px" }}>
               <button type="button" onClick={startOver} style={{ ...linkBtn, fontSize: "13px" }}>Start Over</button>
             </div>
@@ -32461,7 +32469,7 @@ function CreateMediaRoute({
           are ready and the one button that sends them. */}
       <div aria-hidden="true" style={{ height: "20px", flexShrink: 0 }} />
       <div style={railDockStyle(isDesktop)}>
-        {S.step === "cards" && !hasResults && !S.working && (
+        {S.step === "cards" && !allHanded && !S.working && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px", flexWrap: "wrap", marginBottom: "10px" }}>
             <span style={{ fontFamily: "'Geist', sans-serif", fontSize: "13px", color: "#737373", textAlign: "right" }}>
               {allReady ? `All ${S.cards.length} ready` : <><b style={{ color: "#171717" }}>{readyCount}</b> of <b style={{ color: "#171717" }}>{S.cards.length}</b> ready</>}
