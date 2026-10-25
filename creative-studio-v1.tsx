@@ -438,6 +438,8 @@ const contentParentFields = q.select({
 // its own write map (2026-10-24). "Words on screen" for a video is the
 // On-screen hook; "Copy per slide" for a graphic is Slide 1 Copy.
 const contentOnScreenFields = q.select({ onScreen: "On-screen hook" });
+// A loop's one line of text, from the batch send (Karen, 2026-10-25).
+const contentBodyWrite = q.select({ body: "Body" });
 // Copy per slide, as the brief and the Flowy design screen write it: one field
 // per slide, Slide 1..10 Copy (Karen, 2026-10-25: the same fields, same design).
 const contentSlidesCopyFields = q.select({
@@ -6136,7 +6138,7 @@ const PLATFORM_FORMATS: Record<string, { key: PostFormat; label: string }[]> = {
 
 // ─── The open-record view ────────────────────────────────────────────────────
 type RecordLayout = "side" | "center" | "full";
-function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, startOnDownload, startOnPdf, startOnVersions, startOnFlowy, startRoute = "", priorVersionIds, onVersionSaved, people, brands, onInvite, onClose, onPrev, onNext, menuItems, currentUser, shootLabel, shootDays, onSaved, onReady, onRedo, onStatus, onAct, layout, onLayout, workspaceIds, onChosenChange }: {
+function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, startOnDownload, startOnPdf, startOnVersions, startOnFlowy, startRoute = "", priorVersionIds, onVersionSaved, people, brands, onInvite, onClose, onPrev, onNext, menuItems, currentUser, shootLabel, shootDays, onSaved, onReady, onRedo, onStatus, onAct, layout, onLayout, workspaceIds, onChosenChange, auto = null }: {
   card: Card; tab: Tab; startOnComments: boolean; startOnAttach: number; startOnDownload: number; startOnPdf: number;
   // Opens straight onto the Flowy screen, from a row's or a card's own
   // Flowy Edit button (Karen, 2026-10-06).
@@ -6185,6 +6187,11 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
   // moment it changes, so the board's own copy is never a step behind when
   // the move to Approve Post or To Schedule is asked for (Karen, 2026-10-06).
   onChosenChange?: (cardId: string, chosen: boolean) => void;
+  // Sent from the batch (Karen, 2026-10-25): the window opens with nothing
+  // drawn, puts the batch's choices on its own Flowy screen, and runs that
+  // screen's own check and its own Edit or Design. How it went comes back
+  // through `onDone`.
+  auto?: FlowyAuto | null;
 }) {
   const setLayout = onLayout;
   const approveLike = tab === "approve" || isForReview(card.status) || isSettled(card.status);
@@ -7171,12 +7178,14 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
 
   // Body scroll lock while open, and Escape closes the top-most sheet.
   useEffect(() => {
+    if (auto) return;
     const b = document.body;
     const prev = b.style.overflow;
     b.style.overflow = "hidden";
     return () => { b.style.overflow = prev; };
   }, []);
   useEffect(() => {
+    if (auto) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (lightbox) setLightbox(null);
@@ -11146,6 +11155,9 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
   // (Karen, 2026-10-08): each real step moves the bar, green when Flowy has
   // the job, red with the reason when it does not.
   const [editProgress, setEditProgress] = useState<null | { pct: number; label: string; error?: string; done?: string; note?: string; wait?: boolean }>(null);
+  // The batch's way in (see `auto`): what this screen's own Edit or Design
+  // button would check and do, kept fresh on every draw.
+  const autoGo = useRef<{ check: () => string; send: () => void } | null>(null);
   const sendingEdit = !!editProgress && !editProgress.error && !editProgress.done;
   editSendingRef.current = sendingEdit;
   const mostOf = (key: string) => (recipe.most || {})[key];
@@ -13415,6 +13427,19 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
         {askBtn("Edit anyway", () => { setNoWordsAsk(false); startEdit(); }, true)}
       </>,
       () => setNoWordsAsk(false));
+    // The button's own gate, for the batch: a reason it can't go, or "".
+    // Words on screen are required there (Karen, 2026-10-25), so the "Edit
+    // anyway" question is a no.
+    if (auto) autoGo.current = {
+      check: () => {
+        if (sending) return "Flowy is already sending this one.";
+        if (card.isGraphic && designRoute !== "custom") return "A template is finished on its own screen.";
+        if (!ready) return notReady;
+        if (!card.isGraphic && !wordsDone && onScreen.length > 0) return "No words on screen yet.";
+        return "";
+      },
+      send: () => { if (card.isGraphic) startDesign(); else startEdit(); },
+    };
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
         {clipAskView}
@@ -13524,6 +13549,90 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
       </div>
     );
   })();
+
+  // ── Sent from the batch (Karen, 2026-10-25) ──
+  // Nothing is drawn. Once the card's own order is read, the batch's choices
+  // go on the screen (the edit type, the design style); once the clips it
+  // just put on the card have landed, they go in the order (and under a
+  // voiceover, set to Both); and once every read has been quiet for a moment,
+  // the screen's own gate decides and its own Edit or Design sends. Whatever
+  // the screen says back goes to the batch.
+  const [autoStage, setAutoStage] = useState(0);
+  const [autoTick, setAutoTick] = useState(0);
+  const autoQuiet = useRef(0);
+  const autoBorn = useRef(Date.now());
+  const autoSentAt = useRef(0);
+  const autoDone = useRef(false);
+  const autoBusy = [detailsRead, pairsRead, filesRead, kitRead, designsRead, recipeRead, subformatsRead, slideElRead, coverTextRead, designSettingsRead, postOptionsRead, itemsRead, itemLabelsRead]
+    .some((r: any) => !!r && (!!r.isFetching || !!r.isFetchingNextPage || !!r.hasNextPage));
+  useEffect(() => {
+    if (!auto) return;
+    const t = setInterval(() => setAutoTick((n) => n + 1), 400);
+    return () => clearInterval(t);
+  }, [!!auto]);
+  const autoFinish = (ok: boolean, note: string) => {
+    if (!auto || autoDone.current) return;
+    autoDone.current = true;
+    auto.onDone({ ok, note });
+  };
+  useEffect(() => {
+    if (!auto || autoDone.current) return;
+    const now = Date.now();
+    const age = now - autoBorn.current;
+    if (autoStage === 0) {
+      if (!flowyOpen || !flowySeeded) {
+        if (age > 60000) autoFinish(false, "This card didn't open. Send it from its own screen.");
+        return;
+      }
+      if (auto.style && uiStyleOf(auto.style)) setFlowyStyle(uiStyleOf(auto.style));
+      if (auto.designLook && FLOWY_LOOKS.some((x) => x.key === auto.designLook)) setDesignLook(auto.designLook);
+      // The batch has just written words and filed files: read them afresh
+      // rather than trust what an earlier visit left behind.
+      [detailsRead, pairsRead, slideElRead, coverTextRead, itemLabelsRead].forEach((r: any) => {
+        if (r && typeof r.refetch === "function") { try { r.refetch(); } catch { /* the next look tries again */ } }
+      });
+      autoQuiet.current = now;
+      setAutoStage(1);
+      return;
+    }
+    if (autoStage === 1) {
+      const want = auto.addClips || [];
+      const have = new Set(files.map((f) => f.id));
+      if ((filesLoading || !want.every((id) => have.has(id))) && age < 45000) return;
+      setFlowyOrder((o) => {
+        const next: Record<string, string[]> = { ...o };
+        const add = (auto.addClips || []).filter((id) => have.has(id));
+        // A rail with no list takes every clip already; a kept list gets the
+        // new ones at its end.
+        if (add.length && Array.isArray(o.clips)) next.clips = [...o.clips, ...add.filter((id) => !o.clips.includes(id))];
+        if (isVoiceStyle && auto.both && auto.both.length) next.sound = Array.from(new Set([...(Array.isArray(o.sound) ? o.sound.map(String) : []), ...auto.both]));
+        return next;
+      });
+      autoQuiet.current = now;
+      setAutoStage(2);
+      return;
+    }
+    if (autoStage === 2) {
+      if ((autoBusy || filesLoading) && age < 90000) { autoQuiet.current = now; return; }
+      if (now - autoQuiet.current < 1500) return;
+      const go = autoGo.current;
+      const why = go ? go.check() : "This card didn't open. Send it from its own screen.";
+      if (why || !go) { autoFinish(false, why); return; }
+      autoSentAt.current = now;
+      setAutoStage(3);
+      go.send();
+      return;
+    }
+    if (autoStage === 3 && now - autoSentAt.current > 120000) {
+      autoFinish(false, "No answer from Flowy yet. Check the card before sending it again.");
+    }
+  }, [autoTick]);
+  useEffect(() => {
+    if (!auto || autoStage !== 3 || !editProgress) return;
+    if (editProgress.error) autoFinish(false, editProgress.error);
+    else if (editProgress.wait) autoFinish(false, editProgress.note || editProgress.done || "Nothing was sent.");
+    else if (editProgress.done) autoFinish(true, editProgress.done);
+  }, [editProgress, autoStage]);
 
   const versionsView = versionsOpen && createPortal((() => {
     // Only the words a snapshot actually carries. A copy made by the Scripting
@@ -17604,6 +17713,8 @@ function RecordModal({ card, job = null, tab, startOnComments, startOnAttach, st
     </div>
   );
 
+  // Sent from the batch: nothing on screen.
+  if (auto) return null;
   return createPortal(
     <div style={{ fontFamily: GEIST, color: INK }}>
       <style>{HUB_CSS}</style>
@@ -19742,7 +19853,7 @@ function copyPlanFor(card: Card, copyReqByName: Record<string, string[]>): CopyP
     add(/^cover/i.test(m[1]) ? "cover" : /^closing/i.test(m[1]) ? "closing" : `s${m[2]}`, piece);
   });
   if (!out.length) {
-    if (/single/i.test(card.deliveryStyle)) { add("s1", "Title"); add("s1", "Text"); }
+    if (/single/i.test(card.deliveryStyle) || batchSingle(card)) { add("s1", "Title"); add("s1", "Text"); }
     else { add("cover", "Title"); for (let i = 1; i <= 6; i++) add(`s${i}`, "Text"); }
   }
   return out;
@@ -19918,6 +20029,474 @@ function BatchPreviewModal({
             title={readyRows.length === 0 ? "Fill in what's missing first." : undefined}
             style={{ flex: 1, height: "42px", borderRadius: "10px", border: "none", background: GRADIENT, color: "white", fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, cursor: readyRows.length === 0 ? "not-allowed" : "pointer", opacity: readyRows.length === 0 ? 0.5 : 1 }}>
             {meta.verb} {readyRows.length} ready{needing.length > 0 ? ` · leave ${needing.length}` : ""}
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+// ─── Send all to Flowy (Karen, 2026-10-25) ───────────────────────────────────
+// The one step before the selected pieces go. Two choices for all of them,
+// the videos' Edit Type and the carousels' Design Style, each starting on
+// "Flowy picks for each". Then the pieces, folded, the ones missing something
+// first; one opens at a time and shows only what it lacks (the words on
+// screen or a clip for a video, the copy or a story's photos for a graphic)
+// and one line to give it a type or style of its own. Everything else stays
+// each card's own, as its Flowy screen keeps it. Send closes the window at
+// once: each ready piece then goes through its own Flowy screen, unseen
+// (RecordModal's `auto`), so the checks and the send are that screen's, and
+// the board shows Flowy's line on it. Karen's design, round two: no steps,
+// no panels, one line of help at most.
+
+// What the batch hands a card's own Flowy screen (RecordModal's `auto`).
+type FlowyAuto = {
+  style?: string;
+  designLook?: string;
+  addClips?: string[];
+  both?: string[];
+  onDone: (r: { ok: boolean; note: string }) => void;
+};
+// One piece as the batch leaves it: what to write and file on the card first,
+// and, when it is ready, what its Flowy screen is told. `send` is null for a
+// piece that stays on the board with what was filled in.
+type BatchFlowyJob = {
+  card: Card;
+  words: Record<string, string>;
+  copy: Record<string, string>;
+  files: { id: string; name: string }[];
+  send: Omit<FlowyAuto, "onDone"> | null;
+};
+// A card's Flowy order as kept on it ("Flowy edit order"), or nothing.
+function flowyOrderOf(c: Card): Record<string, any> {
+  try {
+    const o = JSON.parse(String(c.rec?.fields?.flowyOrder || "").trim() || "{}");
+    return o && typeof o === "object" ? o : {};
+  } catch { return {}; }
+}
+// The Edit Type Flowy recommends, decided the way the Flowy screen decides it
+// (styleRec): a voiceover subformat, else a loop for the b-roll and text
+// overlay formats and a no-talking video with no subformat copy, else
+// Talking Clips.
+function batchEditRec(c: Card, copyReq: Record<string, string[]>): string {
+  const subId = firstLink(c.rec?.fields?.subformat)?.id || "";
+  if (VOICEOVER_SUBFORMAT_IDS.includes(subId)) return "voiceover";
+  const fmt = c.format.toLowerCase();
+  const loopRecipe = /broll|b-roll/.test(fmt) && !/voiceover/.test(fmt);
+  const byType = !(copyReq[c.subformat.toLowerCase().trim()] || []).length && c.deliveryStyle === "No-talking Video";
+  return loopRecipe || TEXT_OVERLAY_FORMATS.includes(c.format) || byType ? "loop" : "talking";
+}
+// A single post rather than a carousel (the Flowy screen's singleGraphic).
+const batchSingle = (c: Card) => (c.deliveryStyle
+  ? c.deliveryStyle === "Still Graphic"
+  : !/carousel/i.test(c.format) && /\bpost\b/i.test(c.format));
+const BATCH_NEED: Record<string, string> = { busy: "Flowy is on it", words: "Needs words", clip: "Needs a clip", style: "Needs a style", copy: "Needs copy", photos: "Needs photos" };
+
+function BatchFlowyModal({ cards, isDesktop, copyReq, copyPlan, lib, libLoaded, onClose, onSend }: {
+  cards: Card[];
+  isDesktop: boolean;
+  copyReq: Record<string, string[]>;
+  copyPlan: (c: Card) => CopyPiece[];
+  // The workspace's raw footage and photos (the board's library read).
+  lib: FileRow[];
+  libLoaded: boolean;
+  onClose: () => void;
+  onSend: (jobs: BatchFlowyJob[]) => void;
+}) {
+  const ids = cards.map((c) => c.id);
+  const gIds = cards.filter((c) => c.isGraphic).map((c) => c.id);
+  const vIds = cards.filter((c) => !c.isGraphic).map((c) => c.id);
+  // What the board doesn't read: each piece's files, its slide pieces and its
+  // key points. Each read asks for the field it narrows by.
+  const pairsRead = useRecords({ from: ds.scriptFiles, select: scriptFilesSelect, where: q.array("content").isOneOf(ids.length ? ids : ["__none__"]), count: 200, enabled: ids.length > 0 });
+  useAllPages(pairsRead);
+  const pairRows: any[] = useMemo(() => ((pairsRead as any)?.data?.pages?.flatMap((pg: any) => pg.items) ?? []), [(pairsRead as any)?.data]);
+  const uploadIds: string[] = useMemo(() => Array.from(new Set(pairRows.map((r: any) => firstLink(r.fields?.upload)?.id || "").filter(Boolean))), [pairRows]);
+  const filesRead = useRecords({ from: ds.uploads, select: filesSelect, where: q.array("uploadUid").isOneOf(uploadIds.length ? uploadIds : ["__none__"]), count: 200, enabled: uploadIds.length > 0 });
+  useAllPages(filesRead);
+  const slideRead = useRecords({ from: ds.content, select: contentSlideElementFields, where: q.array("selfId").isOneOf(gIds.length ? gIds : ["__none__"]), count: 100, enabled: gIds.length > 0 });
+  const coverRead = useRecords({ from: ds.content, select: contentCoverTextFields, where: q.array("selfId").isOneOf(gIds.length ? gIds : ["__none__"]), count: 100, enabled: gIds.length > 0 });
+  const labelsRead = useRecords({ from: ds.content, select: contentItemLabelFields, where: q.array("selfId").isOneOf(vIds.length ? vIds : ["__none__"]), count: 100, enabled: vIds.length > 0 });
+  // Read, or refused (a connection not re-synced): either way, known.
+  const settled = (r: any, on: boolean) => !on || !!r?.data || !!r?.error;
+  const known = settled(pairsRead, ids.length > 0) && settled(filesRead, uploadIds.length > 0)
+    && settled(slideRead, gIds.length > 0) && settled(coverRead, gIds.length > 0) && settled(labelsRead, vIds.length > 0);
+  const rowsOf = (r: any): Record<string, any> => {
+    const m: Record<string, any> = {};
+    ((r?.data?.pages?.flatMap((pg: any) => pg.items) ?? []) as any[]).forEach((x: any) => { m[String(x.id)] = x.fields || {}; });
+    return m;
+  };
+  const slideRows = useMemo(() => rowsOf(slideRead), [(slideRead as any)?.data]);
+  const coverRows = useMemo(() => rowsOf(coverRead), [(coverRead as any)?.data]);
+  const labelRows = useMemo(() => rowsOf(labelsRead), [(labelsRead as any)?.data]);
+  // Each card's raw material: never a finished version, an overlay or a file
+  // Flowy made.
+  const rawOf = useMemo(() => {
+    const byUpload = new Map<string, FileRow>();
+    (((filesRead as any)?.data?.pages?.flatMap((pg: any) => pg.items) ?? []) as any[]).forEach((r: any) => { const f = shapeFile(r); byUpload.set(f.id, f); });
+    const m: Record<string, FileRow[]> = {};
+    pairRows.forEach((r: any) => {
+      const p = shapePair(r);
+      const f = byUpload.get(p.uploadId);
+      if (!f || VERSION_USED_AS.includes(p.usedAs) || p.usedAs === "Overlay" || f.editedBy === "AI") return;
+      allLinks(r.fields?.content).forEach((l) => {
+        const list = m[l.id] || (m[l.id] = []);
+        if (!list.some((x) => x.id === f.id)) list.push(f);
+      });
+    });
+    return m;
+  }, [pairRows, (filesRead as any)?.data]);
+  const libById = useMemo(() => new Map(lib.map((f) => [f.id, f] as [string, FileRow])), [lib]);
+
+  const [vEdit, setVEdit] = useState("");
+  const [gLook, setGLook] = useState("");
+  const [openId, setOpenId] = useState("");
+  // A piece's own Edit Type or Design Style, where it differs from the rest.
+  const [own, setOwn] = useState<Record<string, string>>({});
+  // What was typed or picked here, by card: the words by field, the copy by
+  // slide piece, the library files to put on it.
+  const [words, setWords] = useState<Record<string, Record<string, string>>>({});
+  const [copy, setCopy] = useState<Record<string, Record<string, string>>>({});
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [writing, setWriting] = useState<Record<string, true>>({});
+  const aliveRef = useRef(true);
+  useEffect(() => () => { aliveRef.current = false; }, []);
+
+  type Piece = {
+    c: Card; need: string[]; single: boolean;
+    style: string; rec: string; base: string; loop: boolean; voice: boolean; field: string; text: string; saying: string[]; both: string[];
+    look: string; typeLook: string; plan: CopyPiece[]; copyVal: (k: string) => string; photoRoom: number;
+  };
+  const pieceOf = (c: Card): Piece => {
+    const f = c.rec?.fields || {};
+    const order = flowyOrderOf(c);
+    const mine = rawOf[c.id] || [];
+    const added = (picked[c.id] || []).map((id) => libById.get(id)).filter(Boolean) as FileRow[];
+    const p: Piece = { c, need: [], single: false, style: "", rec: "", base: "", loop: false, voice: false, field: "", text: "", saying: [], both: [],
+      look: "", typeLook: "", plan: [], copyVal: () => "", photoRoom: 0 };
+    // Already with Flowy: it waits for that cut or design to land.
+    if (c.flowyWorking) { p.need.push("busy"); return p; }
+    if (!c.isGraphic) {
+      // The type its screen would open on: the one kept on the card, else
+      // Flowy's. One picked for all, or for this piece, goes over it.
+      const saved = typeof order.style === "string" ? uiStyleOf(order.style) : "";
+      p.rec = batchEditRec(c, copyReq);
+      p.base = vEdit || saved || p.rec;
+      p.style = own[c.id] || p.base;
+      p.loop = p.style === "loop";
+      p.voice = p.style === "voiceover";
+      p.field = p.loop ? "body" : "visualHook";
+      const typed = words[c.id]?.[p.field];
+      p.text = typed !== undefined ? typed : stripRichText(f[p.field]).trim();
+      const labels = p.loop ? 0 : ITEM_LABEL_KEYS.filter((k) => stripRichText(labelRows[c.id]?.[k]).trim()).length;
+      // The footage the way its screen counts it (footageDone).
+      const vids = mine.filter((x) => x.kind === "Video");
+      const kept = Array.isArray(order.clips) ? vids.filter((x) => order.clips.map(String).includes(x.id)) : vids;
+      const voiceIn = !p.voice ? [] : (Array.isArray(order.voice)
+        ? mine.filter((x) => order.voice.map(String).includes(x.id))
+        : mine.filter((x) => x.kind === "Audio")).slice(0, 5);
+      const voiceIds = new Set(voiceIn.map((x) => x.id));
+      const clips = [...kept, ...added.filter((x) => x.kind === "Video")].filter((x) => !voiceIds.has(x.id));
+      // A clip picked here carries the voice when there is no voiceover file,
+      // and plays muted under one when there is.
+      p.both = p.voice && !voiceIn.length ? added.map((x) => x.id) : [];
+      const sound = new Set<string>([...(Array.isArray(order.sound) ? order.sound.map(String) : []), ...p.both]);
+      const footOk = p.voice ? (voiceIn.length ? clips.some((x) => !sound.has(x.id)) : clips.some((x) => sound.has(x.id))) : clips.length > 0;
+      // What Flowy can write a hook from: what's said in the card's own clips.
+      p.saying = (p.voice ? (voiceIn.length ? voiceIn : clips.filter((x) => sound.has(x.id))) : clips)
+        .filter((x) => mine.some((m) => m.id === x.id)).map((x) => x.id);
+      if (!p.text.trim() && !labels) p.need.push("words");
+      if (!footOk) p.need.push("clip");
+      return p;
+    }
+    p.single = batchSingle(c);
+    p.typeLook = LOOK_OF_SUBFORMAT[firstLink(f.subformat)?.id || ""] || "";
+    const savedLook = FLOWY_LOOKS.some((x) => x.key === order.designLook) ? String(order.designLook) : "";
+    p.base = gLook || savedLook || p.typeLook;
+    p.look = p.single ? "" : own[c.id] || p.base;
+    p.plan = copyPlan(c);
+    const el = slideRows[c.id] || {}, cov = coverRows[c.id] || {};
+    p.copyVal = (k: string) => {
+      const typed = copy[c.id]?.[k];
+      return typed !== undefined ? typed : stripRichText(k === "coverText" ? cov.coverText : el[k]).trim();
+    };
+    // Words its design can read: any slide piece, or the old slide copy.
+    const copyOk = SLIDE_EL_KEYS.some((k) => p.copyVal(k).trim()) || !!p.copyVal("coverText").trim() || !!stripRichText(f.slide1Copy).trim();
+    const photos = [...mine.filter((x) => x.kind === "Image"), ...added.filter((x) => x.kind === "Image")];
+    p.photoRoom = Math.max(0, STORY_PHOTOS_MAX - mine.filter((x) => x.kind === "Image").length);
+    if (!p.single && !p.look) p.need.push("style");
+    if (!copyOk) p.need.push("copy");
+    if (p.look === "story" && !photos.length) p.need.push("photos");
+    return p;
+  };
+  const pieces = cards.map(pieceOf);
+  const byId = new Map(pieces.map((p) => [p.c.id, p] as [string, Piece]));
+  // The ones missing something first, in the order the window found them, so
+  // a piece never jumps while it is being filled in.
+  const orderRef = useRef<string[] | null>(null);
+  if (known && !orderRef.current) orderRef.current = [...pieces.filter((p) => p.need.length), ...pieces.filter((p) => !p.need.length)].map((p) => p.c.id);
+  const shown = (orderRef.current || ids).map((id) => byId.get(id)).filter(Boolean) as Piece[];
+  const ready = known ? pieces.filter((p) => !p.need.length) : [];
+  const todo = known ? pieces.length - ready.length : 0;
+  const credits = ready.filter((p) => !p.c.isGraphic).length * EDIT_COST;
+  const nVideos = vIds.length;
+  const nCarousels = pieces.filter((p) => p.c.isGraphic && !p.single).length;
+  const styleName = (k: string) => (EDIT_STYLES.find((x) => x.key === k) || EDIT_STYLES[1]).name;
+  const lookName = (k: string) => (FLOWY_LOOKS.find((x) => x.key === k) || { name: "" }).name;
+
+  // Flowy writes the hook from what's said in the clips (FE3), the way the
+  // screen's own Write with Flowy does; the words land in the box to read.
+  const writeHook = async (p: Piece) => {
+    const id = p.c.id;
+    if (writing[id] || !p.saying.length) return;
+    setWriting((w) => ({ ...w, [id]: true }));
+    const stop = (why?: string) => {
+      if (!aliveRef.current) return;
+      setWriting((w) => { const n = { ...w }; delete n[id]; return n; });
+      if (why) toast.error(why, { style: { background: "#dc2626", color: "white", border: "none" }, duration: 6000 });
+    };
+    let job = "";
+    try {
+      const res = await fetch(FLOWY_WORDS_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ auth: FLOWY_EDIT_AUTH, cardId: id, field: "visualHook", clips: p.saying, instructions: "" }) });
+      const j = await res.json().catch(() => null);
+      if (!j || !j.ok || !j.jobId) { stop((j && j.reason) || "Flowy couldn't start writing. Please try again."); return; }
+      job = String(j.jobId);
+    } catch (e) { console.warn("[Creative Studio] the hook could not be asked for", e); stop("Flowy couldn't start writing. Please try again."); return; }
+    for (let i = 0; i < 120 && aliveRef.current; i += 1) {
+      await new Promise((r) => setTimeout(r, 3000));
+      let st: any = null;
+      try {
+        const res = await fetch(`${FLOWY_WORDS_STATUS}?jobId=${encodeURIComponent(job)}&auth=${encodeURIComponent(FLOWY_EDIT_AUTH)}`);
+        st = await res.json().catch(() => null);
+      } catch { st = null; }
+      const row = Array.isArray(st) ? st[0] : st;
+      if (!row || row.state === "running" || row.state === "unknown") continue;
+      if (row.state === "failed") { stop(String(row.error || "Flowy couldn't write that. Please try again.")); return; }
+      if (row.state === "done") {
+        if (aliveRef.current) setWords((m) => ({ ...m, [id]: { ...(m[id] || {}), visualHook: starOneWord(String(row.result || "")) } }));
+        stop();
+        return;
+      }
+    }
+    stop(aliveRef.current ? "Flowy is taking too long. Please try again." : undefined);
+  };
+
+  const send = () => {
+    if (!known || !ready.length) return;
+    const jobs: BatchFlowyJob[] = [];
+    pieces.forEach((p) => {
+      const c = p.c;
+      const f = c.rec?.fields || {};
+      const w: Record<string, string> = {};
+      Object.entries(words[c.id] || {}).forEach(([k, v]) => { if (v.trim() !== stripRichText(f[k]).trim()) w[k] = v; });
+      const cp: Record<string, string> = {};
+      Object.entries(copy[c.id] || {}).forEach(([k, v]) => {
+        const was = stripRichText(k === "coverText" ? coverRows[c.id]?.coverText : slideRows[c.id]?.[k]).trim();
+        if ((SLIDE_EL_KEYS.includes(k) || k === "coverText") && v.trim() !== was) cp[k] = v;
+      });
+      const files = (picked[c.id] || []).map((fid) => ({ id: fid, name: libById.get(fid)?.name || fid }));
+      const go = !p.need.length;
+      const auto: Omit<FlowyAuto, "onDone"> | null = !go ? null : c.isGraphic
+        ? (!p.single && (own[c.id] || gLook) ? { designLook: p.look } : {})
+        : {
+          ...(own[c.id] || vEdit ? { style: p.style } : {}),
+          ...(files.length ? { addClips: files.map((x) => x.id) } : {}),
+          ...(p.both.length ? { both: p.both } : {}),
+        };
+      if (go || Object.keys(w).length || Object.keys(cp).length || files.length) jobs.push({ card: c, words: w, copy: cp, files, send: auto });
+    });
+    onSend(jobs);
+  };
+
+  // ── Pieces of the window ──
+  const mono: React.CSSProperties = { fontFamily: MONO, fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: INK_2 };
+  const fieldLabel: React.CSSProperties = { flexShrink: 0, width: "92px", paddingTop: "12px", fontFamily: MONO, fontSize: "10px", fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: INK_2, lineHeight: "14px" };
+  const fieldText: React.CSSProperties = { flex: 1, minWidth: 0, display: "block", padding: "10px 0", margin: 0, border: "none", background: "transparent", fontFamily: GEIST, fontSize: "14px", fontWeight: 300, lineHeight: 1.45, color: "#2B2B31", whiteSpace: "pre-wrap" };
+  const select = (id: string, value: string, options: { key: string; name: string }[], onPick: (v: string) => void, small = false) => (
+    <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
+      <select id={id} value={value} onChange={(e) => onPick(e.target.value)}
+        style={{ appearance: "none", WebkitAppearance: "none", height: small ? "30px" : "34px", minWidth: small ? 0 : "196px", padding: small ? "0 30px 0 10px" : "0 34px 0 12px", borderRadius: small ? "7px" : "8px", border: "1px solid #E4E6EA", background: "white", color: INK, fontFamily: GEIST, fontSize: small ? "12.5px" : "13.5px", cursor: "pointer", outline: "none" } as React.CSSProperties}>
+        {options.map((o) => <option key={o.key} value={o.key}>{o.name}</option>)}
+      </select>
+      <ChevronDown size={small ? 12 : 14} color={INK_3} style={{ position: "absolute", right: small ? "10px" : "11px", top: small ? "9px" : "10px", pointerEvents: "none" }} />
+    </span>
+  );
+  const kindIcon = (c: Card) => (
+    <span aria-hidden="true" style={{ width: "28px", height: "28px", flexShrink: 0, borderRadius: "7px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: c.isGraphic ? "#FCE7F3" : "#F3E8FF", color: c.isGraphic ? "#BE185D" : ACCENT_DEEP }}>
+      {c.isGraphic ? <LayoutGrid size={14} /> : <Video size={14} />}
+    </span>
+  );
+  // A strip of the library to tap: clips for a video, photos for a story.
+  const strip = (p: Piece, kind: "Video" | "Image", one: boolean, room: number) => {
+    const list = lib.filter((f) => f.kind === kind);
+    const on = picked[p.c.id] || [];
+    if (!libLoaded) return <div style={{ fontFamily: GEIST, fontSize: "12px", color: INK_3, paddingTop: "8px" }}>Loading your library…</div>;
+    if (!list.length) return <div style={{ fontFamily: GEIST, fontSize: "12px", color: INK_3, paddingTop: "8px" }}>Nothing in your library yet.</div>;
+    return (
+      <div role="listbox" aria-multiselectable={!one} aria-label={kind === "Video" ? "Your clips" : "Your photos"} style={{ display: "flex", gap: "8px", overflowX: "auto", padding: "8px 2px 2px" }}>
+        {list.map((f) => {
+          const sel = on.includes(f.id);
+          const pic = f.thumb || (kind === "Image" ? f.url : "");
+          const tap = () => setPicked((m) => {
+            const now = m[p.c.id] || [];
+            const next = sel ? now.filter((x) => x !== f.id) : one ? [f.id] : now.length >= room ? now : [...now, f.id];
+            return { ...m, [p.c.id]: next };
+          });
+          return (
+            <button key={f.id} type="button" role="option" aria-selected={sel} aria-label={f.name} onClick={tap}
+              style={{ display: "flex", flexDirection: "column", gap: "4px", width: "60px", flexShrink: 0, padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left" }}>
+              <span style={{ position: "relative", display: "block", width: "60px", height: "76px", borderRadius: "8px", overflow: "hidden", background: "#EEF0F3", boxShadow: sel ? `0 0 0 2px ${PICK}` : "none" }}>
+                {pic && <img src={pic} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
+                {sel && <span style={{ position: "absolute", top: "4px", right: "4px", width: "16px", height: "16px", borderRadius: "50%", background: PICK, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}><Check size={9} strokeWidth={3.4} /></span>}
+                {f.duration > 0 && <span style={{ position: "absolute", left: "4px", bottom: "4px", padding: "1px 4px", borderRadius: "4px", background: "rgba(0,0,0,.55)", color: "white", fontFamily: GEIST, fontSize: "9px" }}>{flowyClock(f.duration)}</span>}
+              </span>
+              <span style={{ fontFamily: GEIST, fontSize: "10.5px", color: "#4E525A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+  // An open piece: only what it lacks, then its own type or style.
+  const body = (p: Piece) => {
+    const c = p.c;
+    const id = c.id;
+    const typedWords = words[id]?.[p.field] !== undefined;
+    const askWords = !c.isGraphic && (p.need.includes("words") || typedWords);
+    const askClips = !c.isGraphic && (p.need.includes("clip") || !!(picked[id] || []).length);
+    const askCopy = c.isGraphic && (p.need.includes("copy") || !!copy[id]);
+    const askPhotos = c.isGraphic && p.look === "story" && (p.need.includes("photos") || !!(picked[id] || []).length);
+    const canWrite = askWords && !p.loop && !p.text.trim() && p.saying.length > 0 && !writing[id];
+    const parts: React.ReactNode[] = [];
+    if (p.need.includes("busy")) return <div style={{ padding: "2px 4px 16px 44px", fontFamily: GEIST, fontSize: "12.5px", fontWeight: 300, color: INK_2 }}>{BUSY_NOTE}</div>;
+    if (askWords) parts.push(
+      <div key="words" style={{ borderRadius: "8px", border: "1px solid #E4E6EA", background: "white", display: "flex", alignItems: "flex-start", gap: "10px", padding: "0 8px 0 12px" }}>
+        <MonoLabel color={INK_2} size={10} weight={500} tracking="0.1em" style={fieldLabel}>{p.loop ? "Text overlay" : "Visual hook"}</MonoLabel>
+        <AutoGrowTextarea value={p.text} ariaLabel={p.loop ? "Text overlay" : "Visual hook"} placeholder={writing[id] ? "Flowy is listening to the clips…" : "Not written yet"}
+          onChange={(t: string) => setWords((m) => ({ ...m, [id]: { ...(m[id] || {}), [p.field]: t } }))} style={fieldText} />
+        {canWrite && (
+          <button type="button" onClick={() => writeHook(p)} title="Flowy writes it from what's said in the clips" style={{ ...FLOWY_PILL(false), marginTop: "7px" }}>
+            <FlowyMark size={14} />Write with Flowy
+          </button>
+        )}
+      </div>,
+    );
+    if (askClips) parts.push(
+      <div key="clips">
+        <div style={{ fontFamily: GEIST, fontSize: "12.5px", color: "#4E525A" }}>{p.loop ? "Pick one clip from your library." : p.both.length || (p.voice && p.need.includes("clip")) ? "Pick clips from your library. Their sound is the voiceover." : "Pick clips from your library."}</div>
+        {strip(p, "Video", p.loop, 10)}
+      </div>,
+    );
+    if (askCopy) parts.push(
+      <div key="copy" style={{ borderRadius: "8px", border: "1px solid #E4E6EA", background: "white" }}>
+        {p.plan.map((pc, i) => (
+          <div key={pc.fieldKey} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "0 12px", borderTop: i ? "1px solid #EEF0F3" : "none" }}>
+            <MonoLabel color={INK_2} size={10} weight={500} tracking="0.1em" style={fieldLabel}>{p.single ? pc.piece : pc.piece === "Text" ? pc.tag : `${pc.tag} · ${pc.piece}`}</MonoLabel>
+            <AutoGrowTextarea value={p.copyVal(pc.fieldKey)} ariaLabel={`${pc.tag} ${pc.piece}`} placeholder="Not written yet"
+              onChange={(t: string) => setCopy((m) => ({ ...m, [id]: { ...(m[id] || {}), [pc.fieldKey]: t } }))} style={fieldText} />
+          </div>
+        ))}
+      </div>,
+    );
+    if (askPhotos) parts.push(
+      <div key="photos">
+        <div style={{ fontFamily: GEIST, fontSize: "12.5px", color: "#4E525A" }}>Pick the photos the story is told with.</div>
+        {strip(p, "Image", false, p.photoRoom)}
+      </div>,
+    );
+    if (!parts.length && !p.need.includes("style")) parts.push(<div key="ok" style={{ fontFamily: GEIST, fontSize: "12.5px", fontWeight: 300, color: INK_2 }}>Nothing missing.</div>);
+    // One quiet line to set this piece apart from the rest.
+    if (!c.isGraphic) parts.push(
+      <div key="own" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <label htmlFor={`bf-own-${id}`} style={{ fontFamily: GEIST, fontSize: "12.5px", color: INK_2 }}>Edit type</label>
+        {select(`bf-own-${id}`, p.style, EDIT_STYLES.filter((x) => !x.soon).map((x) => ({ key: x.key, name: x.key === p.rec ? `${x.name} (Flowy's pick)` : x.name })),
+          (v) => setOwn((m) => ({ ...m, [id]: v === p.base ? "" : v })), true)}
+      </div>,
+    );
+    else if (!p.single) parts.push(
+      <div key="own" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <label htmlFor={`bf-own-${id}`} style={{ fontFamily: GEIST, fontSize: "12.5px", color: p.need.includes("style") ? "#B91C1C" : INK_2 }}>Design style</label>
+        {select(`bf-own-${id}`, p.look, [...(p.look ? [] : [{ key: "", name: "Pick a style" }]), ...FLOWY_LOOKS.map((x) => ({ key: x.key, name: x.key === p.typeLook ? `${x.name} (Flowy's pick)` : x.name }))],
+          (v) => setOwn((m) => ({ ...m, [id]: v === p.base ? "" : v })), true)}
+      </div>,
+    );
+    return <div style={{ padding: "2px 4px 16px 44px", display: "flex", flexDirection: "column", gap: "14px" }}>{parts}</div>;
+  };
+
+  return createPortal(
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 10060, background: "rgba(23,23,23,0.34)" }} />
+      <div role="dialog" aria-modal="true" aria-labelledby="bf-title" style={isDesktop
+        ? { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "600px", maxWidth: "94vw", maxHeight: "88vh", zIndex: 10061, background: "white", borderRadius: "16px", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px -24px rgba(30,32,40,0.45)" }
+        : { position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 10061, maxHeight: "92vh", background: "white", borderRadius: "20px 20px 0 0", display: "flex", flexDirection: "column" }}>
+        <div style={{ flexShrink: 0, padding: "20px 22px 6px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span id="bf-title" style={{ flex: 1, fontFamily: GEIST, fontSize: "16px", fontWeight: 600, letterSpacing: "-0.015em", color: INK }}>Send {cards.length} to Flowy</span>
+            <button type="button" onClick={onClose} aria-label="Close" style={{ width: "30px", height: "30px", borderRadius: "8px", border: `1px solid ${HAIR}`, background: "white", color: INK_3, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}><X size={15} /></button>
+          </div>
+          <div style={{ marginTop: "3px", fontFamily: GEIST, fontSize: "13px", color: INK_2 }}>
+            {!known ? "Checking each piece…" : (<>
+              <span style={{ color: PICK_DEEP }}>{ready.length} ready</span>
+              {todo > 0 && <> · <span style={{ color: "#B91C1C" }}>{todo} to finish</span></>}
+            </>)}
+          </div>
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "14px 22px 8px" }}>
+          {(nVideos > 0 || nCarousels > 0) && (<>
+            <div style={mono}>For all</div>
+            <div style={{ marginTop: "6px" }}>
+              {nVideos > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 0" }}>
+                  <label htmlFor="bf-edit" style={{ flex: 1, fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, color: INK }}>Edit type <span style={{ fontWeight: 300, color: INK_2 }}>· {nVideos} {nVideos === 1 ? "video" : "videos"}</span></label>
+                  {select("bf-edit", vEdit, [{ key: "", name: "Flowy picks for each" }, ...EDIT_STYLES.filter((x) => !x.soon).map((x) => ({ key: x.key, name: x.name }))], setVEdit)}
+                </div>
+              )}
+              {nCarousels > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "8px 0" }}>
+                  <label htmlFor="bf-look" style={{ flex: 1, fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, color: INK }}>Design style <span style={{ fontWeight: 300, color: INK_2 }}>· {nCarousels} {nCarousels === 1 ? "carousel" : "carousels"}</span></label>
+                  {select("bf-look", gLook, [{ key: "", name: "Flowy picks for each" }, ...FLOWY_LOOKS.map((x) => ({ key: x.key, name: x.name }))], setGLook)}
+                </div>
+              )}
+            </div>
+          </>)}
+          <div style={{ ...mono, marginTop: "18px" }}>Each piece</div>
+          <div style={{ marginTop: "4px" }}>
+            {shown.map((p, i) => {
+              const c = p.c;
+              const open = openId === c.id;
+              const meta = c.isGraphic
+                ? `${c.subformat || c.format || "Graphic"} · ${p.single ? "Single post" : p.look ? lookName(p.look) : "No style yet"}`
+                : `${c.subformat || c.format || "Video"} · ${styleName(p.style)}`;
+              return (
+                <div key={c.id} style={{ borderTop: i ? "1px solid #EEF0F3" : "none" }}>
+                  <button type="button" aria-expanded={open} onClick={() => setOpenId(open ? "" : c.id)} className="ch-menu-row"
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "12px 4px", border: "none", background: "transparent", cursor: "pointer", textAlign: "left", borderRadius: "8px" }}>
+                    {kindIcon(c)}
+                    <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
+                      <span style={{ fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.heading}</span>
+                      <span style={{ fontFamily: GEIST, fontSize: "12px", fontWeight: 300, color: INK_2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta}</span>
+                    </span>
+                    {!known ? null : p.need.length
+                      ? <span style={{ flexShrink: 0, fontFamily: GEIST, fontSize: "12.5px", fontWeight: 500, color: "#B91C1C", whiteSpace: "nowrap" }}>{BATCH_NEED[p.need[0]]}{p.need.length > 1 ? ` +${p.need.length - 1}` : ""}</span>
+                      : <span role="img" aria-label="Ready" style={{ width: "20px", height: "20px", flexShrink: 0, borderRadius: "50%", background: PICK, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Check size={11} strokeWidth={3.2} /></span>}
+                    <ChevronDown size={15} color="#9AA0AB" style={{ flexShrink: 0, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.18s" }} />
+                  </button>
+                  {open && known && body(p)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: "10px", padding: "14px 22px 18px", borderTop: `1px solid ${HAIR}` }}>
+          <span style={{ flex: 1, minWidth: 0, fontFamily: GEIST, fontSize: "12.5px", fontWeight: 300, color: INK_2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {known && todo > 0 ? `${todo} stay on the board until complete.` : ""}
+          </span>
+          <button type="button" onClick={onClose} style={{ height: "40px", padding: "0 16px", borderRadius: "10px", border: `1px solid ${HAIR}`, background: "white", color: "#4E525A", fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, cursor: "pointer" }}>Cancel</button>
+          <button type="button" onClick={send} aria-disabled={!known || !ready.length ? "true" : undefined}
+            style={{ height: "40px", padding: "0 20px", borderRadius: "10px", border: "none", background: GRADIENT, color: "white", fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, boxShadow: SHADOW_CTA_SM, cursor: !known || !ready.length ? "not-allowed" : "pointer", opacity: !known || !ready.length ? 0.45 : 1, whiteSpace: "nowrap" }}>
+            {`Send ${known ? ready.length : ""}`.trim()}{credits ? ` · ${credits} ${credits === 1 ? "credit" : "credits"}` : ""}
           </button>
         </div>
       </div>
@@ -20227,6 +20806,7 @@ export default function Block() {
   // the one that moves a day's own status, the day's meta (name/when/length/
   // location) for create and reschedule, and creating a day.
   const setOnScreenWords = useRecordUpdate({ from: ds.content, fields: contentOnScreenFields });
+  const setBodyWords = useRecordUpdate({ from: ds.content, fields: contentBodyWrite });
   const setSlidesCopy = useRecordUpdate({ from: ds.content, fields: contentSlidesCopyFields });
   const setSlideElements = useRecordUpdate({ from: ds.content, fields: contentSlideElementWrite });
   const setCoverTextEl = useRecordUpdate({ from: ds.content, fields: contentCoverTextWrite });
@@ -20330,6 +20910,10 @@ export default function Block() {
   const [workerLost, setWorkerLost] = useState<Record<string, number>>({});
   // Edits the worker finished whose card never moved on, keyed the same way.
   const [workerUnfiled, setWorkerUnfiled] = useState<Record<string, number>>({});
+  // Pieces sent from Send all to Flowy that are waiting their turn (Karen,
+  // 2026-10-25): they show Flowy's line from the moment Send is pressed, and
+  // leave this list when their own send lands or fails.
+  const [flowyQueued, setFlowyQueued] = useState<Record<string, true>>({});
   // Which filter row is open. One at a time, so the panel stays short.
   const [filterOpen, setFilterOpen] = useState<string | null>(null);
   // The last live copy of the open record, so a move that takes it off the
@@ -20356,9 +20940,10 @@ export default function Block() {
         // a second time.
         if (c.flowyWorking && c.id in workerUnfiled && workerUnfiled[c.id] === (c.flowySentAt || 0))
           return { ...c, flowyWorking: false, flowyIssue: FLOWY_UNFILED_NOTE(c.isGraphic), flowyIssueKind: "needs" as const, flowyUnfiled: true };
+        if (flowyQueued[c.id] && !c.flowyWorking) return { ...c, flowyWorking: true, flowyIssue: "", flowyIssueKind: "" as const };
         return c;
       });
-  }, [contentRows, pendingEdits, goneIds, workerLost, workerUnfiled]);
+  }, [contentRows, pendingEdits, goneIds, workerLost, workerUnfiled, flowyQueued]);
   // A move stays on screen until the board's own read says the same thing. It
   // used to be dropped 2.5 seconds after the write, and when the re-read was
   // slower the card went back to its old status for a while: a card sent to
@@ -20405,7 +20990,8 @@ export default function Block() {
   // five minute design lost after two and a half (2026-10-17). A design that
   // fails comes back with its own note, and one that never does reads as
   // lost after twenty minutes (FLOWY_STALE_MS).
-  const editingIds = useMemo(() => cards.filter((c) => c.flowyWorking && !c.isGraphic).map((c) => c.id), [cards]);
+  // A piece still waiting in the batch has no job with the worker yet.
+  const editingIds = useMemo(() => cards.filter((c) => c.flowyWorking && !c.isGraphic && !flowyQueued[c.id]).map((c) => c.id), [cards, flowyQueued]);
   designWatch.current = {
     any: cards.some((c) => c.flowyWorking && c.isGraphic),
     tpl: cards.some((c) => c.flowyWorking && c.isGraphic && !!c.flowyTemplate && Date.now() - c.flowySentAt < 120000),
@@ -21835,7 +22421,7 @@ export default function Block() {
   // One "Batch action" button opens this menu; it never assumes an action.
   // The same things the per-card menu offers, applied to all the selected
   // cards. Footage is no longer a blocker here.
-  const openBulkFlowy = () => { setBulkDo("flowy"); setBulkHow("each"); setBulkPlaced({}); setBulkPicked(null); setBulkTarget(null); setBulkOpenRow(null); setBulkSearch(null); setBulkFilter(""); setBulkOpen(true); };
+  const openBulkFlowy = () => setBulkOpen(true);
   const moveAllTo = (status: HubStatus) => { selectedCards.forEach((c) => setCardStatus(c, status, true)); clearSel(); };
   const markAllShot = () => { selectedCards.slice().forEach((c) => markShot(c)); clearSel(); };
   const refineAll = () => { const one = selectedCards[0]; if (one) openRecord(one); };
@@ -21854,6 +22440,7 @@ export default function Block() {
       { label: "Send all to Design", icon: LayoutGrid, onClick: () => setBatchPreview({ action: "design", cards: selectedCards.slice() }) },
       { label: "Schedule all posts", icon: Send, onClick: () => setBatchPreview({ action: "schedule", cards: selectedCards.slice() }) },
       { label: "Send all to Flowy", icon: FlowyMark, tone: "accent", onClick: openBulkFlowy },
+      { label: "Mark all ready to post", icon: Check, onClick: readyAll },
       { label: "Assign to a creative", icon: Users, onClick: () => openAssign(selectedCards) },
       { label: "Schedule shoot", icon: CalendarPlus, onClick: () => setScheduleCards(selectedCards.slice()) },
       { label: "Mark all as shot", icon: Clapperboard, onClick: markAllShot },
@@ -22370,67 +22957,75 @@ export default function Block() {
   );
 
   const flowyBulkDisabled = nFootless > 0;
-  // Send all (Karen, 2026-10-22): one modal, the decision first. Where the
-  // cards go, then how Flowy handles them: each card its own pick, or one
-  // style for all. A placeholder until the sends are wired.
+  // Send all to Flowy (Karen, 2026-10-25): BatchFlowyModal asks only for
+  // what is missing, and Send closes it at once. The pieces then go one at a
+  // time: the words, copy and library files given in the window are put on
+  // the card, and the card goes through its own Flowy screen, unseen
+  // (RecordModal's `auto`), so the checks and the send are that screen's.
+  // Pieces that weren't ready only keep what was filled in.
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkDo, setBulkDo] = useState<"flowy" | "ready" | "post">("flowy");
-  const [bulkHow, setBulkHow] = useState<"each" | "one">("each");
-  const [bulkEdit, setBulkEdit] = useState("talking");
-  const [bulkLook, setBulkLook] = useState("listicle");
-  // Posts missing footage get it right here (Karen, 2026-10-22): each post
-  // folds open, its empty box takes a file from the library below. Kept in the
-  // window until Send, which is not wired yet.
-  const [bulkOpenRow, setBulkOpenRow] = useState<string | null>(null);
-  const [bulkPlaced, setBulkPlaced] = useState<Record<string, string[]>>({});
-  const [bulkPicked, setBulkPicked] = useState<string | null>(null);
-  const [bulkTarget, setBulkTarget] = useState<string | null>(null);
-  const [bulkSearch, setBulkSearch] = useState<string | null>(null);
-  const [bulkFilter, setBulkFilter] = useState<"" | "Video" | "Image" | "Audio">("");
-  const [bulkFilterOpen, setBulkFilterOpen] = useState(false);
-  const [bulkSending, setBulkSending] = useState(false);
-  // Send (Karen, 2026-10-22): the placed files go onto their posts first.
-  // Then Flowy designs each graphic (Custom Design, its own look or the one
-  // picked for all), or every post moves to Ready to Post. Videos keep their
-  // clips; their edit is still sent from each video's Edit screen.
-  const sendBulk = async (ready: Card[]) => {
-    if (bulkSending) return;
-    setBulkSending(true);
-    let filed = 0, designed = 0, refused = 0;
-    for (const c of selectedCards) {
-      for (const fid of bulkPlaced[c.id] || []) {
-        const f = bulkLib.find((x) => x.id === fid);
-        let pair = await createAsyncBoard(createBoardPair, { label: `Raw footage · ${f ? f.name : fid}`, content: [c.id], upload: [fid], usedAs: "Raw footage", status: "Unused" });
-        if (!pair.id) pair = await createAsyncBoard(createBoardPairBare, { content: [c.id], upload: [fid], usedAs: "Raw footage" });
-        if (pair.id) filed += 1; else console.warn("[Creative Studio] Send all: a file could not go on its post", pair.err);
-      }
+  const [flowyQueue, setFlowyQueue] = useState<BatchFlowyJob[]>([]);
+  const [flowyNow, setFlowyNow] = useState<BatchFlowyJob | null>(null);
+  const [flowyPrepping, setFlowyPrepping] = useState(false);
+  // A write that loses its place in Airtable's queue (429) is tried again
+  // with a widening wait, as the record window does (Karen, 2026-10-09).
+  const writeBoard = (hook: any, recordId: string, fields: any, tries = 3): Promise<boolean> => new Promise((resolve) => {
+    const go = (left: number, wait: number) => {
+      try {
+        hook.mutate({ recordId, fields }, {
+          onSuccess: () => resolve(true),
+          onError: (e: any) => {
+            if (left > 1 && /\b429\b|rate limit|too many requests/i.test(String(e?.message || e || ""))) { setTimeout(() => go(left - 1, wait * 2), wait); return; }
+            console.warn("[Creative Studio] Send all to Flowy: a write was refused", e);
+            resolve(false);
+          },
+        });
+      } catch (e) { console.warn("[Creative Studio] Send all to Flowy: a write could not go", e); resolve(false); }
+    };
+    go(tries, 700);
+  });
+  const prepFlowyJob = async (j: BatchFlowyJob): Promise<boolean> => {
+    const id = j.card.id;
+    let ok = true;
+    if (j.words.visualHook !== undefined) ok = (await writeBoard(setOnScreenWords, id, { onScreen: j.words.visualHook })) && ok;
+    if (j.words.body !== undefined) ok = (await writeBoard(setBodyWords, id, { body: j.words.body })) && ok;
+    // The slide pieces write together; the cover's body has its own field.
+    const { coverText, ...slide } = j.copy;
+    if (Object.keys(slide).length) ok = (await writeBoard(setSlideElements, id, slide)) && ok;
+    if (coverText !== undefined) ok = (await writeBoard(setCoverTextEl, id, { coverText })) && ok;
+    for (const f of j.files) {
+      let pair = await createAsyncBoard(createBoardPair, { label: `Raw footage · ${f.name}`, content: [id], upload: [f.id], usedAs: "Raw footage", status: "Unused" });
+      if (!pair.id) pair = await createAsyncBoard(createBoardPairBare, { content: [id], upload: [f.id], usedAs: "Raw footage" });
+      if (!pair.id) { ok = false; console.warn("[Creative Studio] Send all to Flowy: a file could not go on its card", pair.err); }
     }
-    if (bulkDo === "ready") ready.forEach((c) => readyToSchedule(c));
-    if (bulkDo === "flowy") {
-      for (const c of ready.filter((x) => x.isGraphic)) {
-        const look = bulkHow === "one" ? bulkLook : "";
-        let ans: any = null;
-        try {
-          const res = await fetch(FLOWY_DESIGN_WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ auth: FLOWY_EDIT_AUTH, cardId: c.id, title: c.heading, ...(look ? { flowyLook: look } : {}) }) });
-          ans = await res.json().catch(() => null);
-        } catch (e) { console.warn("[Creative Studio] Send all: a design could not be sent", e); }
-        if (ans && ans.ok) {
-          designed += 1;
-          setCardStatus(c, "In Progress", false, null, { flowyOrder: JSON.stringify({ design: true, sentAt: new Date().toISOString(), ...(look ? { designLook: look } : {}) }) });
-        } else refused += 1;
+    return ok;
+  };
+  const unqueue = (id: string) => setFlowyQueued((m) => { if (!m[id]) return m; const n = { ...m }; delete n[id]; return n; });
+  const flowyFailed = (j: BatchFlowyJob, why: string) =>
+    toast.error(`${j.card.heading}: ${why}`, { style: { background: "#dc2626", color: "white", border: "none" }, duration: 7000 });
+  // One piece at a time: its writes, then its own screen, then the next.
+  useEffect(() => {
+    if (flowyNow || flowyPrepping || !flowyQueue.length) return;
+    const [j, ...rest] = flowyQueue;
+    setFlowyQueue(rest);
+    setFlowyPrepping(true);
+    prepFlowyJob(j).then((ok) => {
+      setFlowyPrepping(false);
+      if (!j.send) {
+        if (!ok) flowyFailed(j, "Some of what you filled in couldn't be saved.");
+        if (refetchRef.current) refetchRef.current();
+        return;
       }
-    }
-    setBulkSending(false);
-    setBulkOpen(false);
-    setSel({});
+      if (!ok) { unqueue(j.card.id); flowyFailed(j, "What you filled in couldn't be saved, so it wasn't sent."); return; }
+      setFlowyNow(j);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flowyQueue, flowyNow, flowyPrepping]);
+  const flowyEnded = (j: BatchFlowyJob, r: { ok: boolean; note: string }) => {
+    unqueue(j.card.id);
+    if (!r.ok) flowyFailed(j, r.note);
+    setFlowyNow(null);
     if (refetchRef.current) refetchRef.current();
-    const vidsSent = bulkDo === "flowy" ? ready.filter((x) => !x.isGraphic).length : 0;
-    stubToast([
-      filed ? `${filed} file${filed === 1 ? "" : "s"} added` : "",
-      designed ? `Flowy is designing ${designed}` : "",
-      refused ? `${refused} couldn't start` : "",
-      vidsSent ? `open each video to send its edit` : "",
-    ].filter(Boolean).join(" · ") || "Done");
   };
   const bulkLibRead = useRecords({
     from: ds.uploads,
@@ -23701,184 +24296,26 @@ export default function Block() {
       {/* ── Starting a card ───────────────────────────────────────────────
           A name and which brand it belongs to. The stage is the column you
           pressed, so there is nothing to choose there (Karen, 2026-10-02). */}
-      {bulkOpen && (() => {
-        const vids = selectedCards.filter((c) => !c.isGraphic);
-        const gfx = selectedCards.filter((c) => c.isGraphic);
-        const fileOf = (id: string) => bulkLib.find((f) => f.id === id) || null;
-        const missingOf = (c: Card) => (bulkDo === "flowy" && needsFootage(c) && !(bulkPlaced[c.id] || []).length ? ["Clip"] : []);
-        const nMissing = selectedCards.filter((c) => missingOf(c).length > 0).length;
-        const nReady = nSel - nMissing;
-        const place = (cardId: string, fileId: string) => {
-          setBulkPlaced((m) => ({ ...m, [cardId]: Array.from(new Set([...(m[cardId] || []), fileId])) }));
-          setBulkPicked(null); setBulkTarget(null);
-        };
-        const unplace = (cardId: string, fileId: string) => setBulkPlaced((m) => ({ ...m, [cardId]: (m[cardId] || []).filter((x) => x !== fileId) }));
-        const tile = (key: string, on: boolean, name: string, art: string, go: () => void) => (
-          <button key={key} type="button" role="radio" aria-checked={on} aria-label={name} onClick={go}
-            style={{ display: "flex", flexDirection: "column", gap: "6px", alignItems: "center", flexShrink: 0, width: "64px", padding: 0, border: "none", background: "none", cursor: "pointer" }}>
-            <span aria-hidden="true" style={{ position: "relative", width: "58px", height: "72px", borderRadius: "6px", overflow: "hidden", boxShadow: on ? `0 0 0 2px ${PICK}` : "0 0 0 1px #E4E6EA" }}>{tplTileArt(art)}</span>
-            <span style={{ fontFamily: GEIST, fontSize: "11.5px", lineHeight: 1.25, textAlign: "center", fontWeight: on ? 600 : 400, color: on ? PICK_DEEP : "#4E525A" }}>{name}</span>
-          </button>
-        );
-        const choice = (on: boolean, name: string, says: string, go: () => void) => (
-          <button key={name} type="button" role="radio" aria-checked={on} onClick={go}
-            style={{ display: "flex", flexDirection: "column", gap: "2px", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "8px", border: `1px solid ${on ? PICK : "#E4E6EA"}`, background: on ? PICK_WASH : "white", cursor: "pointer" }}>
-            <span style={{ fontFamily: GEIST, fontSize: "13px", fontWeight: 500, color: INK }}>{name}</span>
-            <span style={{ fontFamily: GEIST, fontSize: "12px", fontWeight: 300, color: "#6C707A" }}>{says}</span>
-          </button>
-        );
-        const label = (t: string) => <div style={{ marginTop: "18px", marginBottom: "8px" }}><MonoLabel color="#9AA0AB" size={10} weight={500} tracking="0.1em">{t}</MonoLabel></div>;
-        const thumbOf = (f: FileRow, w: number, h: number) => (
-          <span aria-hidden="true" style={{ position: "relative", display: "block", width: `${w}px`, height: `${h}px`, borderRadius: "7px", overflow: "hidden", flexShrink: 0, background: f.kind === "Audio" ? "#1F2430" : "#EEF0F3" }}>
-            {f.kind === "Audio"
-              ? <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><Music size={16} /></span>
-              : (f.thumb || f.url) && <img src={f.thumb || f.url} alt="" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />}
-            {f.duration > 0 && <span style={{ position: "absolute", left: "4px", bottom: "4px", padding: "1px 4px", borderRadius: "4px", background: "rgba(0,0,0,.55)", color: "white", fontFamily: GEIST, fontSize: "9.5px" }}>{`${Math.floor(f.duration / 60)}:${String(Math.round(f.duration % 60)).padStart(2, "0")}`}</span>}
-          </span>
-        );
-        const q = (bulkSearch || "").trim().toLowerCase();
-        const libShown = bulkLib.filter((f) => (!bulkFilter || f.kind === bulkFilter) && (!q || f.name.toLowerCase().includes(q)));
-        const headline = bulkDo === "flowy" ? `Send ${nSel} post${nSel === 1 ? "" : "s"} to Flowy` : bulkDo === "ready" ? `Mark ${nSel} post${nSel === 1 ? "" : "s"} ready to post` : `Schedule ${nSel} post${nSel === 1 ? "" : "s"}`;
-        return (
-          <div style={{ position: "fixed", inset: 0, zIndex: 10060, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", background: "rgba(23,23,23,0.38)" }}
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setBulkOpen(false); }}>
-            <div role="dialog" aria-modal="true" aria-label="Send all" style={{ width: "min(540px, 92vw)", maxHeight: "88vh", overflowY: "auto", background: "white", borderRadius: "16px", padding: "22px 22px 18px", boxShadow: SHADOW_POP }}>
-              <div style={{ fontFamily: GEIST, fontSize: "16px", fontWeight: 600, color: INK }}>{headline}</div>
-              <div style={{ marginTop: "4px", fontFamily: GEIST, fontSize: "13px", fontWeight: 300, color: INK_2 }}>
-                {[vids.length ? `${vids.length} video${vids.length === 1 ? "" : "s"}` : "", gfx.length ? `${gfx.length} graphic${gfx.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ")}
-              </div>
-              {nMissing > 0 && (
-                <div role="alert" style={{ marginTop: "12px", padding: "9px 12px", borderRadius: "8px", background: "#FEF2F2", border: "1px solid #FECACA", fontFamily: GEIST, fontSize: "12.5px", fontWeight: 400, color: "#B91C1C" }}>
-                  {`${nMissing} post${nMissing === 1 ? " is" : "s are"} missing footage. Add it below, or send the other ${nReady}.`}
-                </div>
-              )}
-              {label("What to do")}
-              <div role="radiogroup" aria-label="What to do" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                {choice(bulkDo === "flowy", "Flowy edits and designs them", "Videos are edited, graphics designed.", () => setBulkDo("flowy"))}
-                {choice(bulkDo === "ready", "Mark them ready to post", "They move to Ready to Post with the media they have.", () => setBulkDo("ready"))}
-                <button type="button" role="radio" aria-checked={false} aria-disabled="true" title="Coming soon"
-                  style={{ display: "flex", flexDirection: "column", gap: "2px", width: "100%", textAlign: "left", padding: "9px 12px", borderRadius: "8px", border: "1px solid #E4E6EA", background: "white", cursor: "not-allowed", opacity: 0.55 }}>
-                  <span style={{ fontFamily: GEIST, fontSize: "13px", fontWeight: 500, color: INK }}>Schedule them <MonoLabel color="#9AA0AB" size={9.5} weight={500} tracking="0.08em">Coming soon</MonoLabel></span>
-                  <span style={{ fontFamily: GEIST, fontSize: "12px", fontWeight: 300, color: "#6C707A" }}>Pick the dates and accounts next.</span>
-                </button>
-              </div>
-              {bulkDo === "flowy" && (<>
-                {label("How")}
-                <div role="radiogroup" aria-label="How" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  {choice(bulkHow === "each", "Flowy picks for each post", "Each post gets the style its card type suggests.", () => setBulkHow("each"))}
-                  {choice(bulkHow === "one", "One style for all", "The same edit type and design style on every post.", () => setBulkHow("one"))}
-                </div>
-                {bulkHow === "one" && vids.length > 0 && (<>
-                  {label("Edit Type")}
-                  <div role="radiogroup" aria-label="Edit Type for all" style={{ display: "flex", gap: "12px", overflowX: "auto", padding: "4px 2px" }}>
-                    {EDIT_STYLES.map((x) => tile(x.key, bulkEdit === x.key, x.name, `edit-${x.key}`, () => setBulkEdit(x.key)))}
-                  </div>
-                </>)}
-                {bulkHow === "one" && gfx.length > 0 && (<>
-                  {label("Design Style")}
-                  <div role="radiogroup" aria-label="Design Style for all" style={{ display: "flex", gap: "12px", overflowX: "auto", padding: "4px 2px" }}>
-                    {FLOWY_LOOKS.map((x) => tile(x.key, bulkLook === x.key, x.name, `look-${x.key}`, () => setBulkLook(x.key)))}
-                  </div>
-                </>)}
-              </>)}
-              {label("Posts")}
-              <div style={{ border: "1px solid #E4E6EA", borderRadius: "10px", overflow: "hidden" }}>
-                {selectedCards.map((c, i) => {
-                  const miss = missingOf(c);
-                  const placed = (bulkPlaced[c.id] || []).map(fileOf).filter(Boolean) as FileRow[];
-                  const open = bulkOpenRow === c.id;
-                  return (
-                    <div key={c.id} data-bulkpost={c.id} style={{ borderTop: i ? "1px solid #EEF0F3" : "none" }}>
-                      <button type="button" aria-expanded={open} onClick={() => setBulkOpenRow(open ? null : c.id)}
-                        style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "10px 12px", border: "none", background: "white", cursor: "pointer", textAlign: "left" }}>
-                        <ChevronRight size={14} color="#9AA0AB" style={{ flexShrink: 0, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s ease" }} />
-                        <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontFamily: GEIST, fontSize: "13.5px", fontWeight: 500, color: INK, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.heading}</span>
-                          <span style={{ fontFamily: GEIST, fontSize: "11.5px", fontWeight: 300, color: "#8A8F98" }}>{c.format || (c.isGraphic ? "Graphic" : "Video")}</span>
-                        </span>
-                        {miss.length
-                          ? <span style={{ flexShrink: 0, fontFamily: GEIST, fontSize: "11.5px", fontWeight: 500, color: "#B91C1C" }}>{`Missing ${miss.join(", ").toLowerCase()}`}</span>
-                          : <span aria-label="Ready" style={{ width: "18px", height: "18px", borderRadius: "50%", background: PICK, color: "white", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={11} strokeWidth={3} /></span>}
-                      </button>
-                      {open && (
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", padding: "2px 12px 12px 36px" }}>
-                          {placed.map((f) => (
-                            <span key={f.id} style={{ position: "relative" }}>
-                              {thumbOf(f, 48, 60)}
-                              <button type="button" aria-label={`Take ${f.name} off`} onClick={() => unplace(c.id, f.id)}
-                                style={{ position: "absolute", top: "-6px", right: "-6px", width: "18px", height: "18px", borderRadius: "50%", border: "none", background: "white", boxShadow: "0 1px 3px rgba(0,0,0,.2)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#6C707A" }}><X size={11} /></button>
-                            </span>
-                          ))}
-                          {(!c.isGraphic && bulkDo === "flowy") && (
-                            <button type="button" aria-label={`Add a clip to ${c.heading}`}
-                              onClick={() => { if (bulkPicked) place(c.id, bulkPicked); else setBulkTarget(bulkTarget === c.id ? null : c.id); }}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData("text/plain"); if (id) place(c.id, id); }}
-                              style={{ width: "48px", height: "60px", borderRadius: "7px", border: `1.5px dashed ${bulkTarget === c.id ? PICK : "#C9CDD4"}`, background: bulkTarget === c.id ? PICK_WASH : "white", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "2px", fontFamily: GEIST, fontSize: "10px", color: bulkTarget === c.id ? PICK_DEEP : "#8A8F98", cursor: "pointer", padding: 0 }}>
-                              <Plus size={13} />Clip
-                            </button>
-                          )}
-                          {(c.isGraphic || bulkDo !== "flowy") && !placed.length && <span style={{ fontFamily: GEIST, fontSize: "12px", fontWeight: 300, color: "#8A8F98" }}>Nothing missing.</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {bulkDo === "flowy" && vids.length > 0 && (
-                <div style={{ marginTop: "14px", background: "#F4F4F5", borderRadius: "12px", padding: "12px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <MonoLabel color="#9AA0AB" size={10} weight={500} tracking="0.1em">Your library</MonoLabel>
-                    <span style={{ flex: 1 }} />
-                    {bulkSearch !== null && (
-                      <input autoFocus value={bulkSearch} onChange={(e) => setBulkSearch(e.target.value)} aria-label="Search your library"
-                        style={{ height: "28px", width: "150px", border: "1px solid #E4E6EA", borderRadius: "7px", padding: "0 8px", fontFamily: GEIST, fontSize: "12.5px", outline: "none", background: "white" }} />
-                    )}
-                    <button type="button" aria-label="Search" aria-pressed={bulkSearch !== null} onClick={() => setBulkSearch(bulkSearch === null ? "" : null)}
-                      style={{ width: "28px", height: "28px", borderRadius: "7px", border: "none", background: bulkSearch !== null ? "white" : "transparent", color: "#4E525A", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}><Search size={14} /></button>
-                    <span style={{ position: "relative" }}>
-                      <button type="button" aria-label="Filter" aria-expanded={bulkFilterOpen} onClick={() => setBulkFilterOpen(!bulkFilterOpen)}
-                        style={{ width: "28px", height: "28px", borderRadius: "7px", border: "none", background: bulkFilter || bulkFilterOpen ? "white" : "transparent", color: bulkFilter ? PICK_DEEP : "#4E525A", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}><Filter size={14} /></button>
-                      {bulkFilterOpen && (
-                        <div role="menu" aria-label="Filter" style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 2, width: "150px", padding: "4px", borderRadius: "10px", border: "1px solid #E4E6EA", background: "white", boxShadow: "0 12px 32px -12px rgba(22,23,26,0.28)" }}>
-                          {([["", "Everything"], ["Video", "Videos"], ["Image", "Pictures"], ["Audio", "Audio"]] as const).map(([k, n]) => (
-                            <button key={n} type="button" role="menuitemradio" aria-checked={bulkFilter === k} className="ch-menu-row" onClick={() => { setBulkFilter(k); setBulkFilterOpen(false); }}
-                              style={{ display: "flex", alignItems: "center", width: "100%", padding: "7px 10px", border: "none", borderRadius: "7px", background: "white", fontFamily: GEIST, fontSize: "13px", color: INK, cursor: "pointer", textAlign: "left" }}>
-                              <span style={{ flex: 1 }}>{n}</span>{bulkFilter === k && <Check size={13} color={PICK} />}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </span>
-                  </div>
-                  <div role="listbox" aria-label="Your library" style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "10px 2px 2px" }}>
-                    {!(bulkLibRead as any)?.data && <span style={{ fontFamily: GEIST, fontSize: "12px", color: "#8A8F98" }}>Loading…</span>}
-                    {(bulkLibRead as any)?.data && !libShown.length && <span style={{ fontFamily: GEIST, fontSize: "12px", color: "#8A8F98" }}>Nothing here.</span>}
-                    {libShown.map((f) => {
-                      const on = bulkPicked === f.id;
-                      return (
-                        <button key={f.id} type="button" role="option" aria-selected={on} aria-label={f.name} draggable
-                          onDragStart={(e) => e.dataTransfer.setData("text/plain", f.id)}
-                          onClick={() => { if (bulkTarget) place(bulkTarget, f.id); else setBulkPicked(on ? null : f.id); }}
-                          style={{ display: "flex", flexDirection: "column", gap: "5px", width: "64px", flexShrink: 0, padding: 0, border: "none", background: "none", cursor: "pointer", textAlign: "left" }}>
-                          <span style={{ borderRadius: "8px", boxShadow: on ? `0 0 0 2px ${PICK}` : "none" }}>{thumbOf(f, 64, 80)}</span>
-                          <span style={{ fontFamily: GEIST, fontSize: "10.5px", color: "#4E525A", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{f.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "18px" }}>
-                <button type="button" onClick={() => setBulkOpen(false)} style={outlineBtn(34, 14)}>Cancel</button>
-                <button type="button" aria-disabled={!nReady || bulkSending ? "true" : undefined}
-                  onClick={() => { if (nReady && !bulkSending) sendBulk(selectedCards.filter((c) => !missingOf(c).length)); }}
-                  style={gradientBtn(34, 15, !nReady || bulkSending)}>{bulkSending ? "Sending…" : `Send ${nReady}`}</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {bulkOpen && (
+        <BatchFlowyModal
+          cards={selectedCards}
+          isDesktop={calWide}
+          copyReq={copyReqByName}
+          copyPlan={(c) => copyPlanFor(c, copyReqByName)}
+          lib={bulkLib}
+          libLoaded={!!(bulkLibRead as any)?.data}
+          onClose={() => setBulkOpen(false)}
+          onSend={(jobs) => {
+            // The ones going first, then the ones only keeping what was typed.
+            const go = jobs.filter((j) => j.send);
+            setFlowyQueued((m) => { const n = { ...m }; go.forEach((j) => { n[j.card.id] = true; }); return n; });
+            setFlowyQueue((q) => [...q, ...go, ...jobs.filter((j) => !j.send)]);
+            setBulkOpen(false);
+            clearSel();
+            stubToast(go.length === 1 ? "1 sent to Flowy" : `${go.length} sent to Flowy`);
+          }}
+        />
+      )}
       {/* The blank canvas: Create's default and every column's + and New
           card (round 167, the Scripting Studio's). The card lands where it
           was started (canvasStage). */}
@@ -24251,6 +24688,51 @@ export default function Block() {
           })()}
         />
       )}
+      {/* Send all to Flowy: the piece whose turn it is, through its own
+          Flowy screen with nothing drawn (Karen, 2026-10-25). */}
+      {flowyNow && flowyNow.send && (() => {
+        const j = flowyNow;
+        const live = cards.find((x) => x.id === j.card.id) || j.card;
+        // The screen reads the hook and a loop's line off the board's own
+        // copy of the card, which may not have re-read the words just
+        // written, so they are laid over it. And its own move to In Progress
+        // must not be stopped by the line the board drew while it waited.
+        const card = { ...live, rec: { ...live.rec, fields: { ...(live.rec?.fields || {}), ...j.words } }, flowyWorking: false };
+        return (
+          <RecordModal
+            key={`flowy-${card.id}`}
+            card={card}
+            tab={card.isGraphic ? "design" : "edit"}
+            startOnComments={false}
+            startOnAttach={0}
+            startOnDownload={0}
+            startOnPdf={0}
+            startOnVersions={0}
+            startOnFlowy={1}
+            startRoute="custom"
+            priorVersionIds={[]}
+            onVersionSaved={() => {}}
+            people={people}
+            brands={brands}
+            onInvite={invitePerson}
+            onClose={() => {}}
+            onPrev={null}
+            onNext={null}
+            menuItems={[]}
+            currentUser={currentUser}
+            onSaved={() => { if (refetchRef.current) refetchRef.current(); }}
+            onReady={() => {}}
+            onRedo={() => {}}
+            onStatus={(next, said, extra) => setCardStatus(card, next, true, said, extra)}
+            layout={recordLayout}
+            onLayout={() => {}}
+            workspaceIds={myWorkspaceIds}
+            shootDays={[]}
+            shootLabel=""
+            auto={{ ...j.send, onDone: (r) => flowyEnded(j, r) }}
+          />
+        );
+      })()}
       {/* ── The shoot calendar's modals (2026-10-23) ── */}
       {calSessionId && (() => {
         const s = sessions.find((x) => x.id === calSessionId);
