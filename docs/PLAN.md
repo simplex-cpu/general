@@ -79,6 +79,15 @@ Agreed direction and order of work. Tick items off as they're done, and add the 
 
 Moved after the week: making the hard-coded prompts editable in Settings (Step 2), and retiring screens (Step 6).
 
+## Status and handoff notes
+
+- Live app: https://risevoicetools.com (Lovable-hosted; the domain isn't in the Simplex Cloudflare account).
+- Cloudflare: a deploy token from the "Edit Cloudflare Workers" template (account-level Workers permissions only) is saved in the Claude Code environment as a **Bearer network secret for `api.cloudflare.com`**. `CLOUDFLARE_ACCOUNT_ID` is an environment variable.
+  - Check it with `curl https://api.cloudflare.com/client/v4/user/tokens/verify`. A "success": true answer means it works.
+  - The token is added to requests by the environment's proxy, so it isn't readable as a variable. Deploy by calling the Cloudflare API directly, or give `wrangler` a placeholder `CLOUDFLARE_API_TOKEN` and confirm the proxy replaces the header.
+- The connector starts on a `*.workers.dev` address.
+- Still waiting for: the repository Lovable created, and a dedicated test client access code. Never commit access codes.
+
 ## Step 0: one source of truth
 
 - [ ] Connect the Lovable project to GitHub (instructions in [README](../README.md#connecting-lovable-and-github)).
