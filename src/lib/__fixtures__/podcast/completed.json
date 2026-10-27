@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "event": "scripts.finished",
+  "job_id": "c53da83e-182d-4c63-86c9-53347310ae03",
+  "source_id": "example-episode-001",
+  "execution_id": "example-execution-123",
+  "status": "completed",
+  "completed_at": "2026-10-16T18:00:00.000Z",
+  "results": {
+    "broll": {
+      "format": "BROLL",
+      "requested_count": 1,
+      "delivered_count": 1,
+      "shortfall_reason": null,
+      "status": "generated",
+      "review_status": "needs_recording_review",
+      "error": null,
+      "automated_qa": {
+        "passed": true,
+        "issues": [],
+        "checks": "Synthetic structural fixture; not a live generation test.",
+        "limits": "Example only. Recording and creative review still required."
+      },
+      "production_checks": [
+        {
+          "check": "Verify speaker attribution and footage."
+        }
+      ],
+      "scripts": [
+        {
+          "id": "broll_01",
+          "topic": "An underpriced freelance job",
+          "audience_situation": "A new client offers a price before you have estimated the work.",
+          "visual_hook": "Your first client just priced your entire weekend.",
+          "caption": "Taylor accepted fifty dollars without working out the hours. Three revisions later, the cost of that decision was clear. The next quote started with scope and revision limits.",
+          "cta": null,
+          "duration_seconds": 6,
+          "visual_direction": "One card over source interview footage.",
+          "source": {
+            "speaker": null,
+            "proposed_speaker": "Taylor Lee",
+            "attribution_note": "Context suggests the guest is answering; unverified.",
+            "attribution_status": "context_inferred",
+            "start_line_id": "L00002",
+            "end_line_id": "L00003",
+            "start_time": "00:00:04.600",
+            "end_time": "00:00:17.000",
+            "timing_precision": "transcript_line_bounds",
+            "verbatim_verified": true,
+            "excerpt": "I charged fifty dollars because that was what he offered. I never calculated how long the job would take. By the third revision, I realized I had let a stranger set the price of my entire weekend.",
+            "support_note": "Synthetic example fixture."
+          },
+          "review_flags": [
+            "Synthetic fixture, not an actual model result."
+          ]
+        }
+      ]
+    },
+    "talking_clip": {
+      "format": "TALKING_CLIP",
+      "requested_count": 1,
+      "delivered_count": 1,
+      "shortfall_reason": null,
+      "status": "generated",
+      "review_status": "needs_recording_review",
+      "error": null,
+      "automated_qa": {
+        "passed": true,
+        "issues": [],
+        "checks": "Synthetic structural fixture; not a live generation test.",
+        "limits": "Example only. Recording and creative review still required."
+      },
+      "production_checks": [
+        {
+          "check": "Verify speaker attribution and exact cuts."
+        }
+      ],
+      "scripts": [
+        {
+          "id": "talking_01",
+          "topic": "Letting a client set the price",
+          "audience_situation": "You accept a fee before estimating your time.",
+          "visual_hook": "Fifty dollars. Then came the third revision.",
+          "caption": "An early freelance job taught Taylor to agree on scope and revisions before quoting.",
+          "cta": null,
+          "spoken_hook": "I charged fifty dollars because that was what he offered.",
+          "segments": [
+            {
+              "speaker": null,
+              "proposed_speaker": "Taylor Lee",
+              "attribution_note": "Context suggests the guest is answering; unverified.",
+              "attribution_status": "context_inferred",
+              "start_line_id": "L00002",
+              "end_line_id": "L00003",
+              "start_time": "00:00:04.600",
+              "end_time": "00:00:17.000",
+              "timing_precision": "transcript_line_bounds",
+              "verbatim_verified": true,
+              "verbatim_text": "I charged fifty dollars because that was what he offered. I never calculated how long the job would take. By the third revision, I realized I had let a stranger set the price of my entire weekend."
+            }
+          ],
+          "speech_only_text": "I charged fifty dollars because that was what he offered. I never calculated how long the job would take. By the third revision, I realized I had let a stranger set the price of my entire weekend.",
+          "edited_spoken_script": "Taylor Lee (inferred): I charged fifty dollars because that was what he offered. I never calculated how long the job would take. By the third revision, I realized I had let a stranger set the price of my entire weekend.",
+          "spoken_word_count": 37,
+          "estimated_duration_seconds": 12.4,
+          "duration_basis": "source_line_windows",
+          "duration_note": "Synthetic transcript bounds only; verify timing against the recording.",
+          "payoff": "The client had priced an entire weekend.",
+          "visual_plan": "Preserve original delivery; verify cuts.",
+          "review_flags": [
+            "Synthetic fixture, not an actual model result."
+          ]
+        }
+      ]
+    }
+  },
+  "unsupported_formats": [
+    "carousel",
+    "graphic"
+  ],
+  "review_required": true
+}
