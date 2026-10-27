@@ -1,0 +1,1 @@
+drop policy if exists "Public read brand-briefs" on storage.objects;
