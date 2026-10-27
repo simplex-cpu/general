@@ -67,14 +67,17 @@ Agreed direction and order of work. Tick items off as they're done, and add the 
 
 **Rule:** Lovable and Claude Code never work on the same files at the same time. Lovable does screens; Claude Code does the connector, endpoints and clean-up.
 
-## Timeline (compressed)
+## Timeline: one week
 
-| When | What |
-|---|---|
-| Week 1 | GitHub connected. Connector built with the read tools and `save_to_planner`, tested on the test account |
-| Week 2 | `request_edit` and comments added. Staff pilot starts. Prompts moved into Settings |
-| Week 3 | Lovable adds the "Create with Claude" box and Planner label. Client pilot with 3–5 clients |
-| After the pilot | Retire Script, then design, then Viral Kit, one at a time |
+| Day | What | Who |
+|---|---|---|
+| 1 | Connector written: sign-in with access code, brand brief, guidelines, read the Planner, save to the Planner | Claude Code |
+| 2 | Video edit requests and comments added. Connector put online on Cloudflare and tested on the test account | Claude Code + you (Cloudflare key) |
+| 3 | Staff add the connector in Claude and use it for real scripting. Fix what breaks | Staff + Claude Code |
+| 4 | Lovable adds the "Create with Claude" box and the "Claude" label in the Planner. Guidelines tuned in Settings | Lovable + strategists |
+| 5 | 3–5 friendly clients start using it | You |
+
+Moved after the week: making the hard-coded prompts editable in Settings (Step 2), and retiring screens (Step 6).
 
 ## Step 0: one source of truth
 
