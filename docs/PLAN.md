@@ -30,6 +30,17 @@ Agreed order of work. Tick items off as they're done, and add the date and who d
 - Each tool calls the **same server code** the screens already use. Shared logic is pulled out of the endpoint files where needed. Nothing is copied.
 - Claude does the writing. The app supplies brand context and guidelines, and saves the results.
 
+**Who pays for what (the reason for doing this):**
+- The thinking, writing and design happen in the user's own Claude and are paid for by their Claude plan. So **MCP tools must never call our AI gateway** (`LOVABLE_API_KEY` / `ANTHROPIC_API_KEY`). They only read data and save results.
+- Some costs stay ours, because Claude can't do them:
+  - video rendering (the n8n editors)
+  - account scraping (Apify)
+  - posting (Vista Social)
+  - storage (Airtable, Drive) and hosting
+- The in-app credits (Stripe) are kept for these.
+- Our prompts become visible to users through `get_writing_guidelines`. Anyone can ask Claude to show them. Decide which guidance to share in full and which to summarise.
+- Save tools check what Claude sends before saving, using the existing rules (slide fields, the caption contract, `video_edit` v1). Badly formed content is sent back to Claude with the reason it was rejected, and never saved.
+
 **First tools, in order:**
 1. `list_my_brands`, `get_brand_brief`: read brand voice, audience and visual style.
 2. `get_writing_guidelines(format)`: the Settings prompts and QA checklist for a format.
