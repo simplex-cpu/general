@@ -54,6 +54,32 @@ These files exist but no screen opens them. Confirm with the team before deletin
 
 Several files in `src/components/ui/` are also unused. That's normal: it's a ready-made kit, and unused pieces cost nothing.
 
+## How editing and design work
+
+**Video (B-roll, Talking Video, and both "from long form" versions):**
+1. In Planner → Produce, the client adds footage (a Drive link or an upload), a hook, a CTA and a style.
+2. `src/routes/api/dwy-edit-yourself.ts` saves **one** record in Airtable **Edit Yourself requests** (`tblS69GyGj3tpioTo`).
+   - The full request goes in the **Editing preferences** field as a `video_edit` version 1 snapshot, built by `src/lib/slate/videoEditInput.ts`.
+   - Then it sets **Status = To Edit**.
+3. An **Airtable automation** sees "To Edit" and calls the n8n webhook `edityourself-auto-caption`. That's the n8n workflow **"Edit Yourself v2"**. An older `talkingvideo` webhook, the n8n workflow **"Talking Video"**, does the same job for Talking Video only.
+4. Those two workflows are just **routers**. They read the record, check it's still "To Edit", and pass it to one of four editors:
+   - `broll-v3`: n8n workflow "Video edits — BROLL v3"
+   - `talking-video-v3`: n8n workflow "Video edits — Talking Video v3"
+   - `long-form-clip-v1`: n8n workflow "Video edits — Talking video from long form v3"
+   - `broll-from-long-form-v1`: n8n workflow "Video edits — B-roll from long form v3"
+   - "Video edits — render completion and recovery v3" finishes the renders.
+5. The editor renders the video, saves it to Drive, and writes it back to Client Content.
+   - The request status then moves through Editing → Edited, or Error.
+   - The post's Client Status moves to Approve.
+
+**Carousels and graphics:**
+- **One-click AI design** happens inside the app, not in n8n. `src/routes/api/ai-design.ts` asks Claude for slide designs and checks them (`src/lib/slate/aiDesign.ts`).
+- **Done-for-you design** sets the status to **"To Edit | Design"**. `notify-edit-design.ts` posts a Slack message, and the design team does the work by hand.
+
+**Posting:** the n8n workflow "Posting Automation" is triggered by an Airtable webhook. It schedules the post in Vista Social and writes the status back to the record.
+
+**Rule:** the app never calls n8n directly. To change *what* gets edited, change the saved request. To change *how* it's edited, change the n8n editors.
+
 ## Who sees what
 
 - Users log in with an **access code**, which is stored in the Airtable **Access codes** table.
