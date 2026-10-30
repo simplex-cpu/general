@@ -2,87 +2,89 @@
 
 Agreed direction and order of work. Tick items off as they're done, and add the date and who did it.
 
-## Direction (decided 30 Oct 2026)
+Visual version (private, ask Karen for access): https://claude.ai/artifact/B7EmGWqhYDj72sdGa2pZFf
 
-**The two real problems:**
-1. The app is hard to change. Improving outputs or making a targeted fix means wading through a lot of code.
-2. Design and video editing fall behind what Claude can do, because our own fixed rules sit between the client and the model.
+## Goal
 
-**What we're doing:**
-- **No MCP connector.** It didn't solve either problem. The code that was built is parked on the branch `archive/risevoice-mcp`, not deployed.
-- **Keep the Script tab.** Add three changes that make it easy to improve and flexible: one switch for AI models, every prompt editable in Settings, and a "Refine" box on every card.
-- **Brand kit plus the client's own request** for design and editing, instead of fixed design rules. The client gives us a website or a brand kit. We pull out colours, fonts, logo and tone, then send the brand kit and their request to the latest Claude. Only basic format checks stay (size, slide count, text fits).
-- **Video:** Claude decides the edit (cuts, caption style, on-screen text, timing). The n8n editors still render it, so the final look depends on their templates. Changing the rendering tool is a separate, later decision.
+- **5 November:** avatar content goes live on the **kashsocialmedia tips** account, with **Gretta** as account manager. This is the test of the done-for-you offer. The same day, viewers are invited to comment **CREATORS** to get a free trial.
+- **19 November:** both offers fully live.
+  - **Creator (DIY):** the tool only. Strategy → upload branding → set up your avatar → scripts (manual or Autopilot) → film with your avatar or yourself → approve.
+  - **Done for you (DFY):** the tool plus an assigned account manager. The client only approves finished videos.
+- Pricing is set after one full week of content (12 November).
 
 ## Who does what
 
-| Work | Who |
+| Person | Role |
 |---|---|
-| Server code, prompts, model switch, AI calls, clean-up | Claude Code, as pull requests on the Lovable-connected repository |
-| Screens: Settings dropdown, Refine box, brand kit upload in My Brand | Lovable, using the prompts in this file |
-| New Airtable fields (for example, brand kit fields) | Karen (only Karen, Sarah or Jennifer may create fields) |
-| n8n changes for video (sending the brand kit and the edit plan to the editors) | Claude Code via n8n, once the "Video edits — … v3" workflows are made available to it |
+| Gretta | Account manager for kashsocialmedia tips: scripts, prep, approvals, posting. Voice of the nurture emails |
+| Karen | App development (with Lovable and Claude Code), Airtable fields, GHL sequences, ManyChat flows |
+| Claude Code | Server code, n8n workflows, AI model switch, prompts, copy drafts (landing page, DMs, emails) |
+| Lovable | Screens: landing page, sign-up, buttons |
+| Kash | Not involved. His HeyGen avatar already exists |
 
-**Rule:** Lovable and Claude Code never work on the same files at the same time. Claude Code goes first on each item (server side), then Lovable does the screen.
+Tools: GHL for email, ManyChat on the Instagram account, HeyGen for the avatar, n8n for automations, Airtable for data.
 
-## Step 0: one source of truth
+**Repository:** `simplex-cpu/general`, branch `main-risevoice`, connected to Lovable. Code changes go through a branch and a pull request; Karen merges. Docs-only changes can go straight to `main-risevoice`.
 
-- [x] Lovable connected to GitHub.
-- [ ] Tell Claude Code the name of the repository Lovable created, so changes can go there as pull requests.
-- [ ] Copy `README.md`, `CLAUDE.md` and `docs/` into that repository, then archive `simplex-cpu/general`.
+**Rule:** Lovable and Claude Code never work on the same files at the same time. Claude Code goes first on each item (the server side), then Lovable does the screen.
 
-## Step 1: one switch for AI models
+## Week 1: launch on Thursday 5 November
 
-**Why:** the model is hard-coded in about 10 files, in a mix of versions. Captions still use a 2025 model (`claude-sonnet-4-5-20250929` in `src/routes/api/captions.ts`), while hooks and scripts use `claude-fable-5-1`. Staying current with Claude should be one change, not a hunt through the code.
+- [x] App code in GitHub, with app map, prompt guide and plan (Claude Code)
+- [x] Lovable connected to GitHub (Karen)
+- [x] Already in the app: single and batch scripting, Planner approvals and comments, staff view for client brands, scripting prompts editable in Settings with version history
+- [x] HeyGen avatar for kashsocialmedia tips; ManyChat connected; domain live
+- [ ] Check the Lovable ↔ GitHub sync works both ways: make one small edit in Lovable and confirm it appears in GitHub (Karen, 30 Oct)
+- [ ] Airtable: avatar ID and voice ID on Brands; "Avatar video" post type; "To Avatar" status (Karen, 30 Oct)
+- [ ] HeyGen API key saved as a credential in n8n (Karen, 30 Oct)
+- [ ] Staff access code for Gretta; kashsocialmedia tips set up as a brand (Karen, 30 Oct)
+- [ ] One switch for AI models — pull request [#2](https://github.com/simplex-cpu/general/pull/2) open (Claude Code, 30 Oct)
+- [ ] Move captions, brand strategy and divide scripts off forced tool calls, then upgrade captions off the 2025 model (Claude Code, 1 Nov)
+- [ ] HeyGen workflow in n8n: approved talking script → HeyGen → Drive → Planner "To Approve" (Claude Code, 1 Nov)
+- [ ] Sign-up logic: creates the trial account in Airtable (user, brand, access code, trial credits) and sends the contact to GHL with the tag `creators-trial` (Claude Code, 1 Nov)
+- [ ] Refine logic: `/api/refine` rewrites one piece from an instruction (Claude Code, 1 Nov)
+- [ ] Landing page, ManyChat DM and nurture email copy drafted (Claude Code, 1 Nov)
+- [ ] Landing page at risevoicetools.com for visitors who aren't logged in, with "Log in" for clients (Lovable, 2 Nov)
+- [ ] Sign-up screen (Lovable, 2 Nov)
+- [ ] "Send to avatar" button and avatar statuses in the Planner (Lovable, 2 Nov)
+- [ ] Refine chips on script cards: Shorter · Punchier · More like me · Different angle (Lovable, 2 Nov)
+- [ ] Week-1 scripts for kashsocialmedia tips, refining prompts in Settings as she goes (Gretta, 2 Nov)
+- [ ] Remaining hard-coded prompts moved into Settings (Claude Code, 3 Nov)
+- [ ] ManyChat "CREATORS" flow; GHL nurture emails 1–3 (Karen, 3 Nov)
+- [ ] Full dry run: comment → DM → sign-up → email → log in → avatar video (everyone, 4 Nov)
+- [ ] **Launch:** first avatar videos posted with the CREATORS call to action; trials open (Gretta, 5 Nov)
 
-- [ ] Claude Code: create one settings file (for example `src/lib/aiModels.ts`) that names the model for each job (topics, hooks, scripts, captions, design, analysis, brand kit). Make every AI call read from it. Upgrade captions to a current model.
-- [ ] Lovable: add a staff-only "AI models" section in Settings that shows the current choice for each job. This is optional at first; changing the file is enough.
-- Done when: switching the scripting model is a one-line change, and tests pass.
+## Week 2 (6–12 November): Autopilot and proof
 
-## Step 2: every prompt editable in Settings
+- [ ] **Activate Autopilot:** every Monday, a week of scripts that match the strategy lands in "To Approve" (Claude Code + Lovable)
+- [ ] Brand kit import from a website or upload: colours, fonts, logo, tone, shown in My Brand to correct (Claude Code + Lovable; Karen adds fields if needed)
+- [ ] "Done for you" diaries content series, 2 posts a week (Gretta)
+- [ ] Nurture emails 4–5 (Karen)
+- [ ] Funnel C: Re-Learn list sequence, 4 emails from Gretta (Karen, 10 Nov)
+- [ ] ManyChat "DONE" flow, GHL application form and Gretta's booking calendar (Karen)
+- [ ] Refine in the Planner post window; in-app "Want Gretta's team to run this for you?" for active trial users (Claude Code + Lovable)
+- [ ] **12 November:** set pricing; tier-2 offer sequence live (everyone; Karen)
 
-- [ ] Claude Code: move the hard-coded prompts listed in `docs/PROMPTS.md` (design, analysis, brand strategy, divide scripts, own-post repurpose, inspo, podcast clipping) into `src/lib/simplex/prompts.ts`. They then show up in Settings and get version history in Airtable. Keep the wording exactly as it is.
-- Done when: every prompt that shapes client-facing copy can be edited from Settings.
+## Week 3 (13–19 November): brand kit design, edits, scale
 
-## Step 3: "Refine" on every card
+- [ ] Prices on the landing page (Lovable)
+- [ ] Design from brand kit plus the client's request, replacing the fixed design rules in `src/routes/api/ai-design.ts` (Claude Code + Lovable)
+- [ ] Avatar setup for trial clients: self-serve if HeyGen's API allows it, otherwise Gretta sets it up from the client's footage (Claude Code + Karen)
+- [ ] Video edit plan from brand kit plus request, sent to the n8n editors. Needs "Available in MCP" turned on for the four "Video edits — … v3" workflows (Karen, then Claude Code)
+- [ ] Autopilot for every done-for-you client: mass production (Claude Code + Gretta)
+- [ ] **19 November:** both offers fully live; first paying clients onboarded
 
-- [ ] Claude Code: add one endpoint, `/api/refine`, that takes a piece (hook, script, slide, caption) plus a short instruction ("shorter", "more like my voice") and rewrites only that piece, following the brand and the format rules.
-- [ ] Lovable: add a small "Refine" box with a few quick chips (Shorter · Punchier · More like me · Different angle) to the hook, script and caption cards in the Script tab, and to the post window in the Planner.
-- Done when: a client can change one piece without regenerating everything or editing by hand.
+## Funnels
 
-## Step 4: brand kit
+- **A · Free trial (Creator):** avatar content → comment CREATORS → ManyChat DM → landing page → sign-up → GHL tag `creators-trial` → nurture (days 0, 1, 3, 5, 7) → tier-2 offer (days 8, 10, 12, 14).
+- **B · Done for you:** "Done for you" diaries → comment DONE → ManyChat DM → GHL application → call with Gretta → onboarding. Also: in-app prompt for active trial users, and the tier-2 emails.
+- **C · Re-Learn list:** people who requested an episode link → 4 emails from Gretta (episode and takeaways → the system behind the content → free trial → done-for-you) → join A or B.
 
-- [ ] Karen: add brand kit fields to the Brand briefs table if the existing visual style fields aren't enough. Likely fields: logo, colours, fonts, tone notes, source website.
-- [ ] Claude Code: add `/api/brand-kit`. It takes a website address or uploaded files (PDF, images), extracts colours, fonts, logo and tone with Claude, and returns them for the client to check before saving.
-- [ ] Lovable: in My Brand, add "Import from website" and "Upload brand kit", show the extracted kit with edit boxes, then save.
-- Done when: a new client gets a usable brand kit from a website link in under a minute.
+Results numbers only appear on the landing page and in emails once they're real (after 12 November).
 
-## Step 5: design from brand kit plus request
+## Notes
 
-- [ ] Claude Code: simplify `src/routes/api/ai-design.ts`. Replace the fixed art-direction rules with the brand kit, the slide copy and the client's request, sent to the model chosen in Step 1. Keep only format checks (canvas size, slide count, text fits, no missing slides).
-- [ ] Lovable: add an optional "Describe the look" box beside the design button in the Planner.
-- Done when: a carousel designed this way looks on-brand, and switching to a newer model visibly improves it with no other change.
-
-## Step 6: video edits from brand kit plus request
-
-- [ ] Karen: in n8n, turn on "Available in MCP" for the four "Video edits — … v3" workflows, so Claude Code can read and update them.
-- [ ] Claude Code: when a client sends a video to editing, add the brand kit and their request to the saved `video_edit` request. Have Claude produce an edit plan (cuts, caption style, on-screen text, timing) that the n8n editors follow.
-- [ ] Lovable: add an optional "How should it feel?" box to the edit request in the Planner.
-- Done when: the brand kit and request visibly shape the edit, and nothing breaks for requests without them.
-
-## Later: clean-up
-
-- [ ] Remove the code the app no longer shows (listed in `docs/APP_MAP.md` → "Code the app no longer shows"), after the team confirms "Request edits" isn't coming back.
-
-## Questions under review
-
-- **Mass production:** see the notes below; to be decided after Steps 1–3.
-- **HeyGen avatars:** possible through HeyGen's API and the same Airtable → n8n pattern; to be decided.
-
-### Mass production notes
-- Weekly autopilot: each Monday, for each active client, generate the week's scripts to match their strategy split, and put them in the Planner as "To Approve". Run overnight through Claude's batch processing, which is cheaper and isn't time-sensitive.
-- Bottlenecks to check before scaling: Airtable request limits (about 5 requests a second per base), n8n and rendering capacity, and human approval time.
-
-### HeyGen notes
-- New format "Avatar video": an approved script triggers an n8n workflow that sends it to HeyGen's API with the client's avatar and voice. HeyGen calls back when the video is ready. The video is saved to Drive and the Planner post moves to "To Approve".
-- Each client's own avatar needs their consent and is set up in HeyGen. HeyGen usage is billed per video minute, so it needs its own credits in the app.
+- **Mass production:** Autopilot generates each client's week overnight. Before scaling, check Airtable's request limit (about 5 requests a second per base), n8n and rendering capacity, and approval time.
+- **HeyGen:** avatar videos are billed per minute by HeyGen, so they need their own credits in the app. Each client's avatar needs their consent.
+- **Parked:** the MCP connector built on 27 Oct is not deployed. If its code was saved, it's on the branch `archive/risevoice-mcp`.
+- **Later clean-up:** remove the code the app no longer shows (see `docs/APP_MAP.md`), after the team confirms "Request edits" isn't coming back.

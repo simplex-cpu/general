@@ -43,15 +43,11 @@ Running locally needs the secrets listed in `docs/APP_MAP.md` → "Secrets the s
 5. **Keep the map true.** If you add, move or rename a screen, endpoint, prompt or Airtable table, update `docs/APP_MAP.md` or `docs/PROMPTS.md` in the same change.
 6. **Prompt wording changes go through Settings (gear icon), not code.** Settings keeps a version history.
 
-## Connecting Lovable and GitHub
+## Lovable and GitHub
 
-Do this once, from the **existing** Lovable project, so Lovable Cloud, secrets and hosting stay as they are.
+Lovable is connected to this repository, `simplex-cpu/general`, on the branch `main-risevoice`. Changes made in Lovable appear here, and changes merged into `main-risevoice` appear in Lovable.
 
-1. Open the RiseVoice project in Lovable. Go to **Settings → GitHub** (also reachable from the GitHub button at the top right) → **Connect**.
-2. Sign in to GitHub. When asked, **install the Lovable GitHub App** on the `simplex-cpu` account. Skipping this step is the most common reason the connection fails.
-3. Let Lovable create the repository, and give it a clear name such as `risevoice-app`. From then on, Lovable and GitHub sync both ways on the default branch.
-4. **Never rename, move or delete that repository afterwards.** That breaks the sync.
-5. Copy `README.md`, `CLAUDE.md` and `docs/` from the current upload repository into the new one, then archive the upload repository. Claude Code can do this step.
+**Never rename, move or delete this repository.** That breaks the sync.
 
 ## Taking over this project
 
