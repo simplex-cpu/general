@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791936158201,
+      "tag": "0000_community_feed",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791936937535,
+      "tag": "0001_community_strategy_category",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792040401566,
+      "tag": "0002_long_form_operation_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792210117944,
+      "tag": "0003_create_podcast_script_jobs",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792211414841,
+      "tag": "0004_podcast_script_jobs_execution_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792211780377,
+      "tag": "0005_podcast_jobs_single_active_and_unmatched",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792549485708,
+      "tag": "0006_own_post_ai_access_blocks",
+      "breakpoints": true
+    }
+  ]
+}

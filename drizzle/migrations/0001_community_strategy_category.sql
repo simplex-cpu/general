@@ -1,0 +1,2 @@
+ALTER TABLE public.community_posts ADD COLUMN category text NOT NULL DEFAULT 'general' CHECK (category IN ('general', 'strategy'));
+CREATE INDEX community_posts_category_created_idx ON public.community_posts (category, created_at DESC);
