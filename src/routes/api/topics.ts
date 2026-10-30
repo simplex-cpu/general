@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { isInstructionTopic } from "@/lib/slate/topicGuard";
 import type {} from "@tanstack/react-start";
@@ -11,7 +12,7 @@ import { requireAccessCode } from "@/lib/accessCode.server";
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-const MODEL = "claude-opus-4-8";
+const MODEL = AI_MODELS.topics;
 
 async function callClaudeWithSearch(userText: string, maxTokens = 5000) {
   const key = process.env.ANTHROPIC_API_KEY;

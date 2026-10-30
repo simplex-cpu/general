@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireAccessCode } from "@/lib/accessCode.server";
@@ -20,7 +21,7 @@ import { ANGLE_KINDS, angleInstruction, brandRealityBlock } from "@/lib/slate/br
 import { postAge, writerFormat } from "@/lib/slate/inspoBank";
 import { StoryPlanSchema, validateStoryPlan, storyPlanInstruction } from "@/lib/slate/repurposeAngles";
 
-const MODEL = "anthropic/claude-fable-5-1";
+const MODEL = AI_MODELS.inspoRepurpose;
 const Body = z.object({
   id: z.string().regex(/^rec[A-Za-z0-9]{14}$/),
   brandId: z

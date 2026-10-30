@@ -1,9 +1,10 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAccessCode } from "@/lib/accessCode.server";
 
 const BASE_ID = "appf1QABtQbAENYDz";
 const BRANDS_TABLE = "tblho1mwlIMZfozue"; // Brands
-const MODEL = "claude-opus-4-8";
+const MODEL = AI_MODELS.brandStrategy;
 
 function headers() {
   const token = process.env.AIRTABLE_TOKEN;

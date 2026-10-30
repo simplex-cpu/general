@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { buildBriefExtras, type BriefPayload } from "@/lib/slate/promptBuilder";
@@ -27,7 +28,7 @@ import {
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-const MODEL = "claude-fable-5-1";
+const MODEL = AI_MODELS.script;
 
 // The scripting model always thinks before answering, and thinking shares
 // max_tokens with the answer. Low budgets cut scripts off right after the hook.

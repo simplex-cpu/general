@@ -102,6 +102,7 @@ Several files in `src/components/ui/` are also unused. That's normal: it's a rea
 | `src/lib/` | Server-side helpers (`*.server.ts`) for Airtable, AI, ownership, and so on | Yes |
 | `src/lib/slate/` | Shared rules used by both screens and server (formats, CTAs, slides, captions) | Yes. Each rule has a matching `*.test.ts` check |
 | `src/lib/simplex/prompts.ts` | Default AI writing prompts. See [PROMPTS.md](PROMPTS.md) | Yes |
+| `src/lib/aiModels.ts` | Which AI model each job uses, in one place | Yes, to switch models |
 | `src/integrations/supabase/` | Supabase connection | Rarely |
 | `drizzle/`, `supabase/` | Database change history (migrations) | Only through a migration |
 | `src/routeTree.gen.ts` | **Generated automatically.** Never edit by hand | No |

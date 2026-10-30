@@ -34,6 +34,10 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 
 Step 2 of [PLAN.md](PLAN.md) moves the writing prompts from this list into Settings.
 
+## Which AI model each feature uses
+
+All model choices live in one file, `src/lib/aiModels.ts`, one line per job (topics, hooks, script, captions, design and so on). To try a newer model for a job, change that one line. Jobs marked "forced tool call" need a small code change before moving to Claude Opus 5.5, Sonnet 5.5 or Fable 5.1, because those models reject forced tool calls.
+
 ## Safe way to test a prompt change
 
 1. Change it in Settings. Note the version number Airtable gives it.
