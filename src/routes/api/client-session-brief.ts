@@ -1,9 +1,10 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAccessCode } from "@/lib/accessCode.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { generateText } from "ai";
 
-const MODEL = "google/gemini-3-flash-preview";
+const MODEL = AI_MODELS.sessionBrief;
 
 const STRUCTURE = `You build ONE editable session brief for a creator who is about to script a batch of social content. You are given their Brand info form. Output MARKDOWN ONLY, using EXACTLY these sections and headers, in this order:
 

@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAccessCode } from "@/lib/accessCode.server";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
@@ -9,7 +10,7 @@ const CLIENT_ADMIN_TABLE = "tblPm4VFwe6nTaYj4";
 const CLIENT_ADMIN_BRIEFS_FIELD = "fldIBqAr551xuxdev";
 const CONTENT_TABLE = "tblQHZQtxSzkeqsCQ";
 
-const MODEL = "google/gemini-3-flash-preview";
+const MODEL = AI_MODELS.adminBrandContext;
 const ROUTE_BUDGET_MS = 55000;
 const SUMMARY_TIMEOUT_MS = 50000;
 const MAX_POSTS_TO_SCAN = 120;

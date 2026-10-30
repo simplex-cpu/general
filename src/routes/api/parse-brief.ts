@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { requireAccessCode } from "@/lib/accessCode.server";
@@ -5,7 +6,7 @@ import { requireAccessCode } from "@/lib/accessCode.server";
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-const MODEL = "claude-opus-4-8";
+const MODEL = AI_MODELS.parseBrief;
 
 export const Route = createFileRoute("/api/parse-brief")({
   server: {

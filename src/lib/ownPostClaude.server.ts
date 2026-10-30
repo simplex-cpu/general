@@ -1,6 +1,7 @@
+import { AI_MODELS } from "./aiModels";
 import { createLovableAiGatewayRunIdFetch, getLovableAiGatewayResponseHeaders } from "./lovableAiRunId.server";
 
-export const OWN_POST_MODEL = "anthropic/claude-opus-5-5";
+export const OWN_POST_MODEL = AI_MODELS.ownPostRepurpose;
 export class OwnPostAIError extends Error {
   constructor(message: string, public status: number) { super(message); }
 }

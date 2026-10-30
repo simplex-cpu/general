@@ -1,5 +1,6 @@
 // Shared post transcription and Talking/B-roll verdicts, used by Analyze account and Refresh stats.
 /** Gateway rejects bodies over 25 MiB. */
+import { AI_MODELS } from "./aiModels";
 import { generateLovableText } from "./lovableResponses.server";
 const MAX_AUDIO_BYTES = 24 * 1024 * 1024;
 
@@ -14,7 +15,7 @@ export async function transcribe(videoUrl: string): Promise<string> {
   if (blob.size > MAX_AUDIO_BYTES) throw new Error("media too large");
 
   const form = new FormData();
-  form.append("model", "openai/gpt-4o-transcribe");
+  form.append("model", AI_MODELS.postTranscription);
   form.append("file", blob, "clip.mp4");
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
@@ -128,11 +129,11 @@ export async function classifyVideo(input: {
   try {
     const hasImage = Boolean(input.coverUrl);
     return (
-      (await ask("google/gemini-3.6-flash", hasImage)) ??
+      (await ask(AI_MODELS.postVision, hasImage)) ??
       // Cover URLs are signed CDN links the gateway sometimes cannot fetch.
       // Fall back to the transcript alone rather than losing the verdict.
-      (hasImage ? await ask("google/gemini-3.6-flash", false) : null) ??
-      (await ask("google/gemini-2.5-flash", hasImage))
+      (hasImage ? await ask(AI_MODELS.postVision, false) : null) ??
+      (await ask(AI_MODELS.postVisionFallback, hasImage))
     );
   } catch (e) {
     console.warn("[scrape-posts] vision classify failed", e);
@@ -164,7 +165,7 @@ export async function readSlideText(imageUrl: string): Promise<string> {
   try {
     const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST", headers: { "Lovable-API-Key": key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Lovable-AIG-SDK": "fetch" },
-      body: JSON.stringify({ model: "openai/gpt-6-astra", stream: true, store: false, reasoning: { effort: "low" }, input: [{ role: "user", content: [
+      body: JSON.stringify({ model: AI_MODELS.slideText, stream: true, store: false, reasoning: { effort: "low" }, input: [{ role: "user", content: [
         { type: "input_text", text: "Transcribe all visible text on this social media slide exactly, top to bottom, one line per text block. Reply with the text only. If there is no text, reply with nothing." },
         { type: "input_image", image_url: imageUrl },
       ] }] }),

@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { buildBriefExtras, type BriefPayload } from "@/lib/slate/promptBuilder";
@@ -12,7 +13,7 @@ import { captionStructureInstruction } from "@/lib/slate/scriptCta";
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-const MODEL = "claude-sonnet-4-5-20250929";
+const MODEL = AI_MODELS.captions;
 const CAPTION_CHUNK_SIZE = 4;
 
 async function callClaude(userText: string, maxTokens = 5000) {
