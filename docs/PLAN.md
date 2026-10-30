@@ -2,166 +2,87 @@
 
 Agreed direction and order of work. Tick items off as they're done, and add the date and who did it.
 
-## Direction
+## Direction (decided 30 Oct 2026)
 
-**Claude does the creating. The app keeps the brand, the rules and the pipeline.**
+**The two real problems:**
+1. The app is hard to change. Improving outputs or making a targeted fix means wading through a lot of code.
+2. Design and video editing fall behind what Claude can do, because our own fixed rules sit between the client and the model.
 
-- Clients and staff write scripts, design carousels and request video edits **in their own Claude**, through a Risevoice connector (an MCP server).
-- The Risevoice **engine** gives Claude the brand brief and our writing guidelines. It checks what Claude sends back, then saves it to Airtable exactly as the app does today. Airtable and n8n carry on unchanged.
-- The **app gets slimmer**:
-  - It keeps the screens where people review, approve and track: Home, Planner, My Brand, Community, Growth Path.
-  - The creation screens (Script, Viral Kit, design and editing forms) are retired one at a time, once each works well in Claude.
-
-**Why:**
-1. It's **simpler for us**. The creation screens are the biggest, hardest-to-control part of the code.
-2. We **ride Claude's progress**. Every improvement in Claude's writing and design reaches our clients without us shipping anything.
-3. It **saves AI credits**. The writing and design are paid for by the user's Claude plan.
-
-**What it looks like:** the visual walk-throughs are private pages; ask the project owner for access.
-- Real screenshots of today's app beside mock-ups of the same jobs done in Claude: https://claude.ai/artifact/ASpbp463f378MTUaKQyMGK
-- How the pieces connect behind the scenes: https://claude.ai/artifact/QrzXzNKTQDmf2jquW7gmxv
-
-### What happens to each screen
-
-| Screen | Future |
-|---|---|
-| Home | Stays in the app |
-| Planner | Stays in the app. Everything made in Claude lands here, labelled "Claude" |
-| My Brand | Stays in the app. Claude also reads it |
-| Community, Growth Path | Stays in the app |
-| Script | Moves to Claude, then retired from the app |
-| Carousel / graphic design | Moves to Claude, then retired from the app |
-| Video editing request | Moves to Claude. The n8n editors still do the edit, and the result shows in the Planner |
-| Viral Kit (Analyze, Inspo, Long-form clipper) | Moves to Claude. Scraping and transcription still run on our side |
-| Divide scripts (staff) | Moves to Claude. This is the first pilot |
-| Settings (prompts) | Stays. It becomes the source of the guidelines Claude follows |
-
-### Who pays for what
-
-- **The user's Claude plan:** all the thinking, writing, design and back-and-forth. So **MCP tools must never call our AI gateway** (`LOVABLE_API_KEY` / `ANTHROPIC_API_KEY`). They only read data and save results.
-- **Us:**
-  - video rendering (the n8n editors)
-  - account scraping (Apify)
-  - posting (Vista Social)
-  - storage (Airtable, Drive) and hosting
-- In-app credits (Stripe) are kept for these costs.
-
-### Rules for the engine
-
-- Each tool goes through the **same app endpoints** the screens use today, so the checks and Airtable writes stay in one place. Nothing is copied.
-- Save tools **check what Claude sends before saving**, using the existing rules: slide fields, the caption contract, CTA rules and `video_edit` v1. Badly formed content goes back to Claude with the reason, and is never saved.
-- Editing stays behind **one tool, `request_edit`**. Today it creates the "To Edit" record that n8n picks up. If Claude or another service can edit video later, only what's behind that tool changes.
-- **Don't build for Claude features that don't exist yet.** Today Claude writes and designs. It doesn't render video.
-- Our guidelines become **visible to users** through `get_writing_guidelines`. Decide which guidance is shared in full and which is summarised.
+**What we're doing:**
+- **No MCP connector.** It didn't solve either problem. The code that was built is parked on the branch `archive/risevoice-mcp`, not deployed.
+- **Keep the Script tab.** Add three changes that make it easy to improve and flexible: one switch for AI models, every prompt editable in Settings, and a "Refine" box on every card.
+- **Brand kit plus the client's own request** for design and editing, instead of fixed design rules. The client gives us a website or a brand kit. We pull out colours, fonts, logo and tone, then send the brand kit and their request to the latest Claude. Only basic format checks stay (size, slide count, text fits).
+- **Video:** Claude decides the edit (cuts, caption style, on-screen text, timing). The n8n editors still render it, so the final look depends on their templates. Changing the rendering tool is a separate, later decision.
 
 ## Who does what
 
 | Work | Who |
 |---|---|
-| Connect Lovable to GitHub, test access code, Cloudflare account | You |
-| Build, test and deploy the connector (Step 3) | Claude Code |
-| Move hard-coded prompts into Settings (Step 2) | Claude Code, as a pull request Lovable picks up |
-| Screen changes: "Create with Claude" box, "Claude" label in the Planner | Lovable |
-| Retiring screens and removing unused code (Step 6) | Claude Code, one pull request each |
-| Writing and tuning the guidelines in Settings | You and the strategists |
+| Server code, prompts, model switch, AI calls, clean-up | Claude Code, as pull requests on the Lovable-connected repository |
+| Screens: Settings dropdown, Refine box, brand kit upload in My Brand | Lovable, using the prompts in this file |
+| New Airtable fields (for example, brand kit fields) | Karen (only Karen, Sarah or Jennifer may create fields) |
+| n8n changes for video (sending the brand kit and the edit plan to the editors) | Claude Code via n8n, once the "Video edits — … v3" workflows are made available to it |
 
-**Rule:** Lovable and Claude Code never work on the same files at the same time. Lovable does screens; Claude Code does the connector, endpoints and clean-up.
-
-## Timeline: one week
-
-| Day | What | Who |
-|---|---|---|
-| 1 | Connector written: sign-in with access code, brand brief, guidelines, read the Planner, save to the Planner | Claude Code |
-| 2 | Video edit requests and comments added. Connector put online on Cloudflare and tested on the test account | Claude Code + you (Cloudflare key) |
-| 3 | Staff add the connector in Claude and use it for real scripting. Fix what breaks | Staff + Claude Code |
-| 4 | Lovable adds the "Create with Claude" box and the "Claude" label in the Planner. Guidelines tuned in Settings | Lovable + strategists |
-| 5 | 3–5 friendly clients start using it | You |
-
-Moved after the week: making the hard-coded prompts editable in Settings (Step 2), and retiring screens (Step 6).
-
-## Status and handoff notes
-
-- Live app: https://risevoicetools.com (Lovable-hosted; the domain isn't in the Simplex Cloudflare account).
-- Cloudflare: a deploy token from the "Edit Cloudflare Workers" template (account-level Workers permissions only) is saved in the Claude Code environment as a **Bearer network secret for `api.cloudflare.com`**. `CLOUDFLARE_ACCOUNT_ID` is an environment variable.
-  - Check it with `curl https://api.cloudflare.com/client/v4/user/tokens/verify`. A "success": true answer means it works.
-  - The token is added to requests by the environment's proxy, so it isn't readable as a variable. Deploy by calling the Cloudflare API directly, or give `wrangler` a placeholder `CLOUDFLARE_API_TOKEN` and confirm the proxy replaces the header.
-- The connector starts on a `*.workers.dev` address.
-- Still waiting for: the repository Lovable created, and a dedicated test client access code. Never commit access codes.
+**Rule:** Lovable and Claude Code never work on the same files at the same time. Claude Code goes first on each item (server side), then Lovable does the screen.
 
 ## Step 0: one source of truth
 
-- [ ] Connect the Lovable project to GitHub (instructions in [README](../README.md#connecting-lovable-and-github)).
-- [ ] Copy `README.md`, `CLAUDE.md` and `docs/` into the repository Lovable creates.
-- [ ] Archive the old upload repository so nobody edits it by mistake.
+- [x] Lovable connected to GitHub.
+- [ ] Tell Claude Code the name of the repository Lovable created, so changes can go there as pull requests.
+- [ ] Copy `README.md`, `CLAUDE.md` and `docs/` into that repository, then archive `simplex-cpu/general`.
 
-## Step 1: map the app
+## Step 1: one switch for AI models
 
-- [x] `docs/APP_MAP.md`: screens, files, endpoints, data, and the editing pipeline.
-- [x] `docs/PROMPTS.md`: where every prompt lives.
-- [ ] Have someone who uses the app daily check the map for mistakes in naming.
-- [ ] Turn on "Available in MCP" for the four "Video edits — … v3" n8n workflows, so their steps can be documented. This only allows reading them.
+**Why:** the model is hard-coded in about 10 files, in a mix of versions. Captions still use a 2025 model (`claude-sonnet-4-5-20250929` in `src/routes/api/captions.ts`), while hooks and scripts use `claude-fable-5-1`. Staying current with Claude should be one change, not a hunt through the code.
 
-## Step 2: every writing prompt editable from Settings
+- [ ] Claude Code: create one settings file (for example `src/lib/aiModels.ts`) that names the model for each job (topics, hooks, scripts, captions, design, analysis, brand kit). Make every AI call read from it. Upgrade captions to a current model.
+- [ ] Lovable: add a staff-only "AI models" section in Settings that shows the current choice for each job. This is optional at first; changing the file is enough.
+- Done when: switching the scripting model is a one-line change, and tests pass.
 
-- [ ] Move the hard-coded writing prompts listed in `docs/PROMPTS.md` (analysis, brand strategy, AI design, divide scripts, own-post repurpose, inspo, podcast clipping) into `src/lib/simplex/prompts.ts`, so they appear in Settings and are versioned in Airtable.
-- [ ] Keep the current wording exactly. This step moves prompts; it doesn't change them.
-- Done when: every prompt that shapes client-facing copy can be edited from Settings, and the tests pass. These prompts are what `get_writing_guidelines` hands to Claude in Step 3.
+## Step 2: every prompt editable in Settings
 
-## Step 3: build the connector
+- [ ] Claude Code: move the hard-coded prompts listed in `docs/PROMPTS.md` (design, analysis, brand strategy, divide scripts, own-post repurpose, inspo, podcast clipping) into `src/lib/simplex/prompts.ts`. They then show up in Settings and get version history in Airtable. Keep the wording exactly as it is.
+- Done when: every prompt that shapes client-facing copy can be edited from Settings.
 
-**Shape (fastest route):**
-- A **separate small program**, `risevoice-mcp`, hosted on Cloudflare Workers at its own address (for example `https://mcp.risevoice.app/mcp`). It lives in its own folder or repository, so Lovable never touches it and it never touches the app's screens.
-- It **calls the app's existing endpoints** with the signed-in user's access code, exactly as if they'd clicked the button. So the access-code checks, ownership rules and Airtable writes are the ones already in use, and nothing is copied.
-  - Brand brief: `/api/my-brief`
-  - Guidelines: `/api/prompts`
-  - Planner: `/api/dwy-client-content`
-  - Edits: `/api/dwy-edit-yourself`, `/api/check-footage-link`
-  - Comments: `/api/dwy-comments`
-- **Sign-in:** when someone adds the connector in Claude, Claude opens a Risevoice page that asks for their access code (OAuth, which Claude connectors require). The connector remembers the code for that user.
-- If a tool needs something the endpoints don't offer, add a small endpoint to the app, rather than putting Airtable logic in the connector.
+## Step 3: "Refine" on every card
 
-**Tools, in build order:**
-1. `list_my_brands`, `get_brand_brief`: brand voice, audience, colours, fonts.
-2. `get_writing_guidelines(format)`: the Settings prompts and QA checklist for a format.
-3. `list_planner`, `get_post`: read the Planner.
-4. `save_to_planner(format, copy, captions, date)`: creates the same Client Content record the app creates.
-5. `check_footage_link`, `request_edit(post, footage, hook, cta, style)`: creates the same Edit Yourself request, with Status "To Edit", that the Planner creates today.
-6. `add_comment(post, text)`.
-7. Later: `get_post_stats`, `analyze_account`, `find_inspo`.
+- [ ] Claude Code: add one endpoint, `/api/refine`, that takes a piece (hook, script, slide, caption) plus a short instruction ("shorter", "more like my voice") and rewrites only that piece, following the brand and the format rules.
+- [ ] Lovable: add a small "Refine" box with a few quick chips (Shorter · Punchier · More like me · Different angle) to the hook, script and caption cards in the Script tab, and to the post window in the Planner.
+- Done when: a client can change one piece without regenerating everything or editing by hand.
 
-- Done when: a test account goes from idea to a Planner post, and from footage link to an edited video, entirely through Claude, and the Airtable records match ones made in the app.
+## Step 4: brand kit
 
-**Needed before building:**
-- [ ] The live app address (the published Lovable URL or custom domain).
-- [ ] A test client access code, with a test brand, in Airtable.
-- [ ] A Cloudflare account to host the connector. The free plan is enough.
+- [ ] Karen: add brand kit fields to the Brand briefs table if the existing visual style fields aren't enough. Likely fields: logo, colours, fonts, tone notes, source website.
+- [ ] Claude Code: add `/api/brand-kit`. It takes a website address or uploaded files (PDF, images), extracts colours, fonts, logo and tone with Claude, and returns them for the client to check before saving.
+- [ ] Lovable: in My Brand, add "Import from website" and "Upload brand kit", show the extracted kit with edit boxes, then save.
+- Done when: a new client gets a usable brand kit from a website link in under a minute.
 
-## Step 4: staff pilot
+## Step 5: design from brand kit plus request
 
-- [ ] Strategists use the connector for Divide scripts, scripting and planning.
-- [ ] Track what goes wrong and tighten the guidelines and save checks.
-- Done when: staff prefer Claude for scripting and the save checks catch every malformed result.
+- [ ] Claude Code: simplify `src/routes/api/ai-design.ts`. Replace the fixed art-direction rules with the brand kit, the slide copy and the client's request, sent to the model chosen in Step 1. Keep only format checks (canvas size, slide count, text fits, no missing slides).
+- [ ] Lovable: add an optional "Describe the look" box beside the design button in the Planner.
+- Done when: a carousel designed this way looks on-brand, and switching to a newer model visibly improves it with no other change.
 
-## Step 5: client pilot
+## Step 6: video edits from brand kit plus request
 
-- [ ] Invite a handful of friendly clients who already pay for Claude.
-- [ ] Add a "Create with Claude" box in the app with set-up instructions.
-- [ ] In the Planner, label posts made in Claude.
-- Done when: pilot clients complete a full week of content through Claude without help.
+- [ ] Karen: in n8n, turn on "Available in MCP" for the four "Video edits — … v3" workflows, so Claude Code can read and update them.
+- [ ] Claude Code: when a client sends a video to editing, add the brand kit and their request to the saved `video_edit` request. Have Claude produce an edit plan (cuts, caption style, on-screen text, timing) that the n8n editors follow.
+- [ ] Lovable: add an optional "How should it feel?" box to the edit request in the Planner.
+- Done when: the brand kit and request visibly shape the edit, and nothing breaks for requests without them.
 
-## Step 6: slim the app
+## Later: clean-up
 
 - [ ] Remove the code the app no longer shows (listed in `docs/APP_MAP.md` → "Code the app no longer shows"), after the team confirms "Request edits" isn't coming back.
-- [ ] Retire the creation screens one at a time, each in its own pull request with tests passing. Script goes first, then carousel and graphic design, then Viral Kit. Keep each one until most clients create through Claude.
-- [ ] After each removal, update `docs/APP_MAP.md`.
 
-## Not doing
+## Questions under review
 
-- **Splitting the very large screen files** (`ScriptMode.tsx`, 5,324 lines; `AnalyzeMode.tsx`, 2,260 lines). They're being retired, so we only fix bugs in them.
-- **A full folder reorganisation.** Once Step 6 is done, the remaining app is small enough to group by feature (`src/features/planner/`, and so on) in one go.
+- **Mass production:** see the notes below; to be decided after Steps 1–3.
+- **HeyGen avatars:** possible through HeyGen's API and the same Airtable → n8n pattern; to be decided.
 
-## Open decisions
+### Mass production notes
+- Weekly autopilot: each Monday, for each active client, generate the week's scripts to match their strategy split, and put them in the Planner as "To Approve". Run overnight through Claude's batch processing, which is cheaper and isn't time-sensitive.
+- Bottlenecks to check before scaling: Airtable request limits (about 5 requests a second per base), n8n and rendering capacity, and human approval time.
 
-- Which guidelines are shared with Claude in full, and which are summarised?
-- When does a client need a Claude plan? Is it optional at first, or required once Script is retired?
-- How are in-app credits priced once AI writing no longer uses them?
+### HeyGen notes
+- New format "Avatar video": an approved script triggers an n8n workflow that sends it to HeyGen's API with the client's avatar and voice. HeyGen calls back when the video is ready. The video is saved to Drive and the Planner post moves to "To Approve".
+- Each client's own avatar needs their consent and is set up in HeyGen. HeyGen usage is billed per video minute, so it needs its own credits in the app.
