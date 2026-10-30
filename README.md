@@ -35,7 +35,7 @@ Running locally needs the secrets listed in `docs/APP_MAP.md` → "Secrets the s
 
 1. **One copy of the code.** The GitHub repository connected to Lovable is the only copy. Don't edit uploads or old copies.
 2. **Small changes and look-and-feel → Lovable.** Lovable saves to the main branch automatically.
-3. **Bigger changes (MCP, restructuring, prompts moved out of code) → Claude Code on GitHub.**
+3. **Bigger changes (server code, automations, prompts moved out of code) → Claude Code on GitHub.**
    - Work on a new branch and open a pull request.
    - Check that `bun test` and `npx tsc --noEmit` pass.
    - Merge. Lovable then picks the change up.
