@@ -72,6 +72,8 @@ const PROMPT_META: Record<PromptKey, { label: string; category: string }> = {
     category: "Output structure",
   },
   outputCaptions: { label: "Captions · Output", category: "Output structure" },
+  designSlide: { label: "Carousel design · Slide", category: "Design" },
+  designPlan: { label: "Carousel design · Series plan", category: "Design" },
 };
 
 function json(body: unknown, status = 200) {

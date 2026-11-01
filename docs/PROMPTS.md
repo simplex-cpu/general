@@ -12,6 +12,7 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | Carousel & graphic | Carousel Slides, Graphic Copy, Carousel CTA, Graphic CTA, Production Creative Instructions |
 | Captions | Instagram, Facebook, TikTok, YouTube Shorts |
 | QA checklists | One per format, plus topics, hooks and captions |
+| Design | Carousel design · Slide (`designSlide`), Carousel design · Series plan (`designPlan`) |
 | Output formats | The exact shape the AI must return. **Don't change these without a developer.** The app reads these shapes, so the wrong shape breaks it |
 
 **Where the live prompts come from:** the server reads the latest saved version of each prompt from Prompt Versions (`src/lib/promptStore.server.ts`), and falls back to the defaults if Airtable can't be reached. The browser can't send its own prompts. A saved change applies on the next request.
@@ -26,7 +27,6 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | Hooks / scripts / captions call setup | `src/routes/api/hooks.ts`, `script.ts`, `captions.ts` |
 | Account analysis report | `src/routes/api/analyse.ts` |
 | Brand strategy | `src/routes/api/brand-strategy.ts` |
-| Carousel AI design (art direction) | `src/routes/api/ai-design.ts` (`SYSTEM`, `PLAN_SYSTEM`) |
 | Divide scripts | `src/lib/divideScripts.shared.ts` |
 | Repurposing your own posts | `src/lib/ownPostClaude.server.ts` |
 | Inspo find / read / repurpose | `src/routes/api/inspo-find.ts`, `src/lib/inspoRead.server.ts`, `src/routes/api/inspo-repurpose.ts` |

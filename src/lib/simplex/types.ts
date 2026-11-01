@@ -60,7 +60,10 @@ export type PromptKey =
   | "outputCarousel"
   | "outputGraphic"
   | "outputProductionMeta"
-  | "outputCaptions";
+  | "outputCaptions"
+  // Design
+  | "designSlide"
+  | "designPlan";
 
 export type Prompts = Record<PromptKey, string>;
 
