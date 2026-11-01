@@ -1,4 +1,5 @@
 import { AI_MODELS } from "@/lib/aiModels";
+import { loadLivePrompts } from "@/lib/promptStore.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { isInstructionTopic } from "@/lib/slate/topicGuard";
 import type {} from "@tanstack/react-start";
@@ -49,17 +50,17 @@ export const Route = createFileRoute("/api/topics")({
       POST: async ({ request }: { request: Request }) => {
         try {
           const body = await request.json();
-          const { brief, analysisReport, seedReport, count, prompts, reprompt, accessCode } = body as {
+          const { brief, analysisReport, seedReport, count, reprompt, accessCode } = body as {
             brief: BriefPayload;
             analysisReport?: any | null;
             seedReport?: any | null;
             count: number;
-            prompts: Prompts;
             reprompt?: string;
             accessCode?: string;
           };
           const auth = await requireAccessCode(accessCode);
           if (!auth.ok) return auth.response;
+          const prompts = await loadLivePrompts();
           // Analysis reports are never fed to scripting AI calls; they only shape
           // the brand's Recommended strategy, which arrives via brief.recommendedStrategy.
           void analysisReport; void seedReport;

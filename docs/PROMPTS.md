@@ -14,6 +14,8 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | QA checklists | One per format, plus topics, hooks and captions |
 | Output formats | The exact shape the AI must return. **Don't change these without a developer.** The app reads these shapes, so the wrong shape breaks it |
 
+**Where the live prompts come from:** the server reads the latest saved version of each prompt from Prompt Versions (`src/lib/promptStore.server.ts`), and falls back to the defaults if Airtable can't be reached. The browser can't send its own prompts. A saved change applies on the next request.
+
 **How a scripting request is built:** `src/lib/slate/envelope.ts` puts together the role, the brand details, your guideline prompts, the output format and the QA checklist, in that order, for every topic, hook, script and caption request. To change the voice everywhere, edit **Global Voice & Tone**. To change one format, edit that format's prompt.
 
 ## Prompts written into the code (need a code change)

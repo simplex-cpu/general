@@ -1,4 +1,5 @@
 import { AI_MODELS } from "@/lib/aiModels";
+import { loadLivePrompts } from "@/lib/promptStore.server";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { buildBriefExtras, type BriefPayload } from "@/lib/slate/promptBuilder";
@@ -186,7 +187,6 @@ export const Route = createFileRoute("/api/script")({
             hook,
             scriptType,
             brief,
-            prompts,
             reprompt,
             format,
             cta,
@@ -199,7 +199,6 @@ export const Route = createFileRoute("/api/script")({
             hook: Hook;
             scriptType: "fleshed" | "framework";
             brief: BriefPayload;
-            prompts: Prompts;
             reprompt?: string;
             format?: Format;
             cta?: string;
@@ -210,6 +209,7 @@ export const Route = createFileRoute("/api/script")({
           };
           const auth = await requireAccessCode(accessCode);
           if (!auth.ok) return auth.response;
+          const prompts = await loadLivePrompts();
           const fmt: Format = format ?? "talkingVideo";
           const subtype: DesignSubtype = fmt === "carousel"
             ? topic.designSubtype === "insightful" ? "insightful" : "quote"
