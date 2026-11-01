@@ -53,11 +53,14 @@ import { Route as ApiPodcastScriptJobsRouteImport } from './routes/api/podcast-s
 import { Route as ApiPostAccountsRouteImport } from './routes/api/post-accounts'
 import { Route as ApiPostRepurposeRouteImport } from './routes/api/post-repurpose'
 import { Route as ApiPromptsRouteImport } from './routes/api/prompts'
+import { Route as ApiRefineRouteImport } from './routes/api/refine'
 import { Route as ApiRepurposeAnglesRouteImport } from './routes/api/repurpose-angles'
 import { Route as ApiScrapePostsRouteImport } from './routes/api/scrape-posts'
 import { Route as ApiScriptRouteImport } from './routes/api/script'
+import { Route as ApiSendToAvatarRouteImport } from './routes/api/send-to-avatar'
 import { Route as ApiSendToProductionRouteImport } from './routes/api/send-to-production'
 import { Route as ApiShortFormsRouteImport } from './routes/api/short-forms'
+import { Route as ApiSignupRouteImport } from './routes/api/signup'
 import { Route as ApiSocialConnectRouteImport } from './routes/api/social-connect'
 import { Route as ApiTeamChatRouteImport } from './routes/api/team-chat'
 import { Route as ApiTopicsRouteImport } from './routes/api/topics'
@@ -290,6 +293,11 @@ const ApiPromptsRoute = ApiPromptsRouteImport.update({
   path: '/api/prompts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRefineRoute = ApiRefineRouteImport.update({
+  id: '/api/refine',
+  path: '/api/refine',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRepurposeAnglesRoute = ApiRepurposeAnglesRouteImport.update({
   id: '/api/repurpose-angles',
   path: '/api/repurpose-angles',
@@ -305,6 +313,11 @@ const ApiScriptRoute = ApiScriptRouteImport.update({
   path: '/api/script',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSendToAvatarRoute = ApiSendToAvatarRouteImport.update({
+  id: '/api/send-to-avatar',
+  path: '/api/send-to-avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSendToProductionRoute = ApiSendToProductionRouteImport.update({
   id: '/api/send-to-production',
   path: '/api/send-to-production',
@@ -313,6 +326,11 @@ const ApiSendToProductionRoute = ApiSendToProductionRouteImport.update({
 const ApiShortFormsRoute = ApiShortFormsRouteImport.update({
   id: '/api/short-forms',
   path: '/api/short-forms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSignupRoute = ApiSignupRouteImport.update({
+  id: '/api/signup',
+  path: '/api/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiSocialConnectRoute = ApiSocialConnectRouteImport.update({
@@ -413,11 +431,14 @@ export interface FileRoutesByFullPath {
   '/api/post-accounts': typeof ApiPostAccountsRoute
   '/api/post-repurpose': typeof ApiPostRepurposeRoute
   '/api/prompts': typeof ApiPromptsRoute
+  '/api/refine': typeof ApiRefineRoute
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
+  '/api/signup': typeof ApiSignupRoute
   '/api/social-connect': typeof ApiSocialConnectRoute
   '/api/team-chat': typeof ApiTeamChatRoute
   '/api/topics': typeof ApiTopicsRoute
@@ -474,11 +495,14 @@ export interface FileRoutesByTo {
   '/api/post-accounts': typeof ApiPostAccountsRoute
   '/api/post-repurpose': typeof ApiPostRepurposeRoute
   '/api/prompts': typeof ApiPromptsRoute
+  '/api/refine': typeof ApiRefineRoute
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
+  '/api/signup': typeof ApiSignupRoute
   '/api/social-connect': typeof ApiSocialConnectRoute
   '/api/team-chat': typeof ApiTeamChatRoute
   '/api/topics': typeof ApiTopicsRoute
@@ -536,11 +560,14 @@ export interface FileRoutesById {
   '/api/post-accounts': typeof ApiPostAccountsRoute
   '/api/post-repurpose': typeof ApiPostRepurposeRoute
   '/api/prompts': typeof ApiPromptsRoute
+  '/api/refine': typeof ApiRefineRoute
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
+  '/api/signup': typeof ApiSignupRoute
   '/api/social-connect': typeof ApiSocialConnectRoute
   '/api/team-chat': typeof ApiTeamChatRoute
   '/api/topics': typeof ApiTopicsRoute
@@ -599,11 +626,14 @@ export interface FileRouteTypes {
     | '/api/post-accounts'
     | '/api/post-repurpose'
     | '/api/prompts'
+    | '/api/refine'
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
+    | '/api/signup'
     | '/api/social-connect'
     | '/api/team-chat'
     | '/api/topics'
@@ -660,11 +690,14 @@ export interface FileRouteTypes {
     | '/api/post-accounts'
     | '/api/post-repurpose'
     | '/api/prompts'
+    | '/api/refine'
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
+    | '/api/signup'
     | '/api/social-connect'
     | '/api/team-chat'
     | '/api/topics'
@@ -721,11 +754,14 @@ export interface FileRouteTypes {
     | '/api/post-accounts'
     | '/api/post-repurpose'
     | '/api/prompts'
+    | '/api/refine'
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
+    | '/api/signup'
     | '/api/social-connect'
     | '/api/team-chat'
     | '/api/topics'
@@ -783,11 +819,14 @@ export interface RootRouteChildren {
   ApiPostAccountsRoute: typeof ApiPostAccountsRoute
   ApiPostRepurposeRoute: typeof ApiPostRepurposeRoute
   ApiPromptsRoute: typeof ApiPromptsRoute
+  ApiRefineRoute: typeof ApiRefineRoute
   ApiRepurposeAnglesRoute: typeof ApiRepurposeAnglesRoute
   ApiScrapePostsRoute: typeof ApiScrapePostsRoute
   ApiScriptRoute: typeof ApiScriptRoute
+  ApiSendToAvatarRoute: typeof ApiSendToAvatarRoute
   ApiSendToProductionRoute: typeof ApiSendToProductionRoute
   ApiShortFormsRoute: typeof ApiShortFormsRoute
+  ApiSignupRoute: typeof ApiSignupRoute
   ApiSocialConnectRoute: typeof ApiSocialConnectRoute
   ApiTeamChatRoute: typeof ApiTeamChatRoute
   ApiTopicsRoute: typeof ApiTopicsRoute
@@ -1109,6 +1148,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPromptsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/refine': {
+      id: '/api/refine'
+      path: '/api/refine'
+      fullPath: '/api/refine'
+      preLoaderRoute: typeof ApiRefineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/repurpose-angles': {
       id: '/api/repurpose-angles'
       path: '/api/repurpose-angles'
@@ -1130,6 +1176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiScriptRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/send-to-avatar': {
+      id: '/api/send-to-avatar'
+      path: '/api/send-to-avatar'
+      fullPath: '/api/send-to-avatar'
+      preLoaderRoute: typeof ApiSendToAvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/send-to-production': {
       id: '/api/send-to-production'
       path: '/api/send-to-production'
@@ -1142,6 +1195,13 @@ declare module '@tanstack/react-router' {
       path: '/api/short-forms'
       fullPath: '/api/short-forms'
       preLoaderRoute: typeof ApiShortFormsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/signup': {
+      id: '/api/signup'
+      path: '/api/signup'
+      fullPath: '/api/signup'
+      preLoaderRoute: typeof ApiSignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/social-connect': {
@@ -1274,11 +1334,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPostAccountsRoute: ApiPostAccountsRoute,
   ApiPostRepurposeRoute: ApiPostRepurposeRoute,
   ApiPromptsRoute: ApiPromptsRoute,
+  ApiRefineRoute: ApiRefineRoute,
   ApiRepurposeAnglesRoute: ApiRepurposeAnglesRoute,
   ApiScrapePostsRoute: ApiScrapePostsRoute,
   ApiScriptRoute: ApiScriptRoute,
+  ApiSendToAvatarRoute: ApiSendToAvatarRoute,
   ApiSendToProductionRoute: ApiSendToProductionRoute,
   ApiShortFormsRoute: ApiShortFormsRoute,
+  ApiSignupRoute: ApiSignupRoute,
   ApiSocialConnectRoute: ApiSocialConnectRoute,
   ApiTeamChatRoute: ApiTeamChatRoute,
   ApiTopicsRoute: ApiTopicsRoute,

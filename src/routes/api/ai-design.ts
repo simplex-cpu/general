@@ -1,9 +1,11 @@
+import { loadLivePrompts } from "@/lib/promptStore.server";
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireAccessCode } from "@/lib/accessCode.server";
 import { checkDesignQuality, dropInventedText, validateDesignSvg } from "@/lib/slate/aiDesign";
 
-const MODEL = "anthropic/claude-opus-5-5";
+const MODEL = AI_MODELS.design;
 
 const Block = z.object({
   role: z.string().max(40).optional(),
@@ -35,34 +37,8 @@ class GatewayError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-const SYSTEM = `You are a senior editorial art director designing premium Instagram carousels (think The Economist, Bloomberg Businessweek, Apple keynote slides, high-end agency decks). You design ONE slide at a time as a single SVG, following the series ART DIRECTION when given.
+// The slide and series prompts are editable in Settings (designSlide, designPlan).
 
-Hard rules:
-- Output only the SVG, starting with <svg and ending with </svg>. No prose, no markdown fences.
-- <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1350" width="1080" height="1350">.
-- Allowed elements only: svg, g, defs, linearGradient, stop, rect, circle, ellipse, line, polyline, polygon, path, text, tspan, clipPath. image (only href="photo:N" when a PHOTO is provided), no foreignObject, no use, no links, no scripts, no filters, no external fonts.
-- Colours: only the hex values in the PALETTE (plus #FFFFFF / #000000). Write colours as hex.
-- Fonts: font-family exactly as given for each text role.
-- Use every word of the slide copy exactly as given, nothing reworded; the only extra words allowed are the tiny editorial micro-copy labels described below. Break lines yourself with <tspan x=".." dy="..">.
-- Safe area: all text inside x 90–990 and y 100–1250.
-
-Craft rules — modern, premium, BRANDED social design (think Apple / Stripe / Linear marketing: calm, confident, minimal). Plain text with thin lines is a FAILURE — but a busy, crowded slide is an equally big FAILURE.
-- CREATIVE FREEDOM WITHIN THE BRAND: compose freely (asymmetry, bleed, scale contrast, split panels) as long as only brand colours and fonts are used. Stay calm: ONE idea per slide, ONE focal point, at most 3 main visual elements. Never a collage.
-- BACKGROUND: a default brand background is painted underneath by the app (given as BACKGROUND). You MAY instead choose another brand background for this slide by drawing ONE full-canvas rect (x 0, y 0, 1080×1350) as the first element, filled with one of BRAND BACKGROUNDS (or the brand gradient when given). Keep the series coherent and text contrast strong.
-- EDITORIAL MICRO-COPY is allowed: up to 2 tiny labels (font-size 16–22, muted, uppercase, letter-spacing 4–6) such as a slide counter "01 / 06", the brand name, or a 1–2 word section label. Never more than 4 extra words per slide; never repeat or paraphrase the copy.
-- ONE HIGHLIGHT MOMENT IS MANDATORY ON EVERY SLIDE, used exactly ONCE: either the brand accent (hex exactly as given in BRAND ACCENTS) OR, when BRAND GRADIENT is given, a linearGradient made of those gradient stops — never both on the same slide. Use it as a highlighter bar behind the key word, one coloured key phrase, one numeral, one thin rule or one hand-drawn mark.
-- ONE GRAPHIC ELEMENT per slide, chosen to fit the copy: a single rounded card (rx 24–40), one large accent block, one oversized circle or arc bleeding off the edge, one numbered badge, one icon tile, or one simple chart. Never two of these at once.
-- Typography is REFINED and on the small side, like a luxury magazine: at least three clearly different sizes. Cover headline 92–124px weight 600–700, leading 1.05, letter-spacing -1 to -3. Slide headlines 54–76px weight 600. Body 28–34px weight 400, leading 1.45, ~34 chars per line. Labels 18–22px uppercase letter-spacing 4–6 weight 500. Prefer generous margins and air over size.
-- TREATMENT FOLLOWS THE COPY — never treat every slide as a listicle. Read each slide and pick what tells it best: a QUOTE (large quotation mark shape, italic-feel statement, attribution label), a VISUAL EXPLAINER (a simple diagram: two to four connected nodes, a before→after, a flow or a scale), a STATEMENT (one centred sentence with lots of air), a BIG NUMBER (only when the copy has a number), a short LIST (only when the copy is actually enumerated), a PHOTO FEATURE (only when a PHOTO is provided), or the CLOSING slide (use only its own copy — never add "Follow", "Save", a handle or any other call to action that is not in the copy).
-- HAND-DRAWN TOUCH is allowed, at most ONE per slide and only when it adds meaning (never decorative doodles, no illustrations): a single loose path (scribbled circle around a word, an underline swash, a curved arrow) stroke 4–6px, round caps, in the accent or gradient. It counts as the slide's highlight.
-- PHOTOS: if PHOTO is listed for this slide, place it with <image href="photo:N" ...> exactly as given (never another href), preserveAspectRatio="xMidYMid slice", inside a clipPath (rounded frame, arch or full-bleed). Text must sit on a clean area or on a solid panel so it stays readable. Without a PHOTO, use no image.
-- Vary layouts between slides (split panel, big-number, quote with oversized quotation mark drawn as a shape, centered statement) while keeping one consistent system: same margins (90), same accent treatment, same corner radius.
-- ICONS: at most ONE icon per slide, and only when it genuinely clarifies the point (check, arrow, lightbulb, chart, clock, target, star, play, calendar, megaphone) 90–130px, clean geometric strokes 6–8px with round caps. Many slides need no icon at all. No icon bullets on every list item, no illustrations, emoji or clip-art.
-- Negative space is the luxury: at least 40% of the slide empty. One focal point, strong contrast — text always clearly legible on what is directly behind it.
-- Charts only when the copy has numbers: a giant number (240–340px) or a few chunky rounded bars with values from the copy — never both.
-- Closing slide: CTA as a rounded accent pill (height ~100, radius 50) with contrasting text. Nothing else decorative.`;
-
-const PLAN_SYSTEM = `You are a senior editorial art director. Plan the visual system for a whole Instagram carousel before any slide is drawn, so every slide looks like part of one premium series. You have creative freedom inside the brand: you may choose each slide's background from the brand backgrounds listed in SLIDES (or the gradient), and allow up to 2 tiny muted editorial labels (slide counter, brand name, 1–2 word section label). Choose for each slide exactly one layout from: "cover-headline", "quote", "visual-explainer", "statement", "big-number", "list", "photo-feature", "cta-closing". Pick per slide from what its copy is: a quote, an idea to explain visually, a statement, a number, an enumerated list. Never make every slide a list. "big-number" only with numbers, "list" only with enumerated copy, "photo-feature" only when a photo is provided. Highlight per slide is the accent OR the brand gradient, never both; at most one hand-drawn mark per slide. Be concise and concrete (px sizes, hex colours from the palette, alignment). For every slide, name in notes the ONE word or phrase that gets the single accent highlight, the ONE phrase that is enlarged, and the ONE graphic element (card, accent block, badge, icon or chart) to draw — nothing more. Minimal slides: one idea, one callout, one graphic element each. Every slide must use the accent once and at most one real shape, never just text and lines, never a collage of elements. Never add copy. Output only JSON.`;
 
 const PLAN_SCHEMA = {
   type: "object",
@@ -166,10 +142,11 @@ export const Route = createFileRoute("/api/ai-design")({
           if (!parsed.success || parsed.data.index >= parsed.data.slides.length)
             return Response.json({ error: "Invalid request" }, { status: 400 });
           const data = parsed.data;
+          const prompts = await loadLivePrompts();
           const copy = data.slides[data.index].blocks.map((b) => b.text).join(" ");
           if (data.mode === "plan") {
             const series = data.slides.map((x, i) => `${i + 1}. ${x.label} (background ${x.background}${x.backgroundEnd ? "→" + x.backgroundEnd : ""}): ${x.blocks.map((b) => `${b.role || "text"} [${b.font.split(",")[0]}, ${b.color}]: ${b.text}`).join(" | ")}`).join("\n");
-            const raw = await streamClaude(PLAN_SYSTEM, `PALETTE: ${data.palette.join(", ")}\nBRAND ACCENTS: ${(data.brand?.accents || []).join(", ")}${data.brand?.gradient?.length === 2 ? `\nBRAND GRADIENT: ${data.brand.gradient.join(" → ")}` : ""}\nPHOTOS PROVIDED: ${data.brand?.photoCount || 0}\n\nSLIDES:\n${series}`, PLAN_SCHEMA);
+            const raw = await streamClaude(prompts.designPlan, `PALETTE: ${data.palette.join(", ")}\nBRAND ACCENTS: ${(data.brand?.accents || []).join(", ")}${data.brand?.gradient?.length === 2 ? `\nBRAND GRADIENT: ${data.brand.gradient.join(" → ")}` : ""}\nPHOTOS PROVIDED: ${data.brand?.photoCount || 0}\n\nSLIDES:\n${series}`, PLAN_SCHEMA);
             const m = /\{[\s\S]*\}/.exec(raw);
             let plan: unknown = null;
             try { plan = m ? JSON.parse(m[0]) : null; } catch { plan = null; }
@@ -181,10 +158,10 @@ export const Route = createFileRoute("/api/ai-design")({
             const quality = r.svg ? checkDesignQuality(r.svg, accents, data.brand?.gradient) : [];
             return { ...r, ok: r.ok && quality.length === 0, problems: [...r.problems, ...quality], strictOk: r.ok };
           };
-          let result = check(await streamClaude(SYSTEM, userPrompt(data)));
+          let result = check(await streamClaude(prompts.designSlide, userPrompt(data)));
           // One redesign with the reasons, then the browser falls back to the standard layout.
           if (!result.ok) {
-            result = check(await streamClaude(SYSTEM, userPrompt({ ...data, problems: [...(data.problems || []), ...result.problems] })));
+            result = check(await streamClaude(prompts.designSlide, userPrompt({ ...data, problems: [...(data.problems || []), ...result.problems] })));
           }
           // Invented words are the usual reason a slide (often the closing one) fails: drop them and re-check.
           if (!result.strictOk && result.svg && result.problems.some((p) => p.startsWith("Adds words"))) {

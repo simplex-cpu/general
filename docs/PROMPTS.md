@@ -12,7 +12,10 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | Carousel & graphic | Carousel Slides, Graphic Copy, Carousel CTA, Graphic CTA, Production Creative Instructions |
 | Captions | Instagram, Facebook, TikTok, YouTube Shorts |
 | QA checklists | One per format, plus topics, hooks and captions |
+| Design | Carousel design · Slide (`designSlide`), Carousel design · Series plan (`designPlan`) |
 | Output formats | The exact shape the AI must return. **Don't change these without a developer.** The app reads these shapes, so the wrong shape breaks it |
+
+**Where the live prompts come from:** the server reads the latest saved version of each prompt from Prompt Versions (`src/lib/promptStore.server.ts`), and falls back to the defaults if Airtable can't be reached. The browser can't send its own prompts. A saved change applies on the next request.
 
 **How a scripting request is built:** `src/lib/slate/envelope.ts` puts together the role, the brand details, your guideline prompts, the output format and the QA checklist, in that order, for every topic, hook, script and caption request. To change the voice everywhere, edit **Global Voice & Tone**. To change one format, edit that format's prompt.
 
@@ -24,7 +27,6 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | Hooks / scripts / captions call setup | `src/routes/api/hooks.ts`, `script.ts`, `captions.ts` |
 | Account analysis report | `src/routes/api/analyse.ts` |
 | Brand strategy | `src/routes/api/brand-strategy.ts` |
-| Carousel AI design (art direction) | `src/routes/api/ai-design.ts` (`SYSTEM`, `PLAN_SYSTEM`) |
 | Divide scripts | `src/lib/divideScripts.shared.ts` |
 | Repurposing your own posts | `src/lib/ownPostClaude.server.ts` |
 | Inspo find / read / repurpose | `src/routes/api/inspo-find.ts`, `src/lib/inspoRead.server.ts`, `src/routes/api/inspo-repurpose.ts` |
@@ -33,6 +35,14 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 | Post naming, tagging | `src/routes/api/send-to-production.ts`, `src/lib/postTagging.server.ts` |
 
 Step 2 of [PLAN.md](PLAN.md) moves the writing prompts from this list into Settings.
+
+## Refine
+
+The Refine buttons (`src/routes/api/refine.ts`) rewrite one piece using the change asked for, plus that piece's own prompt from Settings (for example "Talking Video Hook" for a talking-video hook) and Global Voice & Tone. The wording of the one-tap buttons (Shorter, Punchier, More like me, Different angle, Stronger CTA) is in `src/lib/slate/refine.ts`.
+
+## Which AI model each feature uses
+
+All model choices live in one file, `src/lib/aiModels.ts`, one line per job (topics, hooks, script, captions, design and so on). To try a newer model for a job, change that one line. Jobs marked "forced tool call" need a small code change before moving to Claude Opus 5.5, Sonnet 5.5 or Fable 5.1, because those models reject forced tool calls.
 
 ## Safe way to test a prompt change
 

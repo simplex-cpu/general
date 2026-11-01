@@ -2,10 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { requireAccessCode } from "@/lib/accessCode.server";
 import { DEFAULT_PROMPTS } from "@/lib/simplex/prompts";
 import type { PromptKey, Prompts } from "@/lib/simplex/types";
+import {
+  AIRTABLE_API,
+  PROMPT_KEYS,
+  PROMPT_VERSIONS_BASE,
+  PROMPT_VERSIONS_TABLE,
+  buildPromptPayload,
+  clearLivePromptsCache,
+} from "@/lib/promptStore.server";
 
-const AIRTABLE_API = "https://api.airtable.com";
-const BASE_ID = "appOttHso6hYjBXhw";
-const TABLE_ID = "tblKsQU7L5Vq313d0"; // Prompt Versions
+const BASE_ID = PROMPT_VERSIONS_BASE;
+const TABLE_ID = PROMPT_VERSIONS_TABLE;
 const APP_SOURCE = "Risevoice Creators Hub";
 
 const PROMPT_META: Record<PromptKey, { label: string; category: string }> = {
@@ -65,18 +72,9 @@ const PROMPT_META: Record<PromptKey, { label: string; category: string }> = {
     category: "Output structure",
   },
   outputCaptions: { label: "Captions · Output", category: "Output structure" },
+  designSlide: { label: "Carousel design · Slide", category: "Design" },
+  designPlan: { label: "Carousel design · Series plan", category: "Design" },
 };
-
-type PromptVersion = {
-  id: string;
-  key: PromptKey;
-  version: number;
-  text: string;
-  hash: string;
-  savedAt: string;
-};
-
-const PROMPT_KEYS = Object.keys(DEFAULT_PROMPTS) as PromptKey[];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -112,53 +110,6 @@ async function hashText(text: string) {
     .join("");
 }
 
-async function fetchLatestVersions(headers: Record<string, string>) {
-  const latest = new Map<PromptKey, PromptVersion>();
-  let offset: string | undefined;
-  do {
-    const params = new URLSearchParams({ pageSize: "100" });
-    params.append("fields[]", "Prompt Key");
-    params.append("fields[]", "Version Number");
-    params.append("fields[]", "Prompt Text");
-    params.append("fields[]", "Prompt Hash");
-    params.append("fields[]", "Saved At ISO");
-    if (offset) params.set("offset", offset);
-    const res = await fetch(`${AIRTABLE_API}/v0/${BASE_ID}/${TABLE_ID}?${params.toString()}`, {
-      headers,
-    });
-    const data: any = await res.json().catch(() => ({}));
-    if (!res.ok)
-      throw new Error(
-        `Airtable prompt lookup failed [${res.status}]: ${JSON.stringify(data).slice(0, 500)}`,
-      );
-    for (const record of data.records || []) {
-      const fields = record.fields || {};
-      const key = String(fields["Prompt Key"] || "") as PromptKey;
-      if (!PROMPT_KEYS.includes(key)) continue;
-      const version = Number(fields["Version Number"] || 0);
-      const savedAt = String(fields["Saved At ISO"] || "");
-      const candidate: PromptVersion = {
-        id: record.id,
-        key,
-        version,
-        text: String(fields["Prompt Text"] || ""),
-        hash: String(fields["Prompt Hash"] || ""),
-        savedAt,
-      };
-      const current = latest.get(key);
-      if (
-        !current ||
-        candidate.version > current.version ||
-        (candidate.version === current.version && candidate.savedAt > current.savedAt)
-      ) {
-        latest.set(key, candidate);
-      }
-    }
-    offset = data.offset;
-  } while (offset);
-  return latest;
-}
-
 async function fetchRecordsById(headers: Record<string, string>, ids: string[]) {
   const records: any[] = [];
   for (const id of ids) {
@@ -171,17 +122,6 @@ async function fetchRecordsById(headers: Record<string, string>, ids: string[]) 
     records.push(data);
   }
   return records;
-}
-
-async function buildPromptPayload(headers: Record<string, string>) {
-  const latest = await fetchLatestVersions(headers);
-  const prompts = { ...DEFAULT_PROMPTS };
-  const versions: Record<string, { version: number; savedAt: string; recordId: string }> = {};
-  for (const [key, record] of latest) {
-    prompts[key] = record.text;
-    versions[key] = { version: record.version, savedAt: record.savedAt, recordId: record.id };
-  }
-  return { prompts, versions, latest };
 }
 
 export const Route = createFileRoute("/api/prompts")({
@@ -293,6 +233,7 @@ export const Route = createFileRoute("/api/prompts")({
           }
 
           const latestPayload = await buildPromptPayload(headers);
+          clearLivePromptsCache();
           return json({
             ok: true,
             saved: records.length,

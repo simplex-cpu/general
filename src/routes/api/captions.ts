@@ -1,3 +1,5 @@
+import { AI_MODELS } from "@/lib/aiModels";
+import { loadLivePrompts } from "@/lib/promptStore.server";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { buildBriefExtras, type BriefPayload } from "@/lib/slate/promptBuilder";
@@ -12,7 +14,7 @@ import { captionStructureInstruction } from "@/lib/slate/scriptCta";
 const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { "Content-Type": "application/json" } });
 
-const MODEL = "claude-sonnet-4-5-20250929";
+const MODEL = AI_MODELS.captions;
 const CAPTION_CHUNK_SIZE = 4;
 
 async function callClaude(userText: string, maxTokens = 5000) {
@@ -159,11 +161,10 @@ export const Route = createFileRoute("/api/captions")({
       POST: async ({ request }: { request: Request }) => {
         try {
           const body = await request.json();
-          const { scripts, topics, brief, prompts, cta, accessCode } = body as {
+          const { scripts, topics, brief, cta, accessCode } = body as {
             scripts: ScriptDoc[];
             topics?: Topic[];
             brief: BriefPayload;
-            prompts?: Partial<Prompts>;
             cta?: string;
             accessCode?: string;
           };
@@ -175,7 +176,7 @@ export const Route = createFileRoute("/api/captions")({
             slice: "scripting",
             includeRecentPosts: false,
           });
-          const mergedPrompts = captionPromptSet(prompts);
+          const mergedPrompts = captionPromptSet(await loadLivePrompts());
           const chunks = [] as ScriptDoc[][];
           for (let i = 0; i < scripts.length; i += CAPTION_CHUNK_SIZE)
             chunks.push(scripts.slice(i, i + CAPTION_CHUNK_SIZE));

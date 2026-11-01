@@ -1,3 +1,5 @@
+import { AI_MODELS } from "./aiModels";
+
 export class LovableTextError extends Error {
   constructor(message: string, public status: number, public terminal = false) { super(message); }
 }
@@ -12,7 +14,7 @@ export async function generateLovableText(input: string, effort: "low" | "medium
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify({
-      model: "openai/gpt-6-astra",
+      model: AI_MODELS.generalText,
       input,
       stream: true,
       store: false,

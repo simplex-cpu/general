@@ -36,6 +36,9 @@ The menu label is what users see. The code name is what the code calls it (see `
 | Planner | `approve-post` | Everyone | `ApproveAndPostMode.tsx`, `CommentsPanel.tsx`, `BrandSelect.tsx`, `CarouselCopyEditor.tsx`, `Teleprompter.tsx`, `post/*` | `dwy-client-content`, `dwy-comments`, `dwy-content-upload`, `dwy-edit-yourself`, `post-accounts`, `ai-design` (one-click carousel design, through `src/lib/slate/aiDesignJobs.ts`), `drive-upload-*` (through `src/lib/driveDirectUpload.ts`) |
 | Planner → Produce / edit a post | (pop-up inside Planner) | Clients | `ProduceReviewModal.tsx`, `VideoProductionWorkspace.tsx`, `DesignPreview.tsx`, `VisualStylePanel.tsx` | `dwy-client-content`, `dwy-content-upload`, `dwy-edit-yourself`, `check-footage-link`, `ai-design`, `my-brief` |
 | My account (side panel) | — | Everyone | `AccountRail.tsx` | `account-avatar` |
+| Free-trial sign-up (screen not built yet) | — | Visitors | to be built by Lovable | `signup` |
+| Refine on cards (buttons not built yet) | — | Everyone | to be built by Lovable | `refine` |
+| Send to avatar (button not built yet) | — | Everyone | to be built by Lovable | `send-to-avatar` (sets Client Status "To Avatar" for the n8n avatar workflow) |
 | Settings (gear icon) | — | Staff only | `src/components/simplex/SettingsModal.tsx` | `prompts` |
 | Login | — | Everyone | `src/components/simplex/ClientGate.tsx` | `validate-code` |
 
@@ -102,6 +105,8 @@ Several files in `src/components/ui/` are also unused. That's normal: it's a rea
 | `src/lib/` | Server-side helpers (`*.server.ts`) for Airtable, AI, ownership, and so on | Yes |
 | `src/lib/slate/` | Shared rules used by both screens and server (formats, CTAs, slides, captions) | Yes. Each rule has a matching `*.test.ts` check |
 | `src/lib/simplex/prompts.ts` | Default AI writing prompts. See [PROMPTS.md](PROMPTS.md) | Yes |
+| `src/lib/aiModels.ts` | Which AI model each job uses, in one place | Yes, to switch models |
+| `src/lib/promptStore.server.ts` | Loads the live prompts from Airtable for the scripting endpoints | Rarely |
 | `src/integrations/supabase/` | Supabase connection | Rarely |
 | `drizzle/`, `supabase/` | Database change history (migrations) | Only through a migration |
 | `src/routeTree.gen.ts` | **Generated automatically.** Never edit by hand | No |
@@ -142,7 +147,7 @@ Several files in `src/components/ui/` are also unused. That's normal: it's a rea
 
 These are set in Lovable Cloud (or the hosting dashboard), never in the code. Names only:
 
-`AIRTABLE_TOKEN`, `AIRTABLE_API_KEY`, `AIRTABLE_CONTENT_URL`, `LOVABLE_API_KEY`, `ANTHROPIC_API_KEY`, `APIFY_API_TOKEN`, `GOOGLE_DRIVE_API_KEY`, `GOOGLE_DRIVE_SHARED_FOLDER_ID`, `GOOGLE_DOCS_API_KEY`, `SLACK_BOT_TOKEN`, `STRIPE_WEBHOOK_SECRET`, `VISTASOCIAL_API_KEY`, `UDC_ZERNIO_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. The browser build also needs the `VITE_SUPABASE_*` values from `.env`.
+`AIRTABLE_TOKEN`, `AIRTABLE_API_KEY`, `AIRTABLE_CONTENT_URL`, `LOVABLE_API_KEY`, `ANTHROPIC_API_KEY`, `APIFY_API_TOKEN`, `GOOGLE_DRIVE_API_KEY`, `GOOGLE_DRIVE_SHARED_FOLDER_ID`, `GOOGLE_DOCS_API_KEY`, `SLACK_BOT_TOKEN`, `STRIPE_WEBHOOK_SECRET`, `VISTASOCIAL_API_KEY`, `UDC_ZERNIO_API_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GHL_SIGNUP_WEBHOOK_URL`. Optional: `SIGNUPS_OPEN` ("false" closes sign-ups), `TRIAL_SCRIPTS` and `TRIAL_REPORTS` (trial credits, default 10 and 1). The browser build also needs the `VITE_SUPABASE_*` values from `.env`.
 
 ## Glossary
 

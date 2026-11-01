@@ -14,7 +14,8 @@ type Category =
   | "Carousel & graphic"
   | "Captions"
   | "Output structure"
-  | "QA Checklist";
+  | "QA Checklist"
+  | "Design";
 
 type Section = {
   id: PromptKey;
@@ -270,6 +271,18 @@ const SECTIONS: Section[] = [
     description: "The final-pass checklist the AI runs its own Captions draft against before returning it. Sent as the QA CHECKLIST block of the single command prompt for this deliverable.",
     covers: ["Non-negotiable standards", "Rewrite-and-recheck rules", "Brand do's / don'ts enforcement"],
     hint: "Add an item here whenever a recurring miss shows up in output." },
+  { id: "designSlide", number: "42", label: "Carousel design · Slide", category: "Design",
+    eyebrow: "Design · one-click carousel design",
+    title: "Carousel design — slide",
+    description: "The art direction the AI follows when it designs each carousel or graphic slide as an image. Covers layout, typography, colour use, the one highlight per slide, icons, photos and the closing CTA.",
+    covers: ["Hard rules: canvas size, allowed shapes, brand colours and fonts only, every word of the copy", "Craft rules: one idea and one focal point per slide, negative space, type sizes", "Photos, icons, charts and the CTA slide"],
+    hint: "Keep the hard rules: the app checks every slide against them (canvas, colours, exact copy) and falls back to the standard layout if a slide breaks them." },
+  { id: "designPlan", number: "43", label: "Carousel design · Series plan", category: "Design",
+    eyebrow: "Design · plans the whole carousel first",
+    title: "Carousel design — series plan",
+    description: "How the AI plans the look of a whole carousel before drawing any slide, so every slide belongs to one series: the layout for each slide, the highlighted word, and the single graphic element.",
+    covers: ["Layout choices per slide", "Highlight and graphic element per slide", "Keeping the series consistent"],
+    hint: "Must still return JSON only — the app reads the plan as JSON." },
 ];
 
 const CATEGORY_ORDER: Category[] = [
@@ -280,6 +293,7 @@ const CATEGORY_ORDER: Category[] = [
   "Captions",
   "Output structure",
   "QA Checklist",
+  "Design",
 ];
 
 function wordCount(s: string) {
@@ -321,13 +335,14 @@ export function SettingsModal({
       Captions: initialCat === "Captions",
       "Output structure": initialCat === "Output structure",
       "QA Checklist": initialCat === "QA Checklist",
+      Design: initialCat === "Design",
     };
   });
 
   const grouped = useMemo(() => {
     const map: Record<Category, Section[]> = {
       Global: [], Hooks: [], "Video scripts": [],
-      "Carousel & graphic": [], Captions: [], "Output structure": [], "QA Checklist": [],
+      "Carousel & graphic": [], Captions: [], "Output structure": [], "QA Checklist": [], Design: [],
     };
     for (const s of SECTIONS) map[s.category].push(s);
     return map;
