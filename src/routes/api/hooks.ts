@@ -1,3 +1,4 @@
+import { loadLivePrompts } from "@/lib/promptStore.server";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { buildBriefExtras, type BriefPayload } from "@/lib/slate/promptBuilder";
@@ -40,10 +41,9 @@ export const Route = createFileRoute("/api/hooks")({
       POST: async ({ request }: { request: Request }) => {
         try {
           const body = await request.json();
-          const { topics, brief, prompts, reprompt, format, accessCode, perTopic, designSubtype } = body as {
+          const { topics, brief, reprompt, format, accessCode, perTopic, designSubtype } = body as {
             topics: Topic[];
             brief: BriefPayload;
-            prompts: Prompts;
             reprompt?: string;
             format?: Format;
             accessCode?: string;
@@ -52,6 +52,7 @@ export const Route = createFileRoute("/api/hooks")({
           };
           const auth = await requireAccessCode(accessCode);
           if (!auth.ok) return auth.response;
+          const prompts = await loadLivePrompts();
           const hasBrief = !!((brief?.text && brief.text.trim()) || (brief?.adminSummary && brief.adminSummary.trim()));
           if (!hasBrief) {
 
