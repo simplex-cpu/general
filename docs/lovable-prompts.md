@@ -45,6 +45,6 @@ Paste one prompt at a time into Lovable, after the pull request with the server 
 
 ## 4. "Send to avatar" button (after the avatar pipeline is ready)
 
-> *Don't send this one yet. It needs the Airtable status "To Avatar" and the endpoint `/api/send-to-avatar`, which Claude Code adds next.*
+> *Send this once "To Avatar" has been added to Client Status in Airtable. The endpoint `/api/send-to-avatar` is ready.*
 >
-> On talking-video posts in the Planner's Prepare Footage tab (`src/components/slate/ApproveAndPostMode.tsx`), add a primary "Send to avatar" button before "Attach", and make "Attach" a secondary button, as in `public/landing/send-to-avatar.jpg`. It POSTs `{ accessCode, id }` to `/api/send-to-avatar`, then refreshes the row. Posts with the status "To Avatar" show a pill "Avatar video · rendering".
+> On talking-video posts in the Planner's Prepare Footage tab (`src/components/slate/ApproveAndPostMode.tsx`), add a primary "Send to avatar" button before "Attach", and make "Attach" a secondary button, as in `public/landing/send-to-avatar.jpg`. It POSTs `{ accessCode, id }` to `/api/send-to-avatar`, then refreshes the row. The response is `{ ok, status }` or `{ error }`; show the error text if there is one. Posts with the status "To Avatar" show a pill "Avatar video · rendering".

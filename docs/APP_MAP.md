@@ -38,6 +38,7 @@ The menu label is what users see. The code name is what the code calls it (see `
 | My account (side panel) | — | Everyone | `AccountRail.tsx` | `account-avatar` |
 | Free-trial sign-up (screen not built yet) | — | Visitors | to be built by Lovable | `signup` |
 | Refine on cards (buttons not built yet) | — | Everyone | to be built by Lovable | `refine` |
+| Send to avatar (button not built yet) | — | Everyone | to be built by Lovable | `send-to-avatar` (sets Client Status "To Avatar" for the n8n avatar workflow) |
 | Settings (gear icon) | — | Staff only | `src/components/simplex/SettingsModal.tsx` | `prompts` |
 | Login | — | Everyone | `src/components/simplex/ClientGate.tsx` | `validate-code` |
 

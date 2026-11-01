@@ -57,6 +57,7 @@ import { Route as ApiRefineRouteImport } from './routes/api/refine'
 import { Route as ApiRepurposeAnglesRouteImport } from './routes/api/repurpose-angles'
 import { Route as ApiScrapePostsRouteImport } from './routes/api/scrape-posts'
 import { Route as ApiScriptRouteImport } from './routes/api/script'
+import { Route as ApiSendToAvatarRouteImport } from './routes/api/send-to-avatar'
 import { Route as ApiSendToProductionRouteImport } from './routes/api/send-to-production'
 import { Route as ApiShortFormsRouteImport } from './routes/api/short-forms'
 import { Route as ApiSignupRouteImport } from './routes/api/signup'
@@ -312,6 +313,11 @@ const ApiScriptRoute = ApiScriptRouteImport.update({
   path: '/api/script',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSendToAvatarRoute = ApiSendToAvatarRouteImport.update({
+  id: '/api/send-to-avatar',
+  path: '/api/send-to-avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSendToProductionRoute = ApiSendToProductionRouteImport.update({
   id: '/api/send-to-production',
   path: '/api/send-to-production',
@@ -429,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
   '/api/signup': typeof ApiSignupRoute
@@ -492,6 +499,7 @@ export interface FileRoutesByTo {
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
   '/api/signup': typeof ApiSignupRoute
@@ -556,6 +564,7 @@ export interface FileRoutesById {
   '/api/repurpose-angles': typeof ApiRepurposeAnglesRoute
   '/api/scrape-posts': typeof ApiScrapePostsRoute
   '/api/script': typeof ApiScriptRoute
+  '/api/send-to-avatar': typeof ApiSendToAvatarRoute
   '/api/send-to-production': typeof ApiSendToProductionRoute
   '/api/short-forms': typeof ApiShortFormsRoute
   '/api/signup': typeof ApiSignupRoute
@@ -621,6 +630,7 @@ export interface FileRouteTypes {
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
     | '/api/signup'
@@ -684,6 +694,7 @@ export interface FileRouteTypes {
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
     | '/api/signup'
@@ -747,6 +758,7 @@ export interface FileRouteTypes {
     | '/api/repurpose-angles'
     | '/api/scrape-posts'
     | '/api/script'
+    | '/api/send-to-avatar'
     | '/api/send-to-production'
     | '/api/short-forms'
     | '/api/signup'
@@ -811,6 +823,7 @@ export interface RootRouteChildren {
   ApiRepurposeAnglesRoute: typeof ApiRepurposeAnglesRoute
   ApiScrapePostsRoute: typeof ApiScrapePostsRoute
   ApiScriptRoute: typeof ApiScriptRoute
+  ApiSendToAvatarRoute: typeof ApiSendToAvatarRoute
   ApiSendToProductionRoute: typeof ApiSendToProductionRoute
   ApiShortFormsRoute: typeof ApiShortFormsRoute
   ApiSignupRoute: typeof ApiSignupRoute
@@ -1163,6 +1176,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiScriptRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/send-to-avatar': {
+      id: '/api/send-to-avatar'
+      path: '/api/send-to-avatar'
+      fullPath: '/api/send-to-avatar'
+      preLoaderRoute: typeof ApiSendToAvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/send-to-production': {
       id: '/api/send-to-production'
       path: '/api/send-to-production'
@@ -1318,6 +1338,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiRepurposeAnglesRoute: ApiRepurposeAnglesRoute,
   ApiScrapePostsRoute: ApiScrapePostsRoute,
   ApiScriptRoute: ApiScriptRoute,
+  ApiSendToAvatarRoute: ApiSendToAvatarRoute,
   ApiSendToProductionRoute: ApiSendToProductionRoute,
   ApiShortFormsRoute: ApiShortFormsRoute,
   ApiSignupRoute: ApiSignupRoute,
