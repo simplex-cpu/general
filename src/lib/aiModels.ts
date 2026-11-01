@@ -15,6 +15,7 @@ export const AI_MODELS = {
   hooks: "claude-fable-5-1",
   script: "claude-fable-5-1",
   captions: "claude-sonnet-4-5-20250929", // forced tool call
+  refine: "claude-opus-5-5", // Refine buttons: rewrite one piece
 
   // Briefs, analysis and strategy (direct)
   analysis: "claude-opus-4-8",

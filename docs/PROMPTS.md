@@ -36,6 +36,10 @@ Staff can change these from the **gear icon → Settings**. Each save becomes a 
 
 Step 2 of [PLAN.md](PLAN.md) moves the writing prompts from this list into Settings.
 
+## Refine
+
+The Refine buttons (`src/routes/api/refine.ts`) rewrite one piece using the change asked for, plus that piece's own prompt from Settings (for example "Talking Video Hook" for a talking-video hook) and Global Voice & Tone. The wording of the one-tap buttons (Shorter, Punchier, More like me, Different angle, Stronger CTA) is in `src/lib/slate/refine.ts`.
+
 ## Which AI model each feature uses
 
 All model choices live in one file, `src/lib/aiModels.ts`, one line per job (topics, hooks, script, captions, design and so on). To try a newer model for a job, change that one line. Jobs marked "forced tool call" need a small code change before moving to Claude Opus 5.5, Sonnet 5.5 or Fable 5.1, because those models reject forced tool calls.
