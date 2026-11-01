@@ -1,0 +1,5 @@
+- Size Visual Style from its flex shell, not viewport subtraction.
+- Video editing reuses VisualStylePanel fonts and fits the full overlay in its preview.
+- LearningMode's scroll panel (not window) drives resets and header collapse; reserve header space to avoid jumps.
+- Use a controlled single-slide design inspector with memoized frames and immediate local navigation to avoid mounting all forms or network waits.
+- Post windows compose the shared `src/components/slate/post/` blocks (AttachBox, CollapsibleField, PlatformIcon) and SlideCarousel; sizes come from `socialSizes.ts`. Keeps every section's post window identical.

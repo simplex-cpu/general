@@ -1,0 +1,1 @@
+ALTER TABLE public.podcast_script_jobs ADD COLUMN IF NOT EXISTS execution_id text;
