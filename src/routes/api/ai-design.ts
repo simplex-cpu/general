@@ -1,9 +1,10 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { requireAccessCode } from "@/lib/accessCode.server";
 import { checkDesignQuality, dropInventedText, validateDesignSvg } from "@/lib/slate/aiDesign";
 
-const MODEL = "anthropic/claude-opus-5-5";
+const MODEL = AI_MODELS.design;
 
 const Block = z.object({
   role: z.string().max(40).optional(),

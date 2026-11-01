@@ -1,4 +1,5 @@
 // Reads a saved-inspo URL end to end: post basics -> transcript or slide copy -> AI analysis.
+import { AI_MODELS } from "./aiModels";
 import { lookupInspoMetadata } from "./inspoMetadata.server";
 import { PODCAST_TRANSCRIPTION_OPTIONS, timedPodcastTranscript, podcastWords, transcriptCoverage } from "./slate/podcastTranscript";
 import {
@@ -29,7 +30,7 @@ export async function transcribeMedia(videoUrl: string): Promise<string> {
   const blob = await media.blob();
   if (blob.size > MAX_AUDIO_BYTES) throw new LongMediaError();
   const form = new FormData();
-  form.append("model", "openai/gpt-transcribe");
+  form.append("model", AI_MODELS.inspoTranscription);
   form.append("file", blob, "clip.mp4");
   const res = await fetch("https://ai.gateway.lovable.dev/v1/audio/transcriptions", {
     method: "POST",
@@ -143,7 +144,7 @@ async function analyze(text: string, images: string[]): Promise<InspoAnalysis> {
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify({
-      model: "openai/gpt-6-astra",
+      model: AI_MODELS.inspoAnalysis,
       input: [{ role: "user", content }],
       stream: true,
       store: false,
@@ -200,7 +201,7 @@ export async function readVideoText(videoUrl: string): Promise<string> {
       "X-Lovable-AIG-SDK": "fetch",
     },
     body: JSON.stringify({
-      model: "google/gemini-3.8-flash",
+      model: AI_MODELS.inspoVideoText,
       stream: true,
       messages: [
         {

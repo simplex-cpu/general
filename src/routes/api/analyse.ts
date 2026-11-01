@@ -1,3 +1,4 @@
+import { AI_MODELS } from "@/lib/aiModels";
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { requireAccessCode } from "@/lib/accessCode.server";
@@ -436,7 +437,7 @@ VIEWS AND REACTIONS RULE: copy view and reaction figures verbatim from the data.
               "anthropic-version": "2023-06-01",
             },
             body: JSON.stringify({
-              model: "claude-opus-4-8",
+              model: AI_MODELS.analysis,
               max_tokens: 16000,
               messages: [{ role: "user", content: prompt }],
             }),

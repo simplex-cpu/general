@@ -1,5 +1,6 @@
 // Shared helpers for divide-scripts pipeline.
 // Used by /api/divide-scripts/prepare and /api/divide-scripts/section.
+import { AI_MODELS } from "./aiModels";
 
 // ---------- Google Doc → markdown-ish text (tables aware) ----------
 export function gdocElementsToText(elements: any[]): string {
@@ -680,7 +681,7 @@ Rules:
 }
 
 // ---------- Claude call: extract ONE script from a single section ----------
-const MODEL = "claude-sonnet-4-5-20250929";
+const MODEL = AI_MODELS.divideScripts;
 
 export async function extractOneScript(opts: {
   section: string;
