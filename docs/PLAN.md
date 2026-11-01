@@ -74,6 +74,28 @@ Tools: GHL for email, ManyChat on the Instagram account, HeyGen for the avatar, 
 - [ ] Autopilot for every done-for-you client: mass production (Claude Code + Gretta)
 - [ ] **19 November:** both offers fully live; first paying clients onboarded
 
+## Making the engine flexible (no prompt logic in code)
+
+Goal: changing what the AI writes, how each request is put together, or which model runs it is done in Settings, not in code or Lovable.
+
+- [ ] One switch for AI models — pull request [#2](https://github.com/simplex-cpu/general/pull/2) (Claude Code)
+- [ ] The server loads the saved prompts itself; the browser can no longer send its own — pull request [#3](https://github.com/simplex-cpu/general/pull/3) (Claude Code)
+- [ ] Move the remaining hard-coded prompts (design, analysis, brand strategy, divide scripts, repurposing, inspo, podcast clipping) into Settings (Claude Code)
+- [ ] Make the "recipe" for each request editable in Settings: the objective and context lines and the fixed rules in `src/lib/slate/envelope.ts`, kept in code only as defaults (Claude Code, then Lovable for the screen)
+- [ ] Model choice per job editable in Settings instead of a code file (Claude Code, then Lovable)
+- [ ] "Try it" in Settings: run a draft prompt on a sample brand before saving (Claude Code, then Lovable)
+- [ ] Refine on cards (see Week 1)
+
+## Avatars
+
+- **Launch (5 Nov):** HeyGen. The kashsocialmedia tips avatar already exists, and Gretta can create done-for-you clients' avatars in HeyGen by hand.
+- **Self-serve cloning for Creator users:** test before choosing. Run HeyGen and Tavus (Hedra optional) on the same person's footage. Judge on realism in 9:16 talking videos, lip-sync, voice, training time, avatar creation through the API with consent, white-label (users never need a vendor account), data deletion and cost per minute. Decide by 10 Nov.
+- Build our side behind one "avatar provider" setting, like the AI model switch, so changing vendor later is a setting, not a rebuild.
+- [ ] Karen: ask HeyGen whether custom avatars can be created through their API for our users, with consent and without a HeyGen account
+- [ ] Karen: Tavus trial account; save its API key as a secret in the Claude Code environment
+- [ ] Gretta (or a volunteer): training footage and consent statements for the test
+- [ ] Claude Code: test script for both vendors, then the "Set up your avatar" flow on the winner
+
 ## Funnels
 
 - **A · Free trial (Creator):** avatar content → comment CREATORS → ManyChat DM → landing page → sign-up → GHL tag `creators-trial` → nurture (days 0, 1, 3, 5, 7) → tier-2 offer (days 8, 10, 12, 14).
