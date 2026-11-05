@@ -375,7 +375,7 @@ function teamOfDeal(p,D){
 function pqTileH(pq,D){
   if(!pq.length)return '<div class="sl-empty">Nobody here</div>';
   const by={};pq.forEach(p=>{const t=teamOfDeal(p,D);by[t]=(by[t]||0)+1});
-  const parts=Object.entries(by).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([t,n])=>`${esc(t)} ${n}`).join(" · ");
+  const parts=Object.entries(by).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).map(([t,n])=>`<span class="sl-pqi">${esc(t)} ${n}</span>`).join(" · ");
   return `<div class="sl-pqtile"><p class="sl-pqt"><b>${pq.length}</b> ${pq.length===1?"lead is":"leads are"} still with the teams (Pre-qual)</p><p class="sl-pqn">${parts}</p><button type="button" class="sl-ghost" data-act="view" data-v="prequal" aria-label="Open the Pre-qual Pipeline">Open Pre-qual</button></div>`;
 }
 /* MY BOARD: only what is on Kash's plate */
@@ -541,7 +541,7 @@ function modalH(D){
    </div>
    <div class="sl-cmts">
     ${S.cOpen&&cmList.length?`<div class="sl-clist">${cmList.map(c=>`<div><span class="sl-av">${esc((c.who||"?").charAt(0))}</span><div><div><b>${esc(c.who)}</b> <span class="pm">${esc(c.when)}</span></div><div>${esc(c.text)}</div></div></div>`).join("")}</div>`:""}
-    ${S.ro?`<div class="sl-cbar"><span class="pm">Comments are in the Claude copy of this dashboard.</span></div>`:`<div class="sl-cbar"><span class="me" aria-hidden="true">${svg("M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0")}</span><input id="slCm" aria-label="Add a comment" placeholder="Add a comment... type @ to tag someone"><button type="button" class="sl-solid" data-act="postc" style="padding:5px 12px;font-size:13px">Post</button>
+    ${S.ro?`<div class="sl-cbar"><span class="pm">Comments are in the Claude copy of this dashboard.</span></div>`:`<div class="sl-cbar"><span class="me" aria-hidden="true">${svg("M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0")}</span><input id="slCm" aria-label="Add a comment" placeholder="Add a comment... type @ to tag someone"><button type="button" class="sl-solid" data-act="postc">Post</button>
     <button type="button" class="sl-ctog" data-act="ctog" aria-expanded="${S.cOpen}">${svg("M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z")}<span class="sl-ctl">${cm&&cm.loading?"Loading…":cmList.length?cmList.length+(cmList.length>1?" comments":" comment"):"No comments yet"}</span></button></div>`}
    </div></div></div>`;
 }
@@ -647,7 +647,7 @@ function ctModalH(people){
       ${fact("Instagram",ig?igLinkH(ig):"")}${fact("LinkedIn",c[CT.li]?linkH(c[CT.li]):"")}${fact("Website",c[CT.web]?linkH(c[CT.web]):"")}
       ${fact("Location",esc(sv(c[CT.loc])))}${fact("Source",esc(stdO(c[CT.src])))}${sv(c[CT.notes])?fact("Notes",esc(sv(c[CT.notes])),true):""}
     </div>`;
-  const whH=i=>`<button type="button" class="sl-wh${i.kind==="sp"&&!i.pre?" mine":""}" data-act="${i.kind==="jade"?"open":i.kind==="sp"?"opensp":"openc"}" data-id="${i.id}"><span class="w">${esc(whereOf(i))}</span><b>${esc(stL(i.stage)||"No stage yet")}</b><span class="pm">${esc(i.kind==="sp"?(i.pre?"with the team":(i.needed||"").slice(0,60)):[i.owner,i.closed?"":i.dueL].filter(Boolean).join(" · "))}</span></button>`;
+  const whH=i=>`<button type="button" class="sl-wh${i.kind==="sp"&&!i.pre?" mine":""}"${i.kind==="sp"&&!i.pre&&i.needed?` title="${esc(i.needed)}"`:""} data-act="${i.kind==="jade"?"open":i.kind==="sp"?"opensp":"openc"}" data-id="${i.id}"><span class="w">${esc(whereOf(i))}</span><b>${esc(stL(i.stage)||"No stage yet")}</b><span class="pm">${esc(i.kind==="sp"?(i.pre?"with the team":(i.needed||"")):[i.owner,i.closed?"":i.dueL].filter(Boolean).join(" · "))}</span></button>`;
   const boards=p.items.filter(i=>i.kind!=="sp"),deals=p.items.filter(i=>i.kind==="sp");
   const tl=p.convs.map(x=>`<div><span class="d">${esc(short(x[C.date]))}</span><span>${esc(x[C.sum]||"")}<small>${esc([sv(x[C.ch]),sv(x[C.who])].filter(Boolean).join(" · "))}</small></span></div>`).join("");
   const notes=p.items.filter(i=>i.kind!=="jade"&&i.notes).map(i=>`<div><span class="d">Notes</span><span style="white-space:pre-line">${esc(i.notes)}<small>${esc(whereOf(i))}</small></span></div>`).join("");
@@ -787,7 +787,7 @@ function render(){
 }
 /* v5.4: the rail keeps its sideways scroll and shows the selected item (phone); the headers on one board share one height so first cards line up */
 function railKeep(body,sl){const r=body.querySelector(".sl-rail");if(!r)return;r.scrollLeft=sl;if(r.scrollWidth<=r.clientWidth)return;const a=r.querySelector('[aria-current="page"]');if(!a)return;const rr=r.getBoundingClientRect(),ar=a.getBoundingClientRect();if(ar.left<rr.left||ar.right>rr.right)r.scrollLeft+=ar.left-rr.left-12}
-function eqHeads(root){(root||document).querySelectorAll("#v-sales .sl-board").forEach(bd=>{const hs=[...bd.querySelectorAll(".sl-col:not(.sl-colc)>.sl-colh")];hs.forEach(h=>{h.style.minHeight=""});const m=Math.max(0,...hs.map(h=>h.offsetHeight));if(m)hs.forEach(h=>{if(h.offsetHeight<m)h.style.minHeight=m+"px"})});
+function eqHeads(root){(root||document).querySelectorAll("#v-sales .sl-board").forEach(bd=>{const hs=[...bd.querySelectorAll(".sl-col:not(.sl-colc)>.sl-colh")];hs.forEach(h=>{h.style.minHeight=""});if(!hs.some(h=>h.querySelector(".sl-cinfo")))return;const m=Math.max(0,...hs.map(h=>h.offsetHeight));if(m)hs.forEach(h=>{if(h.offsetHeight<m)h.style.minHeight=m+"px"})});
   if(headRO){headRO.disconnect();document.querySelectorAll("#v-sales .sl-board").forEach(b=>headRO.observe(b))}}
 function grow(t){if(!t.offsetParent||t.id==="slDt")return;t.style.height="auto";t.style.height=(t.scrollHeight+2)+"px"}
 document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;if(t.matches("#v-sales textarea,#slModal textarea"))grow(t);if(t.id==="slQ")renderSearch();
@@ -801,10 +801,13 @@ const KF={cl:{base:RB,tbl:T.cl,arr:"cl",next:CL.next,want:CL.want,notes:CL.notes
           sp:{base:CB,tbl:T.sp,arr:"sp",next:SP.needed,want:null,notes:SP.notes,owner:SP.owner,chase:SP.chase,value:SP.value,est:SP.est,lastc:SP.lastc,stage:SP.stage},
           ct:{base:CB,tbl:T.contacts,arr:"contacts"},pl:{base:CB,tbl:T.pipes,arr:"pipelines"}};
 const recOf=(kind,id)=>(S[KF[kind].arr]||[]).find(r=>r._id===id);
+/* a failed save puts the record back, but keeps what the person typed in the window so they can try again */
+const typedIn=()=>{const m=el("slModal");return m?[...m.querySelectorAll("textarea[id],input[id]:not([type=checkbox]):not([type=date]):not([type=radio])")].map(x=>[x.id,x.value]):[]};
+const putTyped=v=>v.forEach(([id,val])=>{const x=el(id);if(x&&x.value!==val){x.value=val;if(x.tagName==="TEXTAREA")grow(x)}});
 async function saveLead(id,fields,typecast,quiet){const r=lead(id);const prev={};Object.keys(fields).forEach(k=>{prev[k]=r[k]});Object.assign(r,fields);if(!quiet)render();
-  try{await upd(CB,T.leads,id,fields,typecast);toast("Saved")}catch(e){Object.assign(r,prev);render();toast("Couldn't save. Try again.")}}
+  try{await upd(CB,T.leads,id,fields,typecast);toast("Saved")}catch(e){const keep=typedIn();Object.assign(r,prev);render();putTyped(keep);toast("Couldn't save. Try again.")}}
 async function saveRec(kind,id,fields,quiet,typecast){const k=KF[kind];const r=recOf(kind,id);if(!r)return false;const prev={};Object.keys(fields).forEach(f=>{prev[f]=r[f]});Object.assign(r,fields);if(!quiet)render();
-  try{await upd(k.base,k.tbl,id,fields,!!typecast);toast("Saved");return true}catch(e){Object.assign(r,prev);render();toast("Couldn't save. Try again.");return false}}
+  try{await upd(k.base,k.tbl,id,fields,!!typecast);toast("Saved");return true}catch(e){const keep=typedIn();Object.assign(r,prev);render();putTyped(keep);toast("Couldn't save. Try again.");return false}}
 /* a Company Lead's stage on one board; on Pre-qual, "Sales Pipeline" (Sent to Sales) also opens (or moves up) the deal on Kash's
    Sales Pipeline, linked back, and "Podcast Pipeline" (Sent to Podcast) adds them to Podcast Guests for Jade */
 async function setClStage(id,b,st){
@@ -842,7 +845,7 @@ async function handToPodcast(id){
 async function handToSales(id,b){
   const D=derive();const it=D.K.find(x=>x.id===id);if(!it)return;const ex=D.spOf[id];
   try{
-    if(ex){if(ex.pre)await saveRec("sp",ex.id,{[SP.stage]:SP_NEW},true,true)}
+    if(ex){if(ex.pre&&await saveRec("sp",ex.id,{[SP.stage]:SP_NEW},true,true))render()}
     else{await newDeal({name:it.name,company:it.co,stage:SP_NEW,origin:handOrigin(it,b),chase_date:TODAY,conversation:null},{rv:atUrl(RB,T.cl,id),from:b.from,contactIds:[idFromUrl(it.r[CL.contact])].filter(Boolean)});await load(true)}
     toast("Handed to Kash's Sales Pipeline");
   }catch(e){toast("Moved, but the deal couldn't be opened on the Sales Pipeline.")}
@@ -1116,7 +1119,7 @@ document.addEventListener("change",e=>{
   if(act==="likely")return saveLead(id,{[L.likely]:a.value});
   if(act==="value")return saveLead(id,{[L.value]:digits(a.value),[L.est]:false},false,true);
   if(act==="last"){const l=deriveJ().find(x=>x.id===id);if(!l||!l.lastConv)return;const c=l.lastConv;const prev=c[C.sum];c[C.sum]=a.value;
-    upd(CB,T.conv,c._id,{[C.sum]:a.value}).then(()=>toast("Saved")).catch(()=>{c[C.sum]=prev;render();toast("Couldn't save.")});return}
+    upd(CB,T.conv,c._id,{[C.sum]:a.value}).then(()=>toast("Saved")).catch(()=>{const keep=typedIn();c[C.sum]=prev;render();putTyped(keep);toast("Couldn't save.")});return}
 });
 /* drag a card between columns */
 let slDrag=false;
@@ -1124,7 +1127,9 @@ document.addEventListener("dragend",()=>{slDrag=false});
 document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest("#v-sales .sl-kc");if(!c)return;slDrag=true;e.dataTransfer.setData("text/plain",c.dataset.kind+":"+c.dataset.id);e.dataTransfer.effectAllowed="move"});
 document.addEventListener("dragover",e=>{
   if(slDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
-    const bd=document.querySelector("#v-sales .sl-board");if(bd){const r=bd.getBoundingClientRect();if(y>r.top&&y<r.bottom){if(e.clientX<r.left+70)bd.scrollLeft-=16;else if(e.clientX>r.right-70)bd.scrollLeft+=16}}}
+    const bd=document.querySelector("#v-sales .sl-board");if(bd){const r=bd.getBoundingClientRect();if(y>r.top&&y<r.bottom){if(e.clientX<r.left+70)bd.scrollLeft-=16;else if(e.clientX>r.right-70)bd.scrollLeft+=16;
+      /* desktop: the board scrolls inside itself, so near its top or bottom edge it scrolls up or down to reach the other columns */
+      if(bd.scrollHeight>bd.clientHeight){if(y<r.top+70)bd.scrollTop-=Math.ceil((r.top+70-y)/2);else if(y>r.bottom-70)bd.scrollTop+=Math.ceil((y-(r.bottom-70))/2)}}}}
   const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;const cb=col.dataset.board;if(!(cb==="sp"||(BK[cb]&&!(cb==="prequal"&&S.pqGroup==="origin"))))return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
 document.addEventListener("dragleave",e=>{const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
 document.addEventListener("drop",e=>{slDrag=false;const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;e.preventDefault();col.classList.remove("over");
