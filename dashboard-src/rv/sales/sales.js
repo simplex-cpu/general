@@ -38,7 +38,7 @@ const PQ_ORIGINS=["Events","Referrals","ReLearn community leads","Kash brand com
 const PQO_ORIGIN={Events:"Event",Referrals:"Referral","Episode keyword":"Episode request",Network:"Network","IG organic":"Instagram"};
 const BOARDS=[
   {key:"jade",title:"Growth Audit Pipeline",owner:"Jade",kind:"jade",field:L.stage,stages:JADE_STAGES,defOwner:"Jade",from:"Growth audit path (Jade)",blurb:"The podcast funnel: guests and podcast leads. Jade qualifies them for the growth audit; her stages are her own."},
-  {key:"prequal",title:"Pre-qual Pipeline",owner:"Gretta",kind:"cl",field:CL.pq,src:[],source:"",defOwner:"Greta",from:"Pre-qual (Gretta)",stages:PQ_STAGES,closed:new Set(["No Reply","Archive"]),blurb:"Every new lead from events, referrals, communities, episode keywords, the network and Instagram. Gretta checks fit and route, then hands them on."},
+  {key:"prequal",title:"Pre-qual Pipeline",owner:"Gretta",kind:"cl",field:CL.pq,src:[],source:"",defOwner:"Gretta",from:"Pre-qual (Gretta)",stages:PQ_STAGES,closed:new Set(["No Reply","Archive"]),blurb:"Every new lead from events, referrals, communities, episode keywords, the network and Instagram. Gretta checks fit and route, then hands them on."},
   {key:"upwork",title:"Upwork Pipeline",owner:"Danica",kind:"cl",field:CL.uw,src:["Upwork"],source:"Upwork",defOwner:"Danica",from:"Upwork (Danica)",stages:["New","Proposal Sent","Sales Pipeline","No Reply","Won","Lost","Not Applicable"],blurb:"Upwork jobs and proposals, handled by Danica."},
   {key:"upsell",title:"Upsells Pipeline",owner:"Sarah",kind:"cl",field:CL.up,src:["Upsell"],source:"Upsell",defOwner:"Sarah",from:"Upsells (Sarah)",stages:PROPOSAL_ST,blurb:"Existing clients ready for more. Sarah qualifies before it reaches the sales pipeline."}
 ];
@@ -60,7 +60,9 @@ const OFFERS=["High ticket","Mid ticket","Low ticket","AI solutions","Sponsor","
 const SERVICES=["Podcast placements","Podcast build","Social growth","Email monetisation","Events / speaking","Sponsorship","AI and systems","Talent"];
 const CHANNELS=["WhatsApp","Email","Instagram","LinkedIn","Call","In person","Other"];
 const OWNERS=["Kash","Jade","Sales hire"];
-const CL_OWNERS=["Greta","Sarah","Jade","Kash","Danica"];
+const CL_OWNERS=["Gretta","Sarah","Jade","Kash","Danica"];
+/* the Airtable option is still spelled "Greta" on older rows: show it as Gretta; new writes use "Gretta" (typecast) */
+const ownerN=v=>v==="Greta"?"Gretta":v;
 const ICON={"High ticket":"M6 3h12l4 6-10 12L2 9zM2 9h20M12 21 8 9l4-6 4 6z","Mid ticket":"M12 2 2 7l10 5 10-5zM2 12l10 5 10-5M2 17l10 5 10-5","Low ticket":"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z","AI solutions":"M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6","Sponsor":"M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.3 3.2 1.3-7-5-4.8 7-.9z","Not sure yet":"M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"};
 /* origin icons: the platform's own colour (or the closest), inside a soft grey tag */
 const OI={
@@ -163,7 +165,7 @@ function deriveCL(){
     /* Pre-qual: only rows with a Pre-qual stage; Upwork and Upsells also by Source, as before */
     const boards=BOARDS.filter(b=>b.kind==="cl"&&(b.src.includes(src)||sv(r[b.field])));
     const b0=boards[0]||null;const stage=b0?sv(r[b0.field]):"";const lastC=r[CL.lastc]||"";
-    return Object.assign({kind:"cl",id:r._id,r,name:String(r[CL.name]).trim(),co:r[CL.co]||"",origin:src||PQO_ORIGIN[pqo]||(b0&&b0.source)||"Other",pqo,boards,board:b0,stage,closed:isDone(stage),chase:r[CL.chase]||"",owner:sv(r[CL.owner]),want:r[CL.want]||"",next:r[CL.next]||"",notes:r[CL.notes]||"",lastC,value:r[CL.val]||0,est:!!r[CL.est],services:(r[CL.services]||[]).map(sv),done:lastC===TODAY},dueOf(r[CL.chase]||""));
+    return Object.assign({kind:"cl",id:r._id,r,name:String(r[CL.name]).trim(),co:r[CL.co]||"",origin:src||PQO_ORIGIN[pqo]||(b0&&b0.source)||"Other",pqo,boards,board:b0,stage,closed:isDone(stage),chase:r[CL.chase]||"",owner:ownerN(sv(r[CL.owner])),want:r[CL.want]||"",next:r[CL.next]||"",notes:r[CL.notes]||"",lastC,value:r[CL.val]||0,est:!!r[CL.est],services:(r[CL.services]||[]).map(sv),done:lastC===TODAY},dueOf(r[CL.chase]||""));
   });
 }
 function deriveSP(){
@@ -803,7 +805,7 @@ async function saveProposal(it){
     const f={[CL.name]:it.name,[b.field]:stage,[CL.leadin]:TODAY};if(b.source)f[CL.src]=b.source;if(b.defOwner)f[CL.owner]=b.defOwner;
     if(it.company)f[CL.co]=it.company;if(it.email)f[CL.email]=it.email;if(it.phone)f[CL.phone]=it.phone;if(it.instagram)f[CL.ig]=norm(it.instagram);if(it.linkedin)f[CL.li]=it.linkedin;if(it.chase_date)f[CL.chase]=it.chase_date;if(it.what_they_want)f[CL.want]=it.what_they_want;if(val)f[CL.val]=val;
     if(conv){f[CL.lastc]=TODAY;f[CL.notes]=TODAY+" · "+conv.channel+": "+conv.summary+" (from Kash)"}
-    const clid=await mk(RB,T.cl,f,b.defOwner==="Danica"); /* typecast adds the new Danica owner option */
+    const clid=await mk(RB,T.cl,f,b.defOwner==="Danica"||b.defOwner==="Gretta"); /* typecast adds the new Danica owner option */
     let cid="";try{cid=await ensureContact(person,BOARD_CT_SRC[b.key],{[CT.rvurl]:atUrl(RB,T.cl,clid),[CT.rvboard]:b.title+" · "+stage})}catch(e){}
     if(cid){await upd(RB,T.cl,clid,{[CL.contact]:atUrl(CB,T.contacts,cid)},false).catch(()=>{});
       if(conv)await logConv(conv.summary,conv.channel,"",cid).catch(()=>{})}
@@ -943,7 +945,7 @@ document.addEventListener("change",e=>{
     if(act==="done"){if(a.checked){S.prevLastC[id]=r[k.lastc]||null;saveRec(kind,id,{[k.lastc]:TODAY})}else saveRec(kind,id,{[k.lastc]:S.prevLastC[id]||null});return}
     if(act==="rstage"){const it=derive().K.find(x=>x.id===id);const b=it&&clBoardOf(it);if(b)setClStage(id,b,a.value);return}
     if(act==="rorigin")return saveRec("cl",id,{[CL.pqo]:a.value||null});
-    if(act==="rowner")return saveRec(kind,id,{[k.owner]:a.value||null},false,a.value==="Danica");
+    if(act==="rowner")return saveRec(kind,id,{[k.owner]:a.value||null},false,a.value==="Danica"||a.value==="Gretta");
     if(act==="spstage")return saveRec("sp",id,{[SP.stage]:a.value});
     if(act==="spoffer")return saveRec("sp",id,{[SP.offer]:a.value});
     if(act==="sporigin")return saveRec("sp",id,{[SP.origin]:a.value});
