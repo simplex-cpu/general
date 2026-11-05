@@ -430,15 +430,18 @@ function glanceH(D){
 }
 const tv=v=>Array.isArray(v)?v.map(sv).filter(Boolean).join(", "):sv(v);
 const HEALTHS=["","On track","Slowing","Stuck"];
+/* old board names that may still be in the Pipelines table, shown under their new names (display only; nothing is written) */
+const PL_OLD=[[/Growth Audit Pipeline/gi,"Podcast Leads"],[/Podcast Guests Pipeline/gi,"Podcast Guests"]];
+const plTxt=v=>PL_OLD.reduce((t,[re,n])=>t.replace(re,n),String(v||""));
 function pipesH(){
   if(!S.pipelines.length)return `<p class="pm" style="margin:10px 0 0">${S.noPl?"The Pipelines table isn't in this link's data feed yet.":"No pipelines in the Pipelines table yet."}</p>`;
   const ord=r=>{const n=Number(sv(r[PL.order]));return isFinite(n)&&sv(r[PL.order])!==""?n:999};
   const rows=S.pipelines.slice().sort((a,b)=>ord(a)-ord(b)||String(sv(a[PL.name])).localeCompare(String(sv(b[PL.name])))).map(r=>{
     const key=sv(r[PL.key]);const v=VIEWS.has(key)&&key!=="mine"&&key!=="contacts"?key:"";const h=sv(r[PL.health]);const tone=HEALTH_TONE[h];
-    const name=sv(r[PL.name])||"(no name)";const opts=HEALTHS.includes(h)?HEALTHS:HEALTHS.concat([h]);
+    const name=plTxt(sv(r[PL.name]))||"(no name)";const opts=HEALTHS.includes(h)?HEALTHS:HEALTHS.concat([h]);
     const nm=v?`<button type="button" class="sl-plink" data-act="view" data-v="${esc(v)}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
     const sel=`<label class="vh" for="slPh-${esc(r._id)}">Health of ${esc(name)}</label><select id="slPh-${esc(r._id)}" class="sl-hsel${tone?" stx st-"+tone:""}" data-act="plhealth" data-id="${esc(r._id)}"${S.ro?" disabled":""}>${opts.map(o=>`<option value="${esc(o)}" ${o===h?"selected":""}>${o?esc(o):"–"}</option>`).join("")}</select>`;
-    return `<tr><th scope="row">${nm}</th><td>${sel}</td><td>${esc(tv(r[PL.who]))}</td><td>${esc(tv(r[PL.fall]))}</td><td>${esc(tv(r[PL.next]))}</td></tr>`}).join("");
+    return `<tr><th scope="row">${nm}</th><td>${sel}</td><td>${esc(plTxt(tv(r[PL.who])))}</td><td>${esc(plTxt(tv(r[PL.fall])))}</td><td>${esc(plTxt(tv(r[PL.next])))}</td></tr>`}).join("");
   return `<div class="sl-ht"><table class="sl-pt"><thead><tr><th scope="col">Pipeline</th><th scope="col">Health</th><th scope="col">Who handles it?</th><th scope="col">Who falls in here?</th><th scope="col">Where do they go next?</th></tr></thead><tbody>${rows}</tbody></table></div><p class="sl-foot">Health is set by hand here and saved to the Pipelines table. Click a pipeline to open its board.</p>`;
 }
 /* Leads by source: one per contact, top 7 sources then Other; colours in a fixed order (light and dark steps in CSS) */
@@ -460,8 +463,10 @@ function boardH(b,D){
   let cols;
   if(byO){
     /* grouped by Pre-qual origin (no drag here: moving between origins isn't a stage change) */
-    const extra=[...new Set(items.map(i=>i.pqo).filter(o=>o&&!PQ_ORIGINS.includes(o)))].sort();const groups=PQ_ORIGINS.concat(extra,[""]);
-    cols=groups.map(o=>{const cs=items.filter(i=>(i.pqo||"")===o).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
+    /* only people still being worked on, so the columns add up to the header count (handed on / parked / closed: see Kanban) */
+    const act=items.filter(i=>!COUNT_OUT.has(stageOf(b,i)));
+    const extra=[...new Set(act.map(i=>i.pqo).filter(o=>o&&!PQ_ORIGINS.includes(o)))].sort();const groups=PQ_ORIGINS.concat(extra,[""]);
+    cols=groups.map(o=>{const cs=act.filter(i=>(i.pqo||"")===o).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
       return colH("prequal-o",groups,o,cs.length,cs.map(i=>kcardH(i,b,D,true)).join("")||'<div class="sl-empty">Nobody here</div>',"","",o||"No origin")}).join("");
   }else{
     const noStage=b.kind==="cl"?work.filter(i=>!sv(i.r[b.field])):[];
@@ -477,7 +482,7 @@ function boardH(b,D){
   return `<div class="sl-ftop"><div class="sl-tt"><h2>${esc(b.title)}</h2>${healthPill(b.key)}</div><span class="pm">Owner: ${esc(b.owner)}${where} · ${n} being worked on</span></div>
     <p class="sl-goal">${esc(b.blurb)}</p><p class="sl-rule">${esc(RULE_NOTE)}</p>${toolsH(seg)}
     <div class="sl-board">${cols}</div>
-    <p class="sl-foot">${byO?"Grouped by Pre-qual origin. Switch to Kanban to move cards between stages. ":S.ro?"":"Drag a card to another column to move it. "}"With Kash: stage" shows where a handed-on lead sits on the Sales Pipeline. ${FOLD_FOOT}</p>`;
+    <p class="sl-foot">${byO?"Grouped by Pre-qual origin: only people still being worked on. Switch to Kanban to see those handed on, parked or closed, and to move cards between stages. ":S.ro?"":"Drag a card to another column to move it. "}"With Kash: stage" shows where a handed-on lead sits on the Sales Pipeline. ${FOLD_FOOT}</p>`;
 }
 /* PODCAST GUESTS (ReLearn Operating System → Guests): view only */
 function gcardH(g){
@@ -597,18 +602,23 @@ const igHandle=v=>{const t=String(v||"").trim();const m=t.match(/instagram\.com\
 const telH=v=>{const t=String(v||"").replace(/[^\d+]/g,"");return t?`<a href="tel:${esc(t)}">${esc(v)}</a>`:esc(v)};
 const mailH=v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)?`<a href="mailto:${esc(v)}">${esc(v)}</a>`:esc(v);
 const igLinkH=v=>{const h=igHandle(v);return /^[A-Za-z0-9._]+$/.test(h)?`<a href="https://www.instagram.com/${esc(h)}/" target="_blank" rel="noopener noreferrer">@${esc(h.toLowerCase())}</a>`:esc(v)};
-/* checks and tidies the edited values; returns {fields} to send, or {err, key} */
+/* checks and tidies the edited values; returns {fields} to send, or {err, key}.
+   Only fields the user actually changed are checked, tidied and sent: a saved value that would fail the checks
+   (e.g. phone 'WhatsApp only') or that is in another form (e.g. IG '@Handle', 'site.com') is left exactly as it is. */
+const nlz=s=>String(s==null?"":s).replace(/\r\n?/g,"\n").trim();
 function ctChanges(c,vals){
   const f={};
   for(const [k,l] of CT_EDIT){
-    let v=String(vals[k]==null?ctCur(c,k):vals[k]).trim();
+    if(vals[k]==null)continue;
+    let v=nlz(vals[k]);const cur=ctCur(c,k);
+    if(v===nlz(cur))continue;
     if(k==="name"&&!v)return {err:"A contact needs a name.",key:k};
     if(k==="email"&&v&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v))return {err:"That email doesn't look right.",key:k};
     if(k==="phone"&&v&&(v.replace(/\D/g,"").length<5||/[A-Za-z]/.test(v)))return {err:"That phone number doesn't look right.",key:k};
     if((k==="li"||k==="web")&&v){if(/\s/.test(v)||!/\./.test(v))return {err:"Check the "+l+" link.",key:k};if(!/^https?:\/\//i.test(v))v="https://"+v.replace(/^\/+/,"")}
     if(k==="ig"&&v)v=igHandle(v);
     if(k==="src"&&v&&!ORIGINS.includes(v))v=stdO(v)||"Other";
-    if(v!==ctCur(c,k))f[CT[k]]=v||null;
+    if(v!==cur)f[CT[k]]=v||null;
   }
   return {fields:f};
 }
@@ -650,6 +660,8 @@ function ctModalH(people){
       <div class="sl-tl">${lat+tl+notes||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
   </div></div></div>`;
 }
+/* a guest's Source as shown: an old origin name (Referral, Event…) in its standard name; guest-only sources (Outlier research, Inbound…) as they are */
+const gSrcL=v=>(Array.isArray(v)?v:[v]).map(x=>String(sv(x)||"").trim()).filter(Boolean).map(x=>ORIG_LC[x.toLowerCase()]||x).join(", ");
 /* a podcast guest: view only */
 function gModalH(){
   const g=deriveG().find(x=>x.id===S.openG);if(!g)return "";const r=g.r;
@@ -663,7 +675,7 @@ function gModalH(){
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px"><span class="sl-tag">${esc(g.stage?gLabel(g.stage):"No stage")}</span>${r[G.ga]?'<span class="sl-chip-s mine">Growth audit booked</span>':""}</div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     <div class="sl-facts">
-      ${fact("Status",esc(g.stage||"No stage"))}${fact("Handled by",esc(g.by.join(", ")))}${fact("Source",esc(tv(r[G.src])))}
+      ${fact("Status",esc(g.stage||"No stage"))}${fact("Handled by",esc(g.by.join(", ")))}${fact("Source",esc(gSrcL(r[G.src])))}
       ${fact("First contacted",esc(dshort(r[G.first])))}${fact("Last contacted",esc(dshort(r[G.last])))}${fact("Pre-interview",esc(dshort(r[G.pre])))}
       ${fact("Growth audit booked",r[G.ga]?"Yes":"No")}
     </div>
@@ -793,7 +805,8 @@ const handOrigin=(it,b)=>!b?(stdO(it.origin)||"Other"):b.key==="prequal"?(stdO(i
 const GUEST_ST_NEW="20 – In conversation",JADE_TEAM_ID="recT0wAfthtKftV89";
 const nmKey=s=>String(sv(s)||"").toLowerCase().replace(/\s+/g,"");
 const igKey=s=>{const t=String(sv(s)||"").trim().toLowerCase();const m=t.match(/instagram\.com\/([^/?#\s]+)/);return (m?m[1]:t).replace(/^@/,"").replace(/\/+$/,"")};
-const emKey=s=>String(sv(s)||"").trim().toLowerCase();
+const isEmail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s||"").trim());
+const emKey=s=>{const t=String(sv(s)||"").trim().toLowerCase();return isEmail(t)?t:""}; /* only real addresses match (some rows hold notes like "Whatsapp/IG") */
 function guestMatch(name,email,ig){
   const n=nmKey(name),e=emKey(email),i=igKey(ig);
   return S.guests.find(g=>(n&&nmKey(g[G.name])===n)||(e&&emKey(g[G.email])===e)||(i&&igKey(g[G.ig])===i))||null;
@@ -804,7 +817,7 @@ async function handToPodcast(id){
   /* on Kash's link the guests come in a second request: wait for it, so nobody is added twice */
   if(S.gP)await S.gP.catch(()=>{});
   if(S.noG){toast("Couldn't check Podcast Guests, so nobody was added. Refresh and try again.");return}
-  const email=sv(r[CL.email]).trim(),ig=sv(r[CL.ig]).trim(),phone=sv(r[CL.phone]).trim();
+  const email=isEmail(sv(r[CL.email]))?sv(r[CL.email]).trim():"",ig=sv(r[CL.ig]).trim(),phone=sv(r[CL.phone]).trim();
   if(guestMatch(it.name,email,ig)){toast("Already in Podcast Guests");return}
   const pqo=it.pqo||"";const notes=String(it.notes||"").replace(/\s+/g," ").trim().slice(0,300);
   const f={[G.name]:it.name,[G.stage]:GUEST_ST_NEW,[G.by]:[JADE_TEAM_ID],[G.src]:pqo==="Referrals"?"Referral":pqo==="Events"?"Event":"Inbound",
