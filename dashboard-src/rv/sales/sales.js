@@ -4,14 +4,19 @@
    Team boards (Jade's Podcast board + the Rise Voice Company Leads boards) stay where the teams work. Contacts = everyone.
    "Drop a note": Claude reads a typed or dictated note, recaps it, Kash confirms, then it is saved. */
 (function(){
-const CB="appaP7Y1SxMmv6Odb", RB="appOttHso6hYjBXhw";
-const T={leads:"tbl1Jf2BPuSrwT5v0",conv:"tblcar4mqDssSccvO",calls:"tblcYUQVjRo3nTQrE",money:"tblq9C4niOCPh2hcx",contacts:"tblIHKdSJO8IGIMRi",cl:"tblbPp30ethheEOW0",sp:"tblmuA1NxDhGDlKqQ",ul:"tbl8xDFVwfdMS7v3v"};
+const CB="appaP7Y1SxMmv6Odb", RB="appOttHso6hYjBXhw", GB="appaT1sh6XB9ubqTF";
+const T={leads:"tbl1Jf2BPuSrwT5v0",conv:"tblcar4mqDssSccvO",calls:"tblcYUQVjRo3nTQrE",money:"tblq9C4niOCPh2hcx",contacts:"tblIHKdSJO8IGIMRi",cl:"tblbPp30ethheEOW0",sp:"tblmuA1NxDhGDlKqQ",ul:"tbl8xDFVwfdMS7v3v",pipes:"tblQ91MducoPDdmII",guests:"tblw02pY0M4jP9aag",team:"tblNH6iSlbp4K9NFd"};
+/* v5: ReLearn Commercials → Pipelines (one row per pipeline; Health is set by hand) */
+const PL={name:"fldRLEVACYTk6xVkF",health:"fldRMi8timPbuj1vJ",who:"fldq3jjYVpSTX4IQh",fall:"fldR9zdHeHmTY0yke",next:"fldgPhWZHByEnYjdT",order:"fldYhSgVHZMVcYnNR",key:"fldW07AoiCbSAIKOv"};
+/* v5: ReLearn Operating System → Guests (read only here) and Team (names for "Handled by") */
+const G={name:"fldNY5M1pm5Ou81m2",stage:"fldHC3y4JoQ2WrH74",by:"fldpIctEolGxEXaUl",src:"fld3UZHYgyWTM07S4",first:"fldqq3T2VQvzkrahz",last:"fldgEkh72k5l3PTMI",pre:"fldomKSjQMs9hbiBm",latest:"fldE4o0Qd74ULCY64",next:"fldpNuRPhiUihpeeq",ig:"fldxdL2tg8kTRiZ5q",email:"fldiGymTA05AQCAGv",phone:"fldx4MfXr6vKoignd",web:"fld0yvck84cpDCN6l",based:"fldos0LZw3u9oxLc1",ga:"fldw7Wrey5aLHXmtH",lead:"fld8qPIstXN20yPhr"};
+const TM={name:"fld2G3e9kvvIeeLsz"};
 const L={name:"fldaM6EiV2pt5heTL",co:"fldfUHhb1q9iGWIxc",what:"fldv95btbIfu3TM7P",stage:"fld9dYK6yVeu2idCE",source:"fldu5vfxkaBLk723O",owner:"fld9yLxt4YBGOPzPk",next:"fldTT0PDsKMBIBnoH",chase:"fldQOtcsa4ikswwtZ",value:"fldosD7IyxCu3VJz8",est:"fldWzQ4sSjCP5Q5lM",leadIn:"fldYW8VEl9A8iVcwZ",latest:"fldobTBT56hssM99t",want:"fldZplPINUodf5pGL",services:"fldOHJnhJbAU1bs1w",wonOn:"fld2zs6twTbc4l2Ji",needed:"fld1IdWPYigBrKp4I",likely:"fldVoItstzuylyzZq",confirmed:"fldB7ysIGhuCtpFb9",lastC:"fldpxYod50hGHPVfY",contacts:"fldjqxAlAsTI3xrVQ"};
 const C={sum:"fldy9VdOSuTN5819v",lead:"fld05QLqJZhwtxzMq",date:"fldz5qOHXOrhq037h",ch:"fldHQQt9pmyZUJTBD",who:"fld3KOzHRUd4qFzhO",dir:"fld0JWVKtB3eKuXXx",contact:"fld6Vwp4QraPTuWJJ"};
 const CA={lead:"fldtoe4kLoNVwm4hS",type:"fld3gvsFJuUVC4bIn",status:"fldU735Vhbu2kOhiV",date:"fldvMLlzyJFU0AAk8"};
 const MI={amount:"fldh8970GdUQofMEf",month:"fld3yVQA1cloQHbo2",lead:"fldTOXIrWHfZFo2sY"};
-const CT={name:"fldxdMB2aMlWKX6G4",email:"fldiPtMjxByqKJPRH",phone:"fldPDFnISiBzuchX5",ig:"flduwosPPXV5jZ1vv",li:"fldIiFQTDk5HxcxYQ",co:"fldkWeZQMNc8CsHAI",what:"fldUKdhoOFCPspBAb",src:"flddsl0GLnhfxfKV3",rvurl:"fld3BMwUIxQ0sQQ5T",rvboard:"fldEbEJBd5y25KztX",notes:"fldBibxFYIMoGMBmG",leads:"fldzRCC15WKfqWXiZ",conv:"fldh1cOW0hjHnubtS",sp:"fldDzmICl1rEB5VNM"};
-const CL={name:"fldfgTWP4kmqOR1PM",email:"fldXsdyYDy09CcKft",ref:"fldtlKxMyMdBlONii",notes:"fldKi8vnk815RHNxM",lastc:"fldLkXtqOOKtbJSff",src:"fldu45Iq06QRDYHmc",owner:"fldna9HW8iuYhrXzj",co:"fldVkJuveVd3o91Kv",phone:"fldRluwhfTEqLDrbU",ig:"fldseQq7L4SacNSO9",li:"fldNG7PV5C3yvbqDU",ev:"fld4RreDcpnu5pSZD",so:"fldW8WGwM5e9dTskw",ep:"fld7kQlKeqq6il0Wg",up:"fldp2KaEPCKwycmJS",ai:"fldhvLroYlyhnXUS5",uw:"fldtRg57RoPoh7T9j",val:"fldlg9bBoEQQUZgfL",est:"fldBKJzfVlaej4m3n",want:"fldxZnwp2GHOGkFbA",next:"fld7imdDjKHyDL0me",chase:"fldnZhBh3bxyaVPfc",leadin:"fld6Lai2X2cUERUZd",contact:"fldznYfazZWZks5qu",services:"fldLroATHcoTf8xYQ"};
+const CT={name:"fldxdMB2aMlWKX6G4",email:"fldiPtMjxByqKJPRH",phone:"fldPDFnISiBzuchX5",ig:"flduwosPPXV5jZ1vv",li:"fldIiFQTDk5HxcxYQ",co:"fldkWeZQMNc8CsHAI",what:"fldUKdhoOFCPspBAb",src:"flddsl0GLnhfxfKV3",rvurl:"fld3BMwUIxQ0sQQ5T",rvboard:"fldEbEJBd5y25KztX",notes:"fldBibxFYIMoGMBmG",leads:"fldzRCC15WKfqWXiZ",conv:"fldh1cOW0hjHnubtS",sp:"fldDzmICl1rEB5VNM",loc:"fldfVws9tAVH7VhZ9",web:"fldAPJqGo7OmQNJ1O"};
+const CL={name:"fldfgTWP4kmqOR1PM",email:"fldXsdyYDy09CcKft",ref:"fldtlKxMyMdBlONii",notes:"fldKi8vnk815RHNxM",lastc:"fldLkXtqOOKtbJSff",src:"fldu45Iq06QRDYHmc",owner:"fldna9HW8iuYhrXzj",co:"fldVkJuveVd3o91Kv",phone:"fldRluwhfTEqLDrbU",ig:"fldseQq7L4SacNSO9",li:"fldNG7PV5C3yvbqDU",ev:"fld4RreDcpnu5pSZD",so:"fldW8WGwM5e9dTskw",ep:"fld7kQlKeqq6il0Wg",up:"fldp2KaEPCKwycmJS",ai:"fldhvLroYlyhnXUS5",uw:"fldtRg57RoPoh7T9j",val:"fldlg9bBoEQQUZgfL",est:"fldBKJzfVlaej4m3n",want:"fldxZnwp2GHOGkFbA",next:"fld7imdDjKHyDL0me",chase:"fldnZhBh3bxyaVPfc",leadin:"fld6Lai2X2cUERUZd",contact:"fldznYfazZWZks5qu",services:"fldLroATHcoTf8xYQ",pq:"fldK90NzcExOUvCon",pqo:"fldUkfb8qwLfr1197"};
 /* Kash's Sales pipeline */
 const SP={deal:"fldS0mVHd5XBFbkv3",co:"fldFJFoJwhYtDOuu6",what:"fldy66nPclJfzI03z",how:"fldDvMxQZw3LPQi41",owner:"fldQ9OtRGQLD9tunG",needed:"fldldfgRJjTIkoBVl",chase:"fldi1dhednSIQtHYA",value:"fldqazE03Ixy8lgoF",est:"fld8ODmb9sQZwj62E",lastc:"fld11hvR7CaAYoyVm",leadin:"fldhS0rtzifQvJ84r",notes:"fldqjfFQZMtHGZMoW",contacts:"fldBOwUAyyjBbI2OR",stage:"fldEqvnLp1cy4v3lV",origin:"fldhUFKjSU9rMsZUK",from:"fldpDX0gQ99r2Zbs7",jade:"fldnh7z4LMVxfDXZn",rv:"fld3CJAfP6rXjS2K0",offer:"fldQGjMa4mznxYBZB",services:"fld3KVRttv4AfQ7Hu"};
 /* Sarah's upsell list (Rise Voice), read only for the live Pre-qual status */
@@ -23,20 +28,27 @@ const ORIGINS=["Podcast","Referral","Network","Old client","Old funnels / GHL","
 const JADE_STAGES=["10 – Lead in","20 – Audit booked","30 – Audit held","40 – Growth plan sent","50 – Follow-up call","60 – Proposal","70 – Won","79 – Lost","80 – Re-approach (60–90 days)"];
 const ORIGIN_ST=["New","Sales Pipeline","No Reply","Won","Lost","Not Applicable"];
 const PROPOSAL_ST=["New","Build Proposal","Send Proposal","Proposal Sent","Sales Pipeline","Won","Lost","Archive"];
+/* v5 (Karen, 5 Nov): Pre-qual Pipeline replaces Events, Referrals, Instagram & LinkedIn and Episode requests (their old stage fields stay in Airtable, no longer written from here) */
+const PQ_STAGES=["New","First Outreach","Pre-qual","In Conversation","Follow-up","Email sequence","Podcast Pipeline","Sales Pipeline","No Reply","Archive"];
+const PQ_ORIGINS=["Events","Referrals","ReLearn community leads","Kash brand community","Episode keyword","Network","IG organic"];
+/* Pre-qual origin → the deal's Origin when it is handed to the Sales Pipeline */
+const PQO_ORIGIN={Events:"Event",Referrals:"Referral","Episode keyword":"Episode request",Network:"Network","IG organic":"Instagram"};
 const BOARDS=[
-  {key:"jade",title:"Podcast",owner:"Jade",kind:"jade",field:L.stage,stages:JADE_STAGES,defOwner:"Jade",from:"Growth audit path (Jade)",blurb:"The podcast funnel: guests and podcast leads. Jade qualifies them for the growth audit; her stages are her own."},
-  {key:"event",title:"Events",owner:"Greta → Jade",kind:"cl",field:CL.ev,src:["Event"],source:"Event",defOwner:"Greta",from:"Events (Greta)",stages:["New","Growth Plan Booking","Sales Pipeline","No Reply","Won","Lost","Not Applicable"],blurb:"Pre-qualified by Greta in Event Leads first; \"Growth Plan Booking\" hands them to Jade."},
-  {key:"referral",title:"Referrals",owner:"Greta",kind:"cl",field:CL.ref,src:["Referral"],source:"Referral",defOwner:"Greta",from:"Referrals (Greta)",stages:["Contact info provided by client","First outreach","Following up","Call booked","Post call follow-up","Sales Pipeline","Offer accepted (Closed)","Offer declined (Rejected)","No response (Rejected)"],blurb:"Introductions from clients and friends, in Greta's stages."},
-  {key:"social",title:"Instagram & LinkedIn",owner:"Greta",kind:"cl",field:CL.so,src:["Instagram","LinkedIn"],source:"Instagram",defOwner:"Greta",from:"Instagram & LinkedIn (Greta)",stages:ORIGIN_ST,blurb:"Leads from DMs on the Rise Voice, Kash and ReLearn accounts."},
-  {key:"episode",title:"Episode requests",owner:"Greta",kind:"cl",field:CL.ep,src:["Episode request"],source:"Episode request",defOwner:"Greta",from:"Episode requests (Greta)",stages:ORIGIN_ST,blurb:"People who asked for an episode link."},
-  {key:"upwork",title:"Upwork",owner:"Rise Voice team",kind:"cl",field:CL.uw,src:["Upwork"],source:"Upwork",defOwner:"",from:"Upwork",stages:["New","Proposal Sent","Sales Pipeline","No Reply","Won","Lost","Not Applicable"],blurb:"Upwork jobs and proposals, handled by the Rise Voice team."},
-  {key:"upsell",title:"Upsells",owner:"Sarah",kind:"cl",field:CL.up,src:["Upsell"],source:"Upsell",defOwner:"Sarah",from:"Upsells (Sarah)",stages:PROPOSAL_ST,blurb:"Existing clients ready for more. Sarah qualifies before it reaches the sales pipeline."},
-  {key:"ai",title:"AI consulting",owner:"Sarah",kind:"cl",field:CL.ai,src:["AI consulting"],source:"AI consulting",defOwner:"Sarah",from:"AI consulting (Sarah)",stages:PROPOSAL_ST,blurb:"The new AI consulting offer. Sarah qualifies, Kash joins the call."}
+  {key:"jade",title:"Growth Audit Pipeline",owner:"Jade",kind:"jade",field:L.stage,stages:JADE_STAGES,defOwner:"Jade",from:"Growth audit path (Jade)",blurb:"The podcast funnel: guests and podcast leads. Jade qualifies them for the growth audit; her stages are her own."},
+  {key:"prequal",title:"Pre-qual Pipeline",owner:"Gretta",kind:"cl",field:CL.pq,src:[],source:"",defOwner:"Greta",from:"Pre-qual (Gretta)",stages:PQ_STAGES,closed:new Set(["No Reply","Archive"]),blurb:"Every new lead from events, referrals, communities, episode keywords, the network and Instagram. Gretta checks fit and route, then hands them on."},
+  {key:"upwork",title:"Upwork Pipeline",owner:"Danica",kind:"cl",field:CL.uw,src:["Upwork"],source:"Upwork",defOwner:"Danica",from:"Upwork (Danica)",stages:["New","Proposal Sent","Sales Pipeline","No Reply","Won","Lost","Not Applicable"],blurb:"Upwork jobs and proposals, handled by Danica."},
+  {key:"upsell",title:"Upsells Pipeline",owner:"Sarah",kind:"cl",field:CL.up,src:["Upsell"],source:"Upsell",defOwner:"Sarah",from:"Upsells (Sarah)",stages:PROPOSAL_ST,blurb:"Existing clients ready for more. Sarah qualifies before it reaches the sales pipeline."}
 ];
 const BK={};BOARDS.forEach(b=>BK[b.key]=b);
 const SPB={key:"sp",title:"Sales pipeline",owner:"Kash",kind:"sp",field:SP.stage,stages:SP_STAGES};
-const DONE=new Set(["70 – Won","79 – Lost","Offer accepted (Closed)","Offer declined (Rejected)","No response (Rejected)","Sales Pipeline","Growth Plan Booking","No Reply","Won","Lost","Not Applicable","Archive","No reply","Handover to Ops","Closed"]);
-const HANDED=new Set(["Sales Pipeline","Growth Plan Booking"]);
+/* Podcast Guests Pipeline: read only (no Airtable write access to the Operating System base from here) */
+const GUEST_ST=["0 – Researched","10 – Outreach sent","19 – No reply","20 – In conversation","28 - Later Trip","28 – Not now","28 – Not now (try a later trip)","29 – Not interested","30 – Intro call booked","40 – Intro call done","50 – Recording booked","60 – Episode released (stay in touch)"];
+const GUEST_CAP=50;
+const gLabel=st=>String(st||"").replace(/^\d+\s*[–-]\s*/,"");
+/* old view keys that no longer exist land on the board that replaced them */
+const OLD_VIEW={event:"prequal",referral:"prequal",social:"prequal",episode:"prequal",ai:"mine",overview:"mine"};
+const DONE=new Set(["70 – Won","79 – Lost","Offer accepted (Closed)","Offer declined (Rejected)","No response (Rejected)","Sales Pipeline","Growth Plan Booking","Email sequence","Podcast Pipeline","No Reply","Won","Lost","Not Applicable","Archive","No reply","Handover to Ops","Closed"]);
+const HANDED=new Set(["Sales Pipeline","Growth Plan Booking","Email sequence","Podcast Pipeline"]);
 const isDone=s=>!!s&&(DONE.has(s)||s.startsWith("→"));
 const SRC_LABEL={"🎙️ Podcast":"Podcast","📣 RISEVOICE":"Rise Voice","🎪 Events":"Event","🛠️ Tool":"Tool","🤝 Referral / direct":"Referral / direct","Other":"Other"};
 const CT_LABEL={"Podcast guest":"Podcast","Kash in person":"Network"};
@@ -45,7 +57,7 @@ const OFFERS=["High ticket","Mid ticket","Low ticket","AI solutions","Sponsor","
 const SERVICES=["Podcast placements","Podcast build","Social growth","Email monetisation","Events / speaking","Sponsorship","AI and systems","Talent"];
 const CHANNELS=["WhatsApp","Email","Instagram","LinkedIn","Call","In person","Other"];
 const OWNERS=["Kash","Jade","Sales hire"];
-const CL_OWNERS=["Greta","Sarah","Jade","Kash"];
+const CL_OWNERS=["Greta","Sarah","Jade","Kash","Danica"];
 const ICON={"High ticket":"M6 3h12l4 6-10 12L2 9zM2 9h20M12 21 8 9l4-6 4 6z","Mid ticket":"M12 2 2 7l10 5 10-5zM2 12l10 5 10-5M2 17l10 5 10-5","Low ticket":"M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.5-.5-.5-2.5z","AI solutions":"M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6","Sponsor":"M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.3 3.2 1.3-7-5-4.8 7-.9z","Not sure yet":"M12 2a10 10 0 1 0 0 20a10 10 0 1 0 0-20zM9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"};
 /* origin icons: the platform's own colour (or the closest), inside a soft grey tag */
 const OI={
@@ -72,7 +84,7 @@ const RO_BLOCK=new Set(["fab","svc","spsvc","clsvc","postc","addconv","savelead"
 const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
-const S={boxOpen:(()=>{try{return localStorage.getItem("slBox")!=="0"}catch(e){return true}})(),loaded:false,loading:false,err:"",leads:[],conv:[],calls:[],money:[],contacts:[],cl:[],sp:[],ul:[],view:"mine",spView:"pipeline",groupBy:"date",openId:null,openCl:null,openSp:null,openCt:null,comments:{},cOpen:false,adding:false,drop:null,prevLastC:{},inAdd:null,cq:"",co:""};
+const S={boxOpen:(()=>{try{return localStorage.getItem("slBox")!=="0"}catch(e){return true}})(),pqGroup:(()=>{try{return localStorage.getItem("slPqGroup")==="origin"?"origin":"stage"}catch(e){return "stage"}})(),loaded:false,loading:false,err:"",leads:[],conv:[],calls:[],money:[],contacts:[],cl:[],sp:[],ul:[],pipelines:[],guests:[],guestTeam:[],view:"mine",spView:"pipeline",groupBy:"date",openId:null,openCl:null,openClB:null,openSp:null,openCt:null,openG:null,gAll:{},ctAll:false,comments:{},cOpen:false,adding:false,drop:null,prevLastC:{},inAdd:null,cq:"",co:""};
 const el=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const sv=v=>v==null?"":(typeof v==="object"?(v.name||""):String(v));
@@ -120,11 +132,12 @@ async function load(force){
       S.ro=false;S.n8n=true;
       const res=await fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store"});if(!res.ok)throw new Error("sales feed "+res.status);
       const j=await res.json();const n=a=>(a||[]).map(r=>Object.assign({_id:r.id},r.fields||{}));
-      Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),noSp:!j.salesPipeline,fetchedAt:j.fetchedAt||"",loaded:true});
+      Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),pipelines:n(j.pipelines),guests:n(j.guests),guestTeam:n(j.guestTeam),noSp:!j.salesPipeline,noPl:!j.pipelines,noG:!j.guests,fetchedAt:j.fetchedAt||"",loaded:true});
     }else{
       const opt=p=>p.catch(()=>[]);
-      const [leads,conv,calls,mon,contacts,cl,sp,ul]=await Promise.all([list(CB,T.leads,Object.values(L)),opt(list(CB,T.conv,Object.values(C))),opt(list(CB,T.calls,Object.values(CA))),opt(list(CB,T.money,Object.values(MI))),opt(list(CB,T.contacts,Object.values(CT))),opt(list(RB,T.cl,Object.values(CL))),list(CB,T.sp,Object.values(SP)),opt(list(RB,T.ul,Object.values(UL)))]);
-      Object.assign(S,{leads,conv,calls,money:mon,contacts,cl,sp,ul,noSp:false,loaded:true});
+      /* the three v5 tables are optional: if one fails the tab still loads, with that part empty */
+      const [leads,conv,calls,mon,contacts,cl,sp,ul,pls,gs,gt]=await Promise.all([list(CB,T.leads,Object.values(L)),opt(list(CB,T.conv,Object.values(C))),opt(list(CB,T.calls,Object.values(CA))),opt(list(CB,T.money,Object.values(MI))),opt(list(CB,T.contacts,Object.values(CT))),opt(list(RB,T.cl,Object.values(CL))),list(CB,T.sp,Object.values(SP)),opt(list(RB,T.ul,Object.values(UL))),opt(list(CB,T.pipes,Object.values(PL))),opt(list(GB,T.guests,Object.values(G))),opt(list(GB,T.team,[TM.name]))]);
+      Object.assign(S,{leads,conv,calls,money:mon,contacts,cl,sp,ul,pipelines:pls,guests:gs,guestTeam:gt,noSp:false,noPl:!pls.length,noG:!gs.length,loaded:true});
     }
   }catch(e){S.err=String(e&&e.message||e)}
   S.loading=false;render();
@@ -143,11 +156,11 @@ function deriveJ(){
 }
 function deriveCL(){
   return S.cl.filter(r=>String(r[CL.name]||"").trim()).map(r=>{
-    const src=sv(r[CL.src]);
-    let boards=BOARDS.filter(b=>b.kind==="cl"&&(b.src.includes(src)||sv(r[b.field])));
-    if(!boards.length&&!src)boards=[BK.referral]; /* rows from before the Source field were all referrals */
+    const src=sv(r[CL.src]);const pqo=sv(r[CL.pqo]);
+    /* Pre-qual: only rows with a Pre-qual stage; Upwork and Upsells also by Source, as before */
+    const boards=BOARDS.filter(b=>b.kind==="cl"&&(b.src.includes(src)||sv(r[b.field])));
     const b0=boards[0]||null;const stage=b0?sv(r[b0.field]):"";const lastC=r[CL.lastc]||"";
-    return Object.assign({kind:"cl",id:r._id,r,name:String(r[CL.name]).trim(),co:r[CL.co]||"",origin:src||(b0?b0.source:"Other"),boards,board:b0,stage,closed:isDone(stage),chase:r[CL.chase]||"",owner:sv(r[CL.owner]),want:r[CL.want]||"",next:r[CL.next]||"",notes:r[CL.notes]||"",lastC,value:r[CL.val]||0,est:!!r[CL.est],services:(r[CL.services]||[]).map(sv),done:lastC===TODAY},dueOf(r[CL.chase]||""));
+    return Object.assign({kind:"cl",id:r._id,r,name:String(r[CL.name]).trim(),co:r[CL.co]||"",origin:src||PQO_ORIGIN[pqo]||(b0&&b0.source)||"Other",pqo,boards,board:b0,stage,closed:isDone(stage),chase:r[CL.chase]||"",owner:sv(r[CL.owner]),want:r[CL.want]||"",next:r[CL.next]||"",notes:r[CL.notes]||"",lastC,value:r[CL.val]||0,est:!!r[CL.est],services:(r[CL.services]||[]).map(sv),done:lastC===TODAY},dueOf(r[CL.chase]||""));
   });
 }
 function deriveSP(){
