@@ -439,4 +439,47 @@ a.sl-ghost{text-decoration:none}
 .sl-x{width:40px;height:40px}
 .sl-cted input,.sl-cted select{height:40px}
 }
+/* v5.5 (Karen, 5 Nov): offers made visible (chip is a button; offers list in the deal window and the contact window's Deals) and group by source */
+.sl-offb{font-family:inherit;line-height:inherit;margin:0;cursor:pointer;position:relative}
+.sl-offb:hover{background:#E0E4FF;border-color:#3730A3}
+.sl-offb:focus-visible{outline:2px solid #4338CA;outline-offset:2px}
+.sl-stc{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500;color:var(--ink);border:1px solid transparent;white-space:nowrap}
+.sl-stc .sl-dot{width:7px;height:7px}
+.sl-offn{margin:-2px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
+.sl-ofl{display:flex;flex-direction:column;gap:8px}
+.sl-of{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:13.5px;color:var(--ink)}
+button.sl-of{cursor:pointer}
+button.sl-of:hover{border-color:#4338CA}
+button.sl-of:focus-visible{border-color:#4338CA;outline:2px solid #4338CA;outline-offset:1px}
+.sl-of.cur{background:#EEF0FF;border-color:#C7D2FE}
+.sl-oft{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;min-width:0}
+.sl-oft>b{font-weight:650;min-width:0;overflow-wrap:anywhere}
+.sl-ofr{display:inline-flex;align-items:center;gap:10px;justify-self:end;white-space:nowrap}
+.sl-ofv{font-weight:600}.sl-ofv .sl-est{margin-left:2px}
+.sl-ofme{font-size:11.5px;font-weight:600;color:#3730A3;border:1px solid #A5B4FC;background:var(--panel);border-radius:999px;padding:1px 9px}
+.sl-ofa{display:inline-flex;color:var(--muted)}
+button.sl-of:hover .sl-ofa,button.sl-of:focus-visible .sl-ofa{color:#4338CA}
+.sl-ofm{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:12.5px;color:var(--muted)}
+.sl-offs .sl-sub:focus{outline:none}
+.sl-offs{border-radius:6px;--sl-flash:#E0E4FF}
+.sl-offs.flash{animation:slFlash 1.6s ease-out}
+@keyframes slFlash{0%,35%{background:var(--sl-flash);box-shadow:0 0 0 10px var(--sl-flash)}100%{background:transparent;box-shadow:0 0 0 10px transparent}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-offs{--sl-flash:#26325A}}:root[data-theme="dark"] .sl-offs{--sl-flash:#26325A}
+@media (prefers-reduced-motion:reduce){.sl-offs.flash{animation:none}}
+.sl-colh .t svg.sl-oic{flex:none;margin-top:3px}
+.sl-cexp svg.sl-oic{flex:none}
+.sl-segs{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.sl-csep{margin:4px 2px -2px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.sl-kc.sl-closed{background:transparent;box-shadow:none;border-style:dashed;border-color:var(--grey-line)}
+.sl-kc.sl-closed .sl-box{background:transparent}
+.sl-kc.sl-closed .sl-name,.sl-kc.sl-closed .sl-due{color:var(--muted)}
+/* v5.6: source headers have at most one info line (or none), so they keep no room for two; offer rows on a phone put the value on its own line */
+.sl-board[data-group="source"] .sl-col[data-board="sp-src"] .sl-cinfo{min-height:0;-webkit-line-clamp:1}
+.sl-of{align-items:start}
+.sl-ofr{min-height:23px}
+.sl-of[data-pre]{opacity:.75}
+@media (max-width:560px){.sl-of{grid-template-columns:minmax(0,1fr)}.sl-ofr{justify-self:stretch;justify-content:space-between}.sl-ofr>:last-child{margin-left:auto}}
+@media (pointer:coarse){.sl-offb::after{content:"";position:absolute;inset:-9px -4px}.sl-of{min-height:44px}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-offb:hover{background:#26325A;border-color:#A5B4FC}:root:not([data-theme="light"]) .sl-of.cur{background:#1F2A47;border-color:#2F3B63}:root:not([data-theme="light"]) .sl-ofme{color:#C7D2FE;border-color:#818CF8;background:transparent}:root:not([data-theme="light"]) button.sl-of:hover,:root:not([data-theme="light"]) button.sl-of:focus-visible{border-color:#818CF8}:root:not([data-theme="light"]) button.sl-of:hover .sl-ofa{color:#A5B4FC}:root:not([data-theme="light"]) .sl-offb:focus-visible,:root:not([data-theme="light"]) button.sl-of:focus-visible{outline-color:#818CF8}}
+:root[data-theme="dark"] .sl-offb:hover{background:#26325A;border-color:#A5B4FC}:root[data-theme="dark"] .sl-of.cur{background:#1F2A47;border-color:#2F3B63}:root[data-theme="dark"] .sl-ofme{color:#C7D2FE;border-color:#818CF8;background:transparent}:root[data-theme="dark"] button.sl-of:hover,:root[data-theme="dark"] button.sl-of:focus-visible{border-color:#818CF8}:root[data-theme="dark"] button.sl-of:hover .sl-ofa{color:#A5B4FC}:root[data-theme="dark"] .sl-offb:focus-visible,:root[data-theme="dark"] button.sl-of:focus-visible{outline-color:#818CF8}
 </style>
