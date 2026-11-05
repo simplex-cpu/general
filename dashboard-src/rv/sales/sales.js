@@ -301,7 +301,7 @@ function kcardH(it,b,D,showStage){
   return `<article class="sl-card sl-kc ${it.done?"done":it.due}" data-id="${it.id}" data-kind="${it.kind}" draggable="${S.ro?"false":"true"}">
   <div class="sl-ch">${j?`<input type="checkbox" data-act="done" ${it.done?"checked":""}${S.ro?" disabled":""} aria-label="${it.done?"Untick":"Mark"} ${esc(it.name)} as contacted" style="width:18px;height:18px">`:""}
     <div class="sl-cn"><button type="button" class="sl-name" data-act="${open}" style="font-size:14px">${esc(it.name)}</button>${sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""}</div></div>
-  <div class="sl-cm"><span class="sl-tags">${showStage?`<span class="sl-chip-s">${esc(stageOf(b,it)||"No stage yet")}</span>`:otagH(it.origin)}${j?tagH(it.offer):""}${svcTagsH(it.services)}${spChip(it,D)}</span>${when}</div>
+  <div class="sl-cm"><span class="sl-tags">${showStage?`<span class="sl-chip-s">${esc(stageOf(b,it)||"No stage yet")}</span>`:(b&&b.key==="prequal"&&it.pqo?`<span class="sl-chip-s">${esc(it.pqo)}</span>`:otagH(it.origin))}${j?tagH(it.offer):""}${svcTagsH(it.services)}${spChip(it,D)}</span>${when}</div>
   ${rows?`<div class="sl-box">${rows}</div>`:""}
   </article>`;
 }
