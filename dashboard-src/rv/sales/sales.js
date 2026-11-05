@@ -106,6 +106,9 @@ const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
 const S={boxOpen:(()=>{try{return localStorage.getItem("slBox")!=="0"}catch(e){return true}})(),pqGroup:(()=>{try{return localStorage.getItem("slPqGroup")==="origin"?"origin":"stage"}catch(e){return "stage"}})(),loaded:false,loading:false,err:"",leads:[],conv:[],calls:[],money:[],contacts:[],cl:[],sp:[],ul:[],pipelines:[],guests:[],guestTeam:[],view:"mine",spView:"pipeline",groupBy:"date",openId:null,openCl:null,openClB:null,openSp:null,openCt:null,openG:null,gAll:{},ctAll:false,comments:{},cOpen:false,adding:false,drop:null,prevLastC:{},inAdd:null,cq:"",co:""};
+/* v5.4: re-level the board headers when a board changes width (window resize, tab shown) */
+const headW=new WeakMap();
+const headRO=typeof ResizeObserver==="function"?new ResizeObserver(es=>{if(es.some(e=>headW.get(e.target)!==Math.round(e.contentRect.width))){es.forEach(e=>headW.set(e.target,Math.round(e.contentRect.width)));requestAnimationFrame(()=>eqHeads())}}):null;
 const el=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const sv=v=>v==null?"":(typeof v==="object"?(v.name||""):String(v));
@@ -786,8 +789,6 @@ function render(){
 function railKeep(body,sl){const r=body.querySelector(".sl-rail");if(!r)return;r.scrollLeft=sl;if(r.scrollWidth<=r.clientWidth)return;const a=r.querySelector('[aria-current="page"]');if(!a)return;const rr=r.getBoundingClientRect(),ar=a.getBoundingClientRect();if(ar.left<rr.left||ar.right>rr.right)r.scrollLeft+=ar.left-rr.left-12}
 function eqHeads(root){(root||document).querySelectorAll("#v-sales .sl-board").forEach(bd=>{const hs=[...bd.querySelectorAll(".sl-col:not(.sl-colc)>.sl-colh")];hs.forEach(h=>{h.style.minHeight=""});const m=Math.max(0,...hs.map(h=>h.offsetHeight));if(m)hs.forEach(h=>{if(h.offsetHeight<m)h.style.minHeight=m+"px"})});
   if(headRO){headRO.disconnect();document.querySelectorAll("#v-sales .sl-board").forEach(b=>headRO.observe(b))}}
-const headW=new WeakMap();
-const headRO=typeof ResizeObserver==="function"?new ResizeObserver(es=>{if(es.some(e=>headW.get(e.target)!==Math.round(e.contentRect.width))){es.forEach(e=>headW.set(e.target,Math.round(e.contentRect.width)));requestAnimationFrame(()=>eqHeads())}}):null;
 function grow(t){if(!t.offsetParent||t.id==="slDt")return;t.style.height="auto";t.style.height=(t.scrollHeight+2)+"px"}
 document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;if(t.matches("#v-sales textarea,#slModal textarea"))grow(t);if(t.id==="slQ")renderSearch();
   if(t.id==="slDt"&&S.drop)S.drop.text=t.value;
