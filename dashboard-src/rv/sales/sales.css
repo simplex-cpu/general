@@ -278,7 +278,6 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 .sl-col>.sl-empty{flex:none}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-svc{border-color:#4F46E5;color:#C7D2FE}}
 :root[data-theme="dark"] .sl-svc{border-color:#4F46E5;color:#C7D2FE}
-</style>
 /* v5 (Karen, 5 Nov): deal window: wider so the 5 facts stay on one row, more space between sections, red "What's needed", plain Notes, title opens the contact */
 .sl-dlg.sl-dlg-sp{max-width:900px}
 .sl-dlg-sp .sl-db{gap:28px;padding:28px 32px}
@@ -291,3 +290,53 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 .sl-ttl:hover span{text-decoration-color:currentColor}.sl-ttl .ar{color:var(--muted)}
 .sl-ttl:focus-visible{outline:2px solid #4338CA;outline-offset:3px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-dlg-sp .sl-need h3{color:#FF8A80}}:root[data-theme="dark"] .sl-dlg-sp .sl-need h3{color:#FF8A80}
+/* v5 (Karen, 5 Nov): My Board summary (Pipelines at a glance + Leads by source), Leads table, Podcast Guests, Pre-qual */
+.sl-glance{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);gap:14px;align-items:stretch}
+@media (max-width:1000px){.sl-glance{grid-template-columns:minmax(0,1fr)}}
+.sl-glance>.sl-panel{min-width:0}
+.sl-glance .sl-ht{margin-top:10px}
+.sl-pt{width:100%;border-collapse:collapse;font-size:13.5px}
+.sl-pt th,.sl-pt td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--soft)}
+.sl-pt thead th{font-size:12px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}
+.sl-pt tbody th{font-weight:600}
+.sl-pt tbody tr:last-child>*{border-bottom:0}
+.sl-glance .sl-pt{min-width:620px}
+.sl-glance .sl-pt td{color:var(--ink);white-space:pre-line}
+.sl-plink{all:unset;cursor:pointer;font-weight:600;text-decoration:underline;text-decoration-color:var(--grey-line);text-underline-offset:3px}
+.sl-plink:hover{text-decoration-color:currentColor}.sl-plink:focus-visible{outline:2px solid #4338CA;outline-offset:2px;border-radius:2px}
+.sl-hsel{min-height:32px;box-sizing:border-box;padding:4px 8px;border-radius:6px;border:1px solid var(--line);border-left:4px solid var(--grey-line);background:var(--panel);font:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;min-width:104px}
+.sl-hsel.stx{border-left-color:var(--std)}
+.sl-hsel:focus-visible{outline:2px solid #4338CA;outline-offset:1px}
+.sl-hsel[disabled]{cursor:default;opacity:1}
+.sl-tt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.sl-hpill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--ink)}
+/* Leads by source: donut + legend (fixed categorical order; dark mode has its own steps) */
+#v-sales{--pie1:#2a78d6;--pie2:#eb6834;--pie3:#1baf7a;--pie4:#eda100;--pie5:#e87ba4;--pie6:#008300;--pie7:#6250d6;--pie8:#e34948;--pie-none:#C9CDD5;--pie-other:#8A919C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #v-sales{--pie1:#3987e5;--pie2:#d95926;--pie3:#199e70;--pie4:#c98500;--pie5:#d55181;--pie6:#008300;--pie7:#9085e9;--pie8:#e66767;--pie-none:#4A505B;--pie-other:#6E7581}}
+:root[data-theme="dark"] #v-sales{--pie1:#3987e5;--pie2:#d95926;--pie3:#199e70;--pie4:#c98500;--pie5:#d55181;--pie6:#008300;--pie7:#9085e9;--pie8:#e66767;--pie-none:#4A505B;--pie-other:#6E7581}
+.sl-pie{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px;margin-top:10px}
+.sl-pie svg{flex:none;transform:rotate(0deg)}
+.sl-pie circle{transition:stroke-width .12s}.sl-pie circle:hover{stroke-width:7.5}
+.sl-pie-t{font-size:7px;font-weight:700;fill:var(--ink)}
+.sl-leg{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;flex:1 1 140px;min-width:0;font-size:13px}
+.sl-leg li{display:flex;align-items:center;gap:8px;min-width:0}
+.sl-leg li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.sl-leg li b{font-weight:600;color:var(--ink)}
+.sl-leg i{flex:none;width:10px;height:10px;border-radius:3px}
+circle.sl-pie-c1{stroke:var(--pie1)}circle.sl-pie-c2{stroke:var(--pie2)}circle.sl-pie-c3{stroke:var(--pie3)}circle.sl-pie-c4{stroke:var(--pie4)}circle.sl-pie-c5{stroke:var(--pie5)}circle.sl-pie-c6{stroke:var(--pie6)}circle.sl-pie-c7{stroke:var(--pie7)}circle.sl-pie-c8{stroke:var(--pie8)}circle.sl-pie-none{stroke:var(--pie-none)}circle.sl-pie-other{stroke:var(--pie-other)}
+i.sl-pie-c1{background:var(--pie1)}i.sl-pie-c2{background:var(--pie2)}i.sl-pie-c3{background:var(--pie3)}i.sl-pie-c4{background:var(--pie4)}i.sl-pie-c5{background:var(--pie5)}i.sl-pie-c6{background:var(--pie6)}i.sl-pie-c7{background:var(--pie7)}i.sl-pie-c8{background:var(--pie8)}i.sl-pie-none{background:var(--pie-none)}i.sl-pie-other{background:var(--pie-other)}
+/* Leads table */
+.sl-ctw{background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.sl-ctab{min-width:980px}
+.sl-ctab tbody tr{cursor:pointer}.sl-ctab tbody tr:hover{background:var(--bg)}
+.sl-ctab td{color:var(--ink)}
+.sl-tgs{display:flex;flex-wrap:wrap;gap:4px}
+.sl-wb{overflow-wrap:anywhere}.sl-nw{white-space:nowrap}
+.sl-more{justify-content:center;margin-top:10px}
+/* Podcast guests: view only cards */
+.sl-gc{cursor:default}
+.sl-gc .sl-cm{padding-left:0}
+.sl-fv a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+a.sl-ghost{text-decoration:none}
+.sl-rsep{min-height:1px}
+</style>

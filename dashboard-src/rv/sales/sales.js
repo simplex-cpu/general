@@ -1,5 +1,8 @@
 <script>
-/* Sales tab v4 (4.2): Kash's board IS his Sales pipeline (ReLearn Commercials → Sales pipeline, one row per deal, his own stages).
+/* Sales tab v5 (Karen, 5 Nov): My Board = what is on Kash's plate; Pipelines = Sales Pipeline (every deal), Growth Audit, Podcast Guests (view only),
+   Pre-qual (replaces Events, Referrals, Instagram & LinkedIn, Episode requests), Upwork, Upsells; Leads = every contact as a table.
+   Pipelines at a glance comes from the Pipelines table, with Health set by hand (nothing works it out).
+   Before v5: Sales tab v4 (4.2): Kash's board IS his Sales pipeline (ReLearn Commercials → Sales pipeline, one row per deal, his own stages).
    A deal is there only when something needs Kash; Pre-qual mirrors what the teams are still working on, with their live stage.
    Team boards (Jade's Podcast board + the Rise Voice Company Leads boards) stay where the teams work. Contacts = everyone.
    "Drop a note": Claude reads a typed or dictated note, recaps it, Kash confirms, then it is saved. */
@@ -174,6 +177,19 @@ function derive(){
   const spOf={};P.forEach(p=>{if(p.jadeId)spOf[p.jadeId]=spOf[p.jadeId]||p;if(p.rvId&&!p.rvUl)spOf[p.rvId]=spOf[p.rvId]||p});
   return {J,K,P,spOf,all:J.concat(K,P)};
 }
+/* Podcast Guests (ReLearn Operating System), read only; "Handled by" links to Team */
+function deriveG(){
+  const tn={};S.guestTeam.forEach(t=>{tn[t._id]=String(sv(t[TM.name])||"").trim()});
+  return S.guests.filter(r=>String(sv(r[G.name])||"").trim()).map(r=>{
+    const st=sv(r[G.stage]);const stage=st&&st!=="Status"?st:"";
+    const by=(Array.isArray(r[G.by])?r[G.by]:[]).map(x=>typeof x==="object"?(tn[x.id]||x.name||""):(tn[x]||"")).filter(Boolean);
+    return {kind:"guest",id:r._id,r,name:String(sv(r[G.name])).trim(),stage,by,last:r[G.last]||"",next:r[G.next]||""};
+  });
+}
+const gActive=g=>!!g.stage&&g.stage!=="29 – Not interested";
+/* the Pipelines table row for a board (Health is set by hand there; nothing here works it out) */
+const plOf=key=>S.pipelines.find(r=>sv(r[PL.key])===key)||null;
+const HEALTH_TONE={"On track":"s5","Slowing":"s2","Stuck":"lost"};
 /* where a Pre-qual (or handed-over) deal sits on its team board right now, read live */
 function liveOf(p,D){
   if(p.jadeId){const l=D.J.find(x=>x.id===p.jadeId);if(l)return {who:"Jade",where:BK.jade.title,stage:l.stage,item:l}}
@@ -184,19 +200,20 @@ function liveOf(p,D){
 function boardItems(b,D){return b.kind==="jade"?D.J:b.kind==="sp"?D.P:D.K.filter(c=>c.boards.includes(b))}
 function stageOf(b,it){return b.kind==="cl"?sv(it.r[b.field]):it.stage}
 const CLOSED_ST=new Set(["70 – Won","79 – Lost","Offer accepted (Closed)","Offer declined (Rejected)","No response (Rejected)","Won","Lost","Not Applicable","Archive","Closed"]);
-function health(b,D){
-  const open=boardItems(b,D).filter(i=>!CLOSED_ST.has(stageOf(b,i)));
-  if(!open.length)return{label:"Empty",dot:"var(--grey-line)",color:"var(--muted)",open:0,od:0};
-  const od=open.filter(i=>i.due==="overdue"&&!i.done).length;
-  if(od>=2)return{label:"Stuck",dot:"var(--act)",color:"var(--act)",open:open.length,od};
-  if(od===1)return{label:"Slowing",dot:"#E3A008",color:"var(--watch)",open:open.length,od};
-  return{label:"On track",dot:"var(--ok)",color:"var(--ok)",open:open.length,od};
-}
+/* cards still in play on a board (Pre-qual: No Reply and Archive are closed) */
+const activeCount=(b,D)=>{const cl=b.closed||CLOSED_ST;return boardItems(b,D).filter(i=>!cl.has(stageOf(b,i))).length};
+const SP_OPEN_OUT=new Set(["Closed","Lost","No reply","Handover to Ops"]);
 /* traffic light for a column title: red = someone overdue, amber = due today, green = moving, grey = empty or a closing stage */
 /* columns: colour follows the stage sequence (dark grey → amber → green; won green, lost red, parked pale grey) */
 const LOST_ST=new Set(["79 – Lost","Lost","Offer declined (Rejected)","No response (Rejected)"]);
-const WON_ST=new Set(["70 – Won","Won","Closed","Handover to Ops","Offer accepted (Closed)","Sales Pipeline","Growth Plan Booking"]);
+const WON_ST=new Set(["70 – Won","Won","Closed","Handover to Ops","Offer accepted (Closed)","Sales Pipeline","Growth Plan Booking","Email sequence","Podcast Pipeline"]);
 const OUT_ST=new Set(["No reply","No Reply","Not Applicable","Archive","80 – Re-approach (60–90 days)"]);
+/* boards whose colours are set by hand rather than by position */
+const TONE_MAP={
+  prequal:{"New":"s0","First Outreach":"s1","Pre-qual":"s2","In Conversation":"s3","Follow-up":"s4","Email sequence":"won","Podcast Pipeline":"won","Sales Pipeline":"won","No Reply":"out","Archive":"out"},
+  "prequal-o":{},
+  guests:{"0 – Researched":"s0","10 – Outreach sent":"s1","19 – No reply":"out","20 – In conversation":"s2","28 - Later Trip":"out","28 – Not now":"out","28 – Not now (try a later trip)":"out","29 – Not interested":"lost","30 – Intro call booked":"s3","40 – Intro call done":"s4","50 – Recording booked":"s5","60 – Episode released (stay in touch)":"won","":"out"}
+};
 function stageTone(stages,st){
   if(LOST_ST.has(st))return"lost";if(WON_ST.has(st))return"won";if(OUT_ST.has(st))return"out";
   const open=stages.filter(x=>!LOST_ST.has(x)&&!WON_ST.has(x)&&!OUT_ST.has(x));const i=open.indexOf(st);
@@ -206,27 +223,28 @@ function stageTone(stages,st){
 const STAGE_INFO={
   "sp|Pre-qual":"With the teams. Nothing needed from you yet.","sp|Potential":"Worth pursuing. No outreach planned yet.","sp|To contact":"You reach out first: a message, call or intro.","sp|In conversation":"You're talking. Move it to a call or a proposal.","sp|Follow-up":"Proposal or call done. Chase for a yes or no.","sp|Discovery call":"Call booked. Prepare, take it, log what was said.","sp|No reply":"Gone quiet after follow-ups. Try again later.","sp|Handover to Ops":"Won. Hand the client over to production.","sp|Closed":"Signed and handed over. Nothing left to do.","sp|Lost":"They said no, or it isn't a fit.",
   "10 – Lead in":"New guest or lead. Jade qualifies them for a growth audit.","20 – Audit booked":"Growth audit booked with Kash.","30 – Audit held":"Audit done. Growth plan to write.","40 – Growth plan sent":"Plan sent. Waiting for their response.","50 – Follow-up call":"Call to go through the plan and next steps.","60 – Proposal":"Proposal sent. Chase for a decision.","70 – Won":"Signed. Hand over to production.","79 – Lost":"Said no, or not a fit.","80 – Re-approach (60–90 days)":"Not now. Try again in 60–90 days.",
-  "Contact info provided by client":"A client shared their details. Not contacted yet.","First outreach":"First message sent. Waiting for a reply.","Following up":"No reply yet. Chasing.","Call booked":"Intro call booked.","Post call follow-up":"Call done. Following up on next steps.","Offer accepted (Closed)":"Won: they accepted the offer.","Offer declined (Rejected)":"They turned the offer down.","No response (Rejected)":"Never replied. Closed.",
-  "New":"New lead. Not qualified yet.","event|New":"Met at an event. Not qualified yet.","upwork|New":"New Upwork job or invite. Not applied yet.","upsell|New":"Client flagged as ready for more.","ai|New":"Interested in AI consulting. Not qualified yet.",
-  "Growth Plan Booking":"Handed to Jade to book a growth audit.","Sales Pipeline":"Handed to Kash: now on his sales pipeline.","Build Proposal":"Proposal being prepared.","Send Proposal":"Proposal ready. Send it.","Proposal Sent":"Sent. Waiting for their answer.","upwork|Proposal Sent":"Proposal sent on Upwork. Waiting for a reply.",
-  "No Reply":"Didn't answer after follow-ups.","Won":"Signed.","Lost":"Said no.","Not Applicable":"Not a sales lead: spam, fan or peer.","Archive":"Parked for now.","":"No stage set yet. Pick one."};
+  "prequal|New":"Just came in. Not contacted yet.","prequal|First Outreach":"First message sent. Waiting for a reply.","prequal|Pre-qual":"Replied. Checking fit and route.","prequal|In Conversation":"Qualified and talking.","prequal|Follow-up":"Not replying. Chasing.","prequal|Email sequence":"Moved to an email sequence.","prequal|Podcast Pipeline":"Handed to the Podcast Guests Pipeline.","prequal|Sales Pipeline":"Handed to Kash's Sales Pipeline.","prequal|No Reply":"No answer after follow-ups.","prequal|Archive":"Closed or not a fit.",
+  "New":"New lead. Not qualified yet.","upwork|New":"New Upwork job or invite. Not applied yet.","upsell|New":"Client flagged as ready for more.",
+  "Sales Pipeline":"Handed to Kash: now on his sales pipeline.","Build Proposal":"Proposal being prepared.","Send Proposal":"Proposal ready. Send it.","Proposal Sent":"Sent. Waiting for their answer.","upwork|Proposal Sent":"Proposal sent on Upwork. Waiting for a reply.",
+  "No Reply":"Didn't answer after follow-ups.","Won":"Signed.","Lost":"Said no.","Not Applicable":"Not a sales lead: spam, fan or peer.","Archive":"Parked for now.","":"No stage set yet. Pick one.",
+  "prequal-o|":"No Pre-qual origin set yet.","guests|":"No status set in Airtable yet."};
 const stageInfo=(bk,st)=>STAGE_INFO[bk+"|"+st]??STAGE_INFO[st]??"";
 /* folded columns, remembered per viewer; Pre-qual starts folded */
 const COLS_KEY="slCols";
 S.cols=Object.assign({sp:["Pre-qual"]},(()=>{try{const v=JSON.parse(localStorage.getItem(COLS_KEY)||"null");return v&&typeof v==="object"?v:{}}catch(e){return {}}})());
 const isFolded=(bk,st)=>(S.cols[bk]||[]).includes(st);
 function toggleFold(bk,st){const a=S.cols[bk]||[];S.cols[bk]=a.includes(st)?a.filter(x=>x!==st):a.concat([st]);try{localStorage.setItem(COLS_KEY,JSON.stringify(S.cols))}catch(e){}}
-function colH(bk,stages,st,n,inner,add,extra){
-  const tone=stageTone(stages,st),lab=st||"No stage yet",info=stageInfo(bk,st),d=`data-board="${esc(bk)}" data-stage="${esc(st)}"`;
+function colH(bk,stages,st,n,inner,add,extra,label){
+  const tm=TONE_MAP[bk];const tone=tm?(tm[st]||"s1"):stageTone(stages,st),lab=label||st||"No stage yet",info=stageInfo(bk,st),d=`data-board="${esc(bk)}" data-stage="${esc(st)}"`;
   if(isFolded(bk,st))return `<div class="sl-col sl-colc stx st-${tone}" ${d}><button type="button" class="sl-cexp" data-act="fold" ${d} aria-expanded="false" aria-label="Show ${esc(lab)}, ${n} ${n===1?"card":"cards"}" title="${esc(info)}"><i class="sl-dot"></i><small>${n}</small><span class="v">${esc(lab)}</span></button></div>`;
   return `<div class="sl-col" ${d}><div class="sl-colh stx st-${tone}"><div class="t"><span><i class="sl-dot"></i>${esc(lab)}</span><span class="r"><small>${n}</small><button type="button" class="sl-ccol" data-act="fold" ${d} aria-expanded="true" aria-label="Fold ${esc(lab)}" title="Fold this column">${svg(CHEV,15)}</button></span></div>${info?`<p class="sl-cinfo">${esc(info)}</p>`:""}${extra||""}</div>${inner}${add}</div>`;
 }
 /* the row under the stats: the name search (moved in by render) and the view's own controls */
 const toolsH=x=>`<div class="sl-tools" id="slTools">${x||""}</div>`;
-const FOLD_FOOT="Columns run from grey (early) through amber to green (won); red means lost. Fold any column with its arrow.";
+const FOLD_FOOT="Columns run from grey (early) through amber to green (won or handed on); red means lost. Fold any column with its arrow.";
 /* everyone: one entry per Contact, with every record linked to it; records without a Contact yet stand on their own */
 function peopleOf(D){
-  const by={};S.contacts.forEach(c=>{by[c._id]={id:c._id,ct:c,name:String(c[CT.name]||"(no name)").trim(),co:c[CT.co]||"",what:c[CT.what]||"",origin:CT_LABEL[sv(c[CT.src])]||sv(c[CT.src])||"",items:[],convs:[]}});
+  const by={};S.contacts.forEach(c=>{by[c._id]={id:c._id,ct:c,name:String(c[CT.name]||"(no name)").trim(),co:c[CT.co]||"",what:c[CT.what]||"",origin:CT_LABEL[sv(c[CT.src])]||sv(c[CT.src])||"",src:sv(c[CT.src]),items:[],convs:[]}});
   const byRv={};S.contacts.forEach(c=>{const x=idFromUrl(c[CT.rvurl]);if(x)byRv[x]=c._id});
   const loose=[];const leadP={};
   D.J.forEach(l=>{const cid=ids(l.r[L.contacts]).find(x=>by[x]);if(cid){by[cid].items.push(l);leadP[l.id]=by[cid]}else loose.push(l)});
@@ -240,7 +258,7 @@ function peopleOf(D){
     p.lastC=[...p.items.map(i=>i.lastC||""),...p.convs.map(c=>c[C.date]||"")].sort().pop()||""});
   return out.sort((a,b)=>String(b.lastC).localeCompare(String(a.lastC))||a.name.localeCompare(b.name));
 }
-const whereOf=it=>it.kind==="sp"?"Sales pipeline":it.board?it.board.title:"Company Leads";
+const whereOf=it=>it.kind==="sp"?"Sales Pipeline":it.board?it.board.title:"Company Leads";
 const stageLine=it=>[it.co,it.kind==="cl"?(it.board?it.board.title+" · ":"")+(it.stage||"No stage yet"):it.stage].filter(Boolean).join(" · ");
 const spChip=(it,D)=>{const p=D.spOf[it.id];return p&&!p.pre?`<span class="sl-kchip" title="On Kash's sales pipeline">Kash · ${esc(p.stage)}</span>`:""};
 
@@ -259,7 +277,7 @@ function spCardH(p){
     ${valRow(p)}
   </div></article>`;
 }
-function spKcardH(p,D){
+function spKcardH(p,D,showOwner){
   if(p.pre){const lv=liveOf(p,D);
     return `<article class="sl-card sl-kc sl-pq" data-id="${p.id}" data-kind="sp" draggable="${S.ro?"false":"true"}">
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${p.co?`<div class="sl-co" style="font-size:12.5px">${esc(p.co)}</div>`:""}</div>
@@ -267,12 +285,12 @@ function spKcardH(p,D){
     <p class="sl-with">${lv?`With ${esc(lv.who||"the team")} · ${esc(lv.where)} · <b>${esc(lv.stage)}</b>`:`With ${esc(p.owner||"the team")}`}</p></article>`}
   return `<article class="sl-card sl-kc ${p.done?"done":p.due}" data-id="${p.id}" data-kind="sp" draggable="${S.ro?"false":"true"}">
   <div class="sl-ch"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted" style="width:18px;height:18px">
-    <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${p.co?`<div class="sl-co" style="font-size:12.5px">${esc(p.co)}</div>`:""}</div></div>
+    <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${(()=>{const sub=[p.co,showOwner&&p.owner?p.owner:""].filter(Boolean).join(" · ");return sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""})()}</div></div>
   <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
   <div class="sl-box"><div><span class="sl-cl"><b class="pm">Needed from you</b> ${esc(p.needed||"–")}</span></div>${p.value?`<div class="sl-kv"><b class="pm">Value</b><b>${esc(full(p.value))}/mo${p.est?' <span class="sl-est">Est.</span>':""}</b></div>`:""}</div>
   </article>`;
 }
-function kcardH(it,b,D){
+function kcardH(it,b,D,showStage){
   if(it.kind==="sp")return spKcardH(it,D);
   const j=it.kind==="jade",open=j?"open":"openc";
   const nx=j?(it.r[L.next]||""):it.next;
@@ -283,7 +301,7 @@ function kcardH(it,b,D){
   return `<article class="sl-card sl-kc ${it.done?"done":it.due}" data-id="${it.id}" data-kind="${it.kind}" draggable="${S.ro?"false":"true"}">
   <div class="sl-ch">${j?`<input type="checkbox" data-act="done" ${it.done?"checked":""}${S.ro?" disabled":""} aria-label="${it.done?"Untick":"Mark"} ${esc(it.name)} as contacted" style="width:18px;height:18px">`:""}
     <div class="sl-cn"><button type="button" class="sl-name" data-act="${open}" style="font-size:14px">${esc(it.name)}</button>${sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""}</div></div>
-  <div class="sl-cm"><span class="sl-tags">${otagH(it.origin)}${j?tagH(it.offer):""}${svcTagsH(it.services)}${spChip(it,D)}</span>${when}</div>
+  <div class="sl-cm"><span class="sl-tags">${showStage?`<span class="sl-chip-s">${esc(stageOf(b,it)||"No stage yet")}</span>`:otagH(it.origin)}${j?tagH(it.offer):""}${svcTagsH(it.services)}${spChip(it,D)}</span>${when}</div>
   ${rows?`<div class="sl-box">${rows}</div>`:""}
   </article>`;
 }
@@ -295,19 +313,35 @@ function inlineAdd(o){
     ${o.board==="sp"?`<label class="vh" for="slInO">Origin</label><select id="slInO">${ORIGINS.map(x=>`<option ${x==="Network"?"selected":""}>${esc(x)}</option>`).join("")}</select>`:""}
     <div class="sl-inbtn"><button type="button" class="sl-ghost" data-act="incancel">Cancel</button><button type="button" class="sl-solid" data-act="insave" data-ikey="${esc(key)}">Add</button></div></div>`;
 }
-function rail(D,plate,people){
-  const item=(k,t,n,dot,icon)=>`<button type="button" class="sl-ri" data-act="view" data-v="${esc(k)}" aria-current="${S.view===k?"page":"false"}">${icon?svg(icon,15):`<i class="sl-dot" style="background:${dot}"></i>`}<span>${esc(t)}</span>${n!=null?`<small>${n}</small>`:""}</button>`;
-  return `<nav class="sl-rail" aria-label="Sales sections">${item("mine","Sales pipeline",plate.length,null,"M3 3v18h18M7 15l4-4 3 3 5-6")}${item("contacts","Contacts",people.length,null,"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8")}<div class="sl-rl">Team boards</div>${BOARDS.map(b=>{const h=health(b,D);return item(b.key,b.title,h.open,h.dot)}).join("")}</nav>`;
+/* v5 sidebar: My Board, then the Pipelines, then Leads. No automatic health dots: a neutral dot only */
+const PEOPLE_I="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8";
+const VIEWS=new Set(["mine","sales","jade","guests","prequal","upwork","upsell","contacts"]);
+function rail(D,plate){
+  const item=(k,t,n,icon)=>`<button type="button" class="sl-ri" data-act="view" data-v="${esc(k)}" aria-current="${S.view===k?"page":"false"}">${icon?svg(icon,15):`<i class="sl-dot" style="background:var(--grey-line)"></i>`}<span>${esc(t)}</span>${n!=null?`<small>${n}</small>`:""}</button>`;
+  const bi=k=>item(k,BK[k].title,activeCount(BK[k],D));
+  const openDeals=D.P.filter(p=>!SP_OPEN_OUT.has(p.stage)).length;
+  return `<nav class="sl-rail" aria-label="Sales sections">${item("mine","My Board",plate.length,"M3 3v18h18M7 15l4-4 3 3 5-6")}<div class="sl-rl">Pipelines</div>${item("sales","Sales Pipeline",openDeals)}${bi("jade")}${item("guests","Podcast Guests Pipeline",S.noG?null:deriveG().filter(gActive).length)}${bi("prequal")}${bi("upwork")}${bi("upsell")}<div class="sl-rl sl-rsep" aria-hidden="true"></div>${item("contacts","Leads",S.contacts.length,PEOPLE_I)}</nav>`;
 }
 const kpiH=(lab,val,col)=>`<div class="sl-kpi"><span>${lab}</span><b style="color:${col||"var(--ink)"}">${val}</b></div>`;
-/* HIS BOARD: the Sales pipeline */
+/* the Sales pipeline columns, shared by My Board (his plate only) and the Sales Pipeline (every deal, every owner) */
+function spColsH(D,stages,all){
+  const TEAM_ORDER=["Jade","Gretta","Greta","Sarah","Danica"];const act=p=>[p.lastC||"",p.r[SP.leadin]||""].sort().pop();
+  const pq=D.P.filter(p=>p.pre).map(p=>({p,who:(liveOf(p,D)||{}).who||p.owner||"Team"}));
+  pq.sort((a,b)=>((TEAM_ORDER.indexOf(a.who)+1||9)-(TEAM_ORDER.indexOf(b.who)+1||9))||act(b.p).localeCompare(act(a.p))||a.p.name.localeCompare(b.p.name));
+  const byWho={};pq.forEach(x=>byWho[x.who]=(byWho[x.who]||0)+1);
+  return stages.map(st=>{
+    const cs=st==="Pre-qual"?pq.map(x=>x.p):D.P.filter(p=>p.stage===st).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
+    const inner=cs.map(p=>spKcardH(p,D,all)).join("")||'<div class="sl-empty">Nobody here</div>';
+    return colH("sp",SP_STAGES,st,cs.length,inner,st==="Pre-qual"?"":inlineAdd({ctx:"p",board:"sp",stage:st}),st==="Pre-qual"&&pq.length?`<p class="sl-pqn">${Object.entries(byWho).map(([w,n])=>`${esc(w)} ${n}`).join(" · ")}</p>`:"")}).join("");
+}
+/* MY BOARD: only what is on Kash's plate */
 function spH(D){
   const plate=D.P.filter(p=>p.plate);
   const od=plate.filter(p=>p.due==="overdue"&&!p.done).length,td=plate.filter(p=>p.due==="today"&&!p.done).length;
   const val=plate.reduce((a,p)=>a+(p.value||0),0);
   const kpis=`<div class="sl-kpis">${kpiH("On your plate",plate.length)}${kpiH("Overdue",od,od?"var(--act)":"")}${kpiH("Due today",td,td?"var(--watch)":"")}${kpiH("Discovery calls",plate.filter(p=>p.stage==="Discovery call").length)}${kpiH("On your plate / month",money(val))}</div>`;
   const seg=[["pipeline","Pipeline"],["date","By date"]].map(([k,t])=>`<button type="button" data-act="spview" data-v="${k}" aria-pressed="${S.spView===k}">${t}</button>`).join("");
-  const head=`<div class="sl-ftop"><h2>Sales pipeline</h2></div><p class="sl-goal">What needs you, stage by stage. Pre-qual is what the teams are still working on, for reference.</p>`;
+  const head=`<div class="sl-ftop"><h2>My Board</h2></div><p class="sl-goal">What needs you, stage by stage. Every deal, with every owner, is on the Sales Pipeline.</p>`;
   const tools=toolsH(`<div class="sl-seg" role="group" aria-label="Show as">${seg}</div>`);
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
   let body;
@@ -316,56 +350,117 @@ function spH(D){
     const groups=[["overdue","Overdue",null,"lost"],["today","Today",TODAY,"s2"],["week","This week",plusDays(3),"s5"],["later","Later","","s0"]].map(([k,t,ch,tone])=>({t,k,tone,ls:plate.filter(p=>p.due===k).sort(sortC),add:ch===null?null:{ctx:"d",board:"sp",stage:"To contact",chase:ch}}));
     body=`<div class="sl-groups">${groups.map(g=>`<div><div class="sl-gh stx st-${g.tone}"><i class="sl-dot"></i><span>${esc(g.t)}</span><small>${g.ls.length}</small></div><div class="sl-gcards">${g.ls.length?g.ls.map(spCardH).join(""):'<div class="sl-empty">Nobody here</div>'}${g.add?inlineAdd(g.add):""}</div></div>`).join("")}</div>`;
   }else{
-    /* Pre-qual (first, folded by default): the teams' open leads, Jade's first, most recently active first */
-    const TEAM_ORDER=["Jade","Greta","Sarah"];const act=p=>[p.lastC||"",p.r[SP.leadin]||""].sort().pop();
-    const pq=D.P.filter(p=>p.pre).map(p=>({p,who:(liveOf(p,D)||{}).who||p.owner||"Team"}));
-    pq.sort((a,b)=>((TEAM_ORDER.indexOf(a.who)+1||9)-(TEAM_ORDER.indexOf(b.who)+1||9))||act(b.p).localeCompare(act(a.p))||a.p.name.localeCompare(b.p.name));
-    const byWho={};pq.forEach(x=>byWho[x.who]=(byWho[x.who]||0)+1);
-    const cols=SP_STAGES.map(st=>{
-      const cs=st==="Pre-qual"?pq.map(x=>x.p):D.P.filter(p=>p.stage===st).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
-      const inner=cs.map(p=>spKcardH(p,D)).join("")||'<div class="sl-empty">Nobody here</div>';
-      return colH("sp",SP_STAGES,st,cs.length,inner,st==="Pre-qual"?"":inlineAdd({ctx:"p",board:"sp",stage:st}),st==="Pre-qual"&&pq.length?`<p class="sl-pqn">${Object.entries(byWho).map(([w,n])=>`${esc(w)} ${n}`).join(" · ")}</p>`:"")}).join("");
-    body=`<div class="sl-board sl-spb">${cols}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it, including out of Pre-qual. "}${FOLD_FOOT}</p>`;
+    body=`<div class="sl-board sl-spb">${spColsH(D,SP_STAGES.filter(s=>PLATE.has(s)),false)}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it. "}${FOLD_FOOT}</p>`;
   }
-  return head+note+kpis+tools+boxH(D)+body;
+  return head+note+kpis+glanceH(D)+tools+body;
 }
-/* Contacts: everyone ever contacted, with their tags, where they are and their conversations */
+/* SALES PIPELINE: every deal, every owner, every stage (Pre-qual folded by default, as on his board before) */
+function salesH(D){
+  const open=D.P.filter(p=>!SP_OPEN_OUT.has(p.stage));
+  const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("In Pre-qual",D.P.filter(p=>p.pre).length)}${kpiH("On Kash's plate",D.P.filter(p=>p.plate).length)}${kpiH("Closed",D.P.filter(p=>p.stage==="Closed"||p.stage==="Handover to Ops").length)}</div>`;
+  const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
+  return `<div class="sl-ftop"><div class="sl-tt"><h2>Sales Pipeline</h2>${healthPill("sales")}</div><span class="pm">Owner: Kash · ReLearn</span></div>
+    <p class="sl-goal">Every deal, every owner, every stage. Pre-qual is what the teams are still working on.</p>${note}${kpis}${toolsH()}
+    <div class="sl-board sl-spb">${spColsH(D,SP_STAGES,true)}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it, including out of Pre-qual. "}${FOLD_FOOT}</p>`;
+}
+/* the health someone set by hand in the Pipelines table, shown next to a board's title */
+function healthPill(key){const r=plOf(key);const h=r?sv(r[PL.health]):"";return h?`<span class="sl-hpill stx st-${HEALTH_TONE[h]||"s1"}"><i class="sl-dot"></i>${esc(h)}</span>`:""}
+/* Leads: every contact, as a table */
 function contactsH(D,people){
-  const origins=[...new Set(people.map(p=>p.origin))].sort();
-  return `<div class="sl-ftop"><h2>Contacts</h2><span class="pm">Everyone we've been in touch with</span></div>${toolsH()}
-   <div class="sl-pfil"><label class="vh" for="slCq">Filter contacts</label><input id="slCq" type="search" placeholder="Filter by name or company…" value="${esc(S.cq)}" autocomplete="off">
-   <label class="vh" for="slCo">Origin</label><select id="slCo"><option value="">All origins</option>${origins.map(o=>`<option ${o===S.co?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
+  const srcs=[...new Set(people.filter(p=>p.ct).map(p=>p.src||"No source"))].sort();
+  return `<div class="sl-ftop"><h2>Leads</h2><span class="pm">Everyone we've been in touch with</span></div>${toolsH()}
+   <div class="sl-pfil"><label class="vh" for="slCq">Filter leads</label><input id="slCq" type="search" placeholder="Filter by name, company or email…" value="${esc(S.cq)}" autocomplete="off">
+   <label class="vh" for="slCo">Source</label><select id="slCo"><option value="">All sources</option>${srcs.map(o=>`<option ${o===S.co?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
    <div id="slPl">${peopleRowsH(people)}</div>`;
 }
+const CT_CAP=200;
 function peopleRowsH(people){
-  const q=norm(S.cq);const ls=people.filter(p=>(!q||norm(p.name).includes(q)||norm(p.co).includes(q))&&(!S.co||p.origin===S.co));
+  const q=norm(S.cq);const ls=people.filter(p=>p.ct&&(!q||norm(p.name).includes(q)||norm(p.co).includes(q)||norm(p.ct[CT.email]).includes(q))&&(!S.co||(p.src||"No source")===S.co));
   if(!ls.length)return '<div class="sl-empty">Nobody matches. Use + to add someone new.</div>';
-  return `<p class="pm" style="margin:0 0 8px">${ls.length} ${ls.length===1?"person":"people"}</p><div class="sl-plist" role="list">${ls.map(p=>`<button type="button" class="sl-pr" role="listitem" data-act="opent" data-id="${esc(p.id)}">
-    <span class="n"><b>${esc(p.name)}</b><small>${esc(p.co||p.what||"")}</small></span>
-    <span class="tg">${otagH(p.origin)}${p.items.map(i=>`<span class="sl-chip-s${i.kind==="sp"&&!i.pre?" mine":""}">${esc(whereOf(i))} · ${esc(i.stage||"No stage yet")}${i.kind!=="sp"&&i.owner?" · "+esc(i.owner):""}</span>`).join("")||'<span class="sl-chip-s">Not on a board</span>'}</span>
-    <span class="lc">${p.lastC?esc(short(p.lastC)):"–"}</span>
-    <span class="cv">${p.convs.length?p.convs.length+(p.convs.length>1?" conversations":" conversation"):""}</span></button>`).join("")}</div>`;
+  const shown=S.ctAll?ls:ls.slice(0,CT_CAP);
+  const rows=shown.map(p=>{const c=p.ct;const ig=sv(c[CT.ig]);
+    return `<tr data-act="opent" data-id="${esc(p.id)}"><th scope="row"><button type="button" class="sl-plink" data-act="opent" data-id="${esc(p.id)}">${esc(p.name)}</button></th><td>${esc(p.co)}</td><td>${esc(p.src||"–")}</td><td class="sl-wb">${esc(sv(c[CT.email]))}</td><td class="sl-nw">${esc(sv(c[CT.phone]))}</td><td>${esc(sv(c[CT.loc]))}</td><td>${ig?"@"+esc(norm(ig)):""}</td>
+      <td><span class="sl-tgs">${p.items.map(i=>`<span class="sl-chip-s${i.kind==="sp"&&!i.pre?" mine":""}">${esc(whereOf(i))} · ${esc(i.stage||"No stage yet")}</span>`).join("")||'<span class="pm">Not on a board</span>'}</span></td></tr>`}).join("");
+  return `<p class="pm" style="margin:0 0 8px">${ls.length} ${ls.length===1?"lead":"leads"}${shown.length<ls.length?" · showing the "+shown.length+" most recently in touch":""}</p>
+    <div class="sl-ht sl-ctw"><table class="sl-pt sl-ctab"><thead><tr><th scope="col">Name</th><th scope="col">Company</th><th scope="col">Source</th><th scope="col">Email</th><th scope="col">Phone</th><th scope="col">Location</th><th scope="col">Instagram</th><th scope="col">Boards they are on</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${shown.length<ls.length?`<button type="button" class="sl-inadd sl-more" data-act="ctall">Show all ${ls.length}</button>`:""}`;
 }
-/* Team overview: how every team board is doing */
-/* the "boards at a glance" box, on his board above the kanban (no separate Overview any more) */
-function boxH(D){
-  const rows=BOARDS.map(b=>{const items=boardItems(b,D);const h=health(b,D);
-    const withKash=items.filter(i=>{const p=D.spOf[i.id];return (p&&!p.pre)||HANDED.has(stageOf(b,i))}).length;
-    return `<button type="button" class="sl-hr sl-hgrid" data-act="view" data-v="${b.key}"><span style="font-weight:600">${esc(b.title)}</span><span>${esc(b.owner)}</span><span>${h.open}</span><span>${withKash}</span><span style="font-weight:600;color:${h.od?"var(--act)":"var(--muted)"}">${h.od}</span><span class="sl-hl" style="color:${h.color}"><i class="sl-dot" style="background:${h.dot}"></i>${h.label}</span></button>`}).join("");
+/* My Board summary: the Pipelines table (Health set by hand) beside Leads by source */
+function glanceH(D){
   const open=S.boxOpen!==false;
-  return `<section class="sl-panel sl-box2"><div class="sl-boxh"><h3>Team boards at a glance</h3><button type="button" class="sl-ghost" data-act="boxtog" aria-expanded="${open}">${open?"Hide":"Show"}</button></div>${open?`<div class="sl-ht"><div class="sl-hh sl-hgrid"><span>Board</span><span>Owner</span><span>Active</span><span>With you</span><span>Overdue</span><span>Health</span></div>${rows}</div><p class="sl-foot">Active: every card still in play on that board, including the ones handed to you. With you: on your sales pipeline. Click a board to open it.</p>`:""}</section>`;
+  const tog=`<button type="button" class="sl-ghost" data-act="boxtog" aria-expanded="${open}">${open?"Hide":"Show"}</button>`;
+  if(!open)return `<section class="sl-panel sl-box2"><div class="sl-boxh"><h3>Pipelines at a glance · Leads by source</h3>${tog}</div></section>`;
+  return `<div class="sl-glance sl-box2"><section class="sl-panel"><div class="sl-boxh"><h3>Pipelines at a glance</h3>${tog}</div>${pipesH()}</section><section class="sl-panel"><h3>Leads by source</h3>${srcPieH()}</section></div>`;
+}
+const tv=v=>Array.isArray(v)?v.map(sv).filter(Boolean).join(", "):sv(v);
+const HEALTHS=["","On track","Slowing","Stuck"];
+function pipesH(){
+  if(!S.pipelines.length)return `<p class="pm" style="margin:10px 0 0">${S.noPl?"The Pipelines table isn't in this link's data feed yet.":"No pipelines in the Pipelines table yet."}</p>`;
+  const ord=r=>{const n=Number(sv(r[PL.order]));return isFinite(n)&&sv(r[PL.order])!==""?n:999};
+  const rows=S.pipelines.slice().sort((a,b)=>ord(a)-ord(b)||String(sv(a[PL.name])).localeCompare(String(sv(b[PL.name])))).map(r=>{
+    const key=sv(r[PL.key]);const v=VIEWS.has(key)&&key!=="mine"&&key!=="contacts"?key:"";const h=sv(r[PL.health]);const tone=HEALTH_TONE[h];
+    const name=sv(r[PL.name])||"(no name)";const opts=HEALTHS.includes(h)?HEALTHS:HEALTHS.concat([h]);
+    const nm=v?`<button type="button" class="sl-plink" data-act="view" data-v="${esc(v)}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
+    const sel=`<label class="vh" for="slPh-${esc(r._id)}">Health of ${esc(name)}</label><select id="slPh-${esc(r._id)}" class="sl-hsel${tone?" stx st-"+tone:""}" data-act="plhealth" data-id="${esc(r._id)}"${S.ro?" disabled":""}>${opts.map(o=>`<option value="${esc(o)}" ${o===h?"selected":""}>${o?esc(o):"–"}</option>`).join("")}</select>`;
+    return `<tr><th scope="row">${nm}</th><td>${sel}</td><td>${esc(tv(r[PL.who]))}</td><td>${esc(tv(r[PL.fall]))}</td><td>${esc(tv(r[PL.next]))}</td></tr>`}).join("");
+  return `<div class="sl-ht"><table class="sl-pt"><thead><tr><th scope="col">Pipeline</th><th scope="col">Health</th><th scope="col">Who handles it?</th><th scope="col">Who falls in here?</th><th scope="col">Where do they go next?</th></tr></thead><tbody>${rows}</tbody></table></div><p class="sl-foot">Health is set by hand here and saved to the Pipelines table. Click a pipeline to open its board.</p>`;
+}
+/* Leads by source: one per contact, top 7 sources then Other; colours in a fixed order (light and dark steps in CSS) */
+function srcPieH(){
+  const by={};S.contacts.forEach(c=>{const s=sv(c[CT.src])||"No source";by[s]=(by[s]||0)+1});
+  let ent=Object.entries(by).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));const tot=S.contacts.length;
+  if(!tot)return '<p class="pm" style="margin:10px 0 0">No contacts yet.</p>';
+  if(ent.length>8){const keep=ent.filter(e=>e[0]!=="Other").slice(0,7);const ks=new Set(keep.map(e=>e[0]));ent=keep.concat([["Other",ent.filter(e=>!ks.has(e[0])).reduce((a,x)=>a+x[1],0)]])}
+  let ci=0;const sl=ent.map(([k,n])=>({k,n,c:k==="No source"?"none":k==="Other"?"other":"c"+(++ci)}));
+  const R=15.915,GAP=sl.length>1?0.6:0;let off=25;
+  const arcs=sl.map(s=>{const len=s.n/tot*100;const a=`<circle class="sl-pie-${s.c}" cx="21" cy="21" r="${R}" fill="none" stroke-width="6" stroke-dasharray="${Math.max(len-GAP,0.01).toFixed(3)} ${(100-Math.max(len-GAP,0.01)).toFixed(3)}" stroke-dashoffset="${off.toFixed(3)}"><title>${esc(s.k)}: ${s.n} (${Math.round(s.n/tot*100)}%)</title></circle>`;off-=len;return a}).join("");
+  return `<div class="sl-pie"><svg viewBox="0 0 42 42" width="150" height="150" role="img" aria-label="Leads by source, ${tot} contacts">${arcs}<text x="21" y="21" text-anchor="middle" dominant-baseline="central" class="sl-pie-t">${tot}</text></svg>
+    <ul class="sl-leg">${sl.map(s=>`<li><i class="sl-pie-${s.c}" aria-hidden="true"></i><span>${esc(s.k)}</span><b>${s.n}</b></li>`).join("")}</ul></div>`;
 }
 function boardH(b,D){
-  const items=boardItems(b,D);const h=health(b,D);
-  const noStage=b.kind==="cl"?items.filter(i=>!sv(i.r[b.field])):[];
-  const cols=(noStage.length?[""]:[]).concat(b.stages).map(st=>{
-    const cs=(st===""?noStage:items.filter(i=>stageOf(b,i)===st)).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due]));
-    return colH(b.key,b.stages,st,cs.length,cs.map(i=>kcardH(i,b,D)).join("")||'<div class="sl-empty">Nobody here</div>',st?inlineAdd({ctx:"b",board:b.key,stage:st}):"")}).join("");
+  const items=boardItems(b,D);const pq=b.key==="prequal";const byO=pq&&S.pqGroup==="origin";
+  let cols;
+  if(byO){
+    /* grouped by Pre-qual origin (no drag here: moving between origins isn't a stage change) */
+    const extra=[...new Set(items.map(i=>i.pqo).filter(o=>o&&!PQ_ORIGINS.includes(o)))].sort();const groups=PQ_ORIGINS.concat(extra,[""]);
+    cols=groups.map(o=>{const cs=items.filter(i=>(i.pqo||"")===o).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
+      return colH("prequal-o",groups,o,cs.length,cs.map(i=>kcardH(i,b,D,true)).join("")||'<div class="sl-empty">Nobody here</div>',"","",o||"No origin")}).join("");
+  }else{
+    const noStage=b.kind==="cl"?items.filter(i=>!sv(i.r[b.field])):[];
+    cols=(noStage.length?[""]:[]).concat(b.stages).map(st=>{
+      const cs=(st===""?noStage:items.filter(i=>stageOf(b,i)===st)).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due]));
+      /* Pre-qual: new leads always start in New */
+      return colH(b.key,b.stages,st,cs.length,cs.map(i=>kcardH(i,b,D)).join("")||'<div class="sl-empty">Nobody here</div>',st&&(!pq||st==="New")?inlineAdd({ctx:"b",board:b.key,stage:st}):"")}).join("");
+  }
   const where=b.kind==="cl"?" · Rise Voice":" · ReLearn";
-  return `<div class="sl-ftop"><div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap"><h2>${esc(b.title)}</h2><span class="sl-hl" style="color:${h.color}"><i class="sl-dot" style="background:${h.dot}"></i>${h.label}</span></div><span class="pm">Owner: ${esc(b.owner)}${where}</span></div>
-    <p class="sl-goal">${esc(b.blurb)}</p>${toolsH()}
+  const seg=pq?`<div class="sl-seg" role="group" aria-label="Group by">${[["stage","Kanban"],["origin","By origin"]].map(([k,t])=>`<button type="button" data-act="pqgroup" data-v="${k}" aria-pressed="${S.pqGroup===k}">${t}</button>`).join("")}</div>`:"";
+  return `<div class="sl-ftop"><div class="sl-tt"><h2>${esc(b.title)}</h2>${healthPill(b.key)}</div><span class="pm">Owner: ${esc(b.owner)}${where}</span></div>
+    <p class="sl-goal">${esc(b.blurb)}</p>${toolsH(seg)}
     <div class="sl-board">${cols}</div>
-    <p class="sl-foot">${S.ro?"":"Drag a card to another column to move it. "}"Kash · stage" marks people already on his sales pipeline. ${FOLD_FOOT}</p>`;
+    <p class="sl-foot">${byO?"Grouped by Pre-qual origin. Switch to Kanban to move cards between stages. ":S.ro?"":"Drag a card to another column to move it. "}"Kash · stage" marks people already on his sales pipeline. ${FOLD_FOOT}</p>`;
+}
+/* PODCAST GUESTS PIPELINE (ReLearn Operating System → Guests): view only */
+function gcardH(g){
+  return `<article class="sl-card sl-kc sl-gc" data-id="${esc(g.id)}" data-kind="guest" draggable="false">
+    <div class="sl-cn"><button type="button" class="sl-name" data-act="openg" style="font-size:14px">${esc(g.name)}</button>${g.by.length?`<div class="sl-co" style="font-size:12.5px">${esc(g.by.join(", "))}</div>`:""}</div>
+    <div class="sl-cm"><span class="sl-due">${g.last?"Last contacted "+esc(dshort(g.last)):"Not contacted yet"}</span></div>
+    ${g.next?`<div class="sl-box"><div><span class="sl-cl"><b class="pm">Next</b> ${esc(g.next)}</span></div></div>`:""}</article>`;
+}
+const dshort=v=>{const s=sv(v);return /^\d{4}-\d{2}-\d{2}/.test(s)?short(s):s};
+function guestsH(){
+  const gs=deriveG();const known=new Set(GUEST_ST);
+  const extra=[...new Set(gs.map(g=>g.stage).filter(s=>s&&!known.has(s)))].sort();const stages=GUEST_ST.concat(extra,[""]);
+  const by={};gs.forEach(g=>(by[g.stage]=by[g.stage]||[]).push(g));
+  const cols=stages.map(st=>{
+    const cs=(by[st]||[]).sort((a,b)=>String(b.last).localeCompare(String(a.last))||a.name.localeCompare(b.name));
+    const shown=S.gAll[st]?cs:cs.slice(0,GUEST_CAP);
+    const inner=(shown.map(gcardH).join("")||'<div class="sl-empty">Nobody here</div>')+(cs.length>shown.length?`<button type="button" class="sl-inadd sl-more" data-act="gall" data-stage="${esc(st)}">Show all ${cs.length}</button>`:"");
+    return colH("guests",stages,st,cs.length,inner,"","",st?gLabel(st):"No stage")}).join("");
+  const note=S.noG?`<div class="sl-msg" style="margin-bottom:12px">The guests list isn't in this link's data feed yet.</div>`:"";
+  return `<div class="sl-ftop"><div class="sl-tt"><h2>Podcast Guests Pipeline</h2>${healthPill("guests")}</div><span class="pm">View only · ReLearn Operating System</span></div>
+    <p class="sl-goal">Every guest from first research to a released episode. Click a guest to see their details. Changes are made in Airtable for now.</p>${note}${toolsH()}
+    <div class="sl-board">${cols}</div>
+    <p class="sl-foot">Long columns show the ${GUEST_CAP} most recently contacted first; press "Show all" for the rest. ${FOLD_FOOT}</p>`;
 }
 function modalH(J){
   const l=J.find(x=>x.id===S.openId);if(!l)return "";
@@ -397,19 +492,23 @@ function modalH(J){
     <button type="button" class="sl-ctog" data-act="ctog" aria-expanded="${S.cOpen}">${svg("M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z")}<span class="sl-ctl">${cm&&cm.loading?"Loading…":cmList.length?cmList.length+(cmList.length>1?" comments":" comment"):"No comments yet"}</span></button></div>`}
    </div></div></div>`;
 }
-/* Company Lead (Rise Voice) record */
+/* Company Lead (Rise Voice) record; the board is the one it was opened from when it sits on more than one */
+const clBoardOf=it=>{const b=S.openClB&&BK[S.openClB];return b&&it.boards.includes(b)?b:it.board};
 function recModalH(it,people){
-  if(!it)return "";const r=it.r;const b=it.board;const ro=S.ro?" readonly":"",dis=S.ro?" disabled":"";
-  const cur=b?sv(r[b.field]):"";
+  if(!it)return "";const r=it.r;const b=clBoardOf(it);const ro=S.ro?" readonly":"",dis=S.ro?" disabled":"";
+  const cur=b?sv(r[b.field]):"";const pq=b&&b.key==="prequal";
   const bits=[r[CL.email],r[CL.phone],r[CL.ig]?"@"+r[CL.ig]:"",r[CL.li]];
   const p=people.find(x=>x.items.includes(it));
+  const owners=it.owner&&!CL_OWNERS.includes(it.owner)?CL_OWNERS.concat([it.owner]):CL_OWNERS;
+  const pqOrigins=it.pqo&&!PQ_ORIGINS.includes(it.pqo)?PQ_ORIGINS.concat([it.pqo]):PQ_ORIGINS;
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slCh"><div class="sl-db">
     <div class="sl-dh"><div style="min-width:0"><h2 id="slCh">${esc(it.name)}</h2><div class="sl-co" style="margin-top:2px">${esc([it.co].concat(bits).filter(Boolean).join(" · "))}</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(it.origin)}<span class="sl-tag">${esc("Rise Voice · "+(b?b.title:"Company Leads"))}</span><span class="sl-due ${it.due}">${esc(it.dueL)}</span></div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     <div class="sl-facts">
-      <div class="sl-fact"><label for="slKs">Stage</label><select id="slKs" data-act="rstage"${dis}>${b?(cur?"":'<option value="">No stage yet</option>')+b.stages.map(s=>`<option ${s===cur?"selected":""}>${esc(s)}</option>`).join(""):""}</select></div>
-      <div class="sl-fact"><label for="slKo">Owner</label><select id="slKo" data-act="rowner"${dis}><option value="">–</option>${CL_OWNERS.map(o=>`<option ${o===it.owner?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="sl-fact"><label for="slKs">${pq?"Pre-qual stage":"Stage"}</label><select id="slKs" data-act="rstage"${dis}>${b?(cur?"":'<option value="">No stage yet</option>')+b.stages.map(s=>`<option ${s===cur?"selected":""}>${esc(s)}</option>`).join(""):""}</select></div>
+      ${pq?`<div class="sl-fact"><label for="slKg">Origin</label><select id="slKg" data-act="rorigin"${dis}><option value="">No origin yet</option>${pqOrigins.map(o=>`<option ${o===it.pqo?"selected":""}>${esc(o)}</option>`).join("")}</select></div>`:""}
+      <div class="sl-fact"><label for="slKo">Owner</label><select id="slKo" data-act="rowner"${dis}><option value="">–</option>${owners.map(o=>`<option ${o===it.owner?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
       <div class="sl-fact"><label for="slKd">Chase date</label><input id="slKd" type="date" data-act="rchase" value="${esc(it.chase)}"${ro}></div>
       <div class="sl-fact"><label for="slKv">Deal value / month${it.est&&it.value?' <span class="sl-est">Estimate</span>':""}</label><input id="slKv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(it.value))}"${ro}></div>
     </div>
@@ -420,16 +519,17 @@ function recModalH(it,people){
     <div class="sl-fbtns" style="justify-content:space-between;align-items:center"><span class="pm">Last contact: ${esc(agoL(it.lastC))}${b?" · board owner "+esc(b.owner):""}</span>${p?`<button type="button" class="sl-ghost" data-act="opent" data-id="${esc(p.id)}">See contact and conversations</button>`:""}</div>
   </div></div></div>`;
 }
-/* a deal on Kash's Sales pipeline */
+/* a deal on Kash's Sales pipeline (v5 look: wider, title opens the contact) */
+const PERSON_I="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0",ARROW_I="M5 12h14M13 6l6 6-6 6";
 function spModalH(p,D,people){
   if(!p)return "";const ro=S.ro?" readonly":"",dis=S.ro?" disabled":"";
-  const lv=liveOf(p,D);const pers=people.filter(x=>x.items.includes(p));const per=pers.find(x=>x.id===p.contactIds[0])||pers[0];
+  const pers=people.filter(x=>x.items.includes(p));const per=pers.find(x=>x.id===p.contactIds[0])||pers[0];
   const convs=[...new Set(pers.flatMap(x=>x.convs))].sort((x,y)=>String(y[C.date]||"").localeCompare(String(x[C.date]||"")));
   const tl=convs.map(x=>`<div><span class="d">${esc(short(x[C.date]))}</span><span>${esc(x[C.sum]||"")}<small>${esc([sv(x[C.ch]),sv(x[C.who])].filter(Boolean).join(" · "))}</small></span></div>`).join("");
-  const src=lv?`<button type="button" class="sl-wh" ${lv.item?`data-act="${lv.item.kind==="jade"?"open":"openc"}" data-id="${lv.item.id}"`:"disabled"}><span class="w">${esc(lv.where)}</span><b>${esc(lv.stage)}</b><span class="pm">${esc(lv.who||"")}</span></button>`:`<p class="pm" style="margin:0">${esc(p.from||"Kash direct")}</p>`;
-  return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slSh"><div class="sl-db">
-    <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${esc(p.name)}</h2><div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(p.origin)}${tagH(p.offer)}${p.pre?'<span class="pm">Pre-qual · with the team</span>':`<span class="sl-due ${p.due}">${esc(p.dueL)}</span>`}</div></div>
+  const ttl=per?`<button type="button" class="sl-ttl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">${svg(PERSON_I,18)}<span>${esc(p.name)}</span><span class="ar">${svg(ARROW_I,16)}</span></button>`:esc(p.name);
+  return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg sl-dlg-sp" role="dialog" aria-modal="true" aria-labelledby="slSh"><div class="sl-db">
+    <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${ttl}</h2><div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(p.origin)}${tagH(p.offer)}${p.pre?'<span class="pm">Pre-qual · with the team</span>':`<span class="sl-due ${p.due}">${esc(p.dueL)}</span>`}${p.owner?`<span class="pm">Owner: ${esc(p.owner)}</span>`:""}</div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     <div class="sl-facts">
       <div class="sl-fact"><label for="slSs">Stage</label><select id="slSs" data-act="spstage"${dis}>${SP_STAGES.map(s=>`<option ${s===p.stage?"selected":""}>${esc(s)}</option>`).join("")}</select></div>
@@ -441,41 +541,80 @@ function spModalH(p,D,people){
     ${svcPickH("spsvc",p.services,"slSsv")}
     <section class="sl-need"><h3><label for="slSn">What's needed from you</label></h3><textarea id="slSn" data-act="needed" rows="1" placeholder="${p.pre?"Nothing yet: it's with the team":"What do you need to do?"}"${ro}>${esc(p.needed)}</textarea></section>
     <section class="sl-hap"><h3><label for="slSt">Notes</label></h3><textarea id="slSt" data-act="spnotes" rows="1"${ro}>${esc(p.notes)}</textarea></section>
-    <section><p class="sl-sub">Where it came from</p>${src}</section>
     <section><p class="sl-sub">Conversations</p>
       ${S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label><select id="slSc">${CHANNELS.map(x=>`<option>${x}</option>`).join("")}</select><label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${p.id}">${svg(PLUS)}Add</button></div>`}
       <div class="sl-tl">${tl||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
     <div class="sl-fbtns" style="justify-content:flex-start;align-items:center"><span class="pm">Last contact: ${esc(agoL(p.lastC))}</span></div>
   </div></div></div>`;
 }
+const safeUrl=u=>{const s=String(sv(u)||"").trim();if(!s)return "";const t=/^https?:\/\//i.test(s)?s:/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)?"https://"+s:"";return t};
+const linkH=u=>{const h=safeUrl(u);return h?`<a href="${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(sv(u))}</a>`:esc(sv(u))};
+/* a contact: details (Location and Website can be edited), boards, deals and conversations */
 function ctModalH(people){
-  const p=people.find(x=>x.id===S.openCt);if(!p)return "";const c=p.ct||{};
-  const bits=[c[CT.email],c[CT.phone],c[CT.ig]?"@"+norm(c[CT.ig]):"",c[CT.li]].filter(Boolean);
-  const where=p.items.map(i=>`<button type="button" class="sl-wh${i.kind==="sp"&&!i.pre?" mine":""}" data-act="${i.kind==="jade"?"open":i.kind==="sp"?"opensp":"openc"}" data-id="${i.id}"><span class="w">${esc(whereOf(i))}</span><b>${esc(i.stage||"No stage yet")}</b><span class="pm">${esc(i.kind==="sp"?(i.pre?"with the team":(i.needed||"").slice(0,60)):[i.owner,i.closed?"":i.dueL].filter(Boolean).join(" · "))}</span></button>`).join("")||'<p class="pm" style="margin:0">Not on any board yet.</p>';
+  const p=people.find(x=>x.id===S.openCt);if(!p)return "";const c=p.ct||{};const ed=!!p.ct&&!S.ro;
+  const fact=(l,v)=>`<div class="sl-fact"><span class="l">${l}</span><div class="sl-fv sl-wb">${v||"–"}</div></div>`;
+  const inp=(id,l,act,v,type,ph)=>`<div class="sl-fact"><label for="${id}">${l}</label><input id="${id}" type="${type}" data-act="${act}" value="${esc(sv(v))}" placeholder="${ed?ph:"–"}"${ed?"":" readonly"} autocomplete="off"></div>`;
+  const ig=sv(c[CT.ig]);
+  const whH=i=>`<button type="button" class="sl-wh${i.kind==="sp"&&!i.pre?" mine":""}" data-act="${i.kind==="jade"?"open":i.kind==="sp"?"opensp":"openc"}" data-id="${i.id}"><span class="w">${esc(whereOf(i))}</span><b>${esc(i.stage||"No stage yet")}</b><span class="pm">${esc(i.kind==="sp"?(i.pre?"with the team":(i.needed||"").slice(0,60)):[i.owner,i.closed?"":i.dueL].filter(Boolean).join(" · "))}</span></button>`;
+  const boards=p.items.filter(i=>i.kind!=="sp"),deals=p.items.filter(i=>i.kind==="sp");
   const tl=p.convs.map(x=>`<div><span class="d">${esc(short(x[C.date]))}</span><span>${esc(x[C.sum]||"")}<small>${esc([sv(x[C.ch]),sv(x[C.who])].filter(Boolean).join(" · "))}</small></span></div>`).join("");
   const notes=p.items.filter(i=>i.kind!=="jade"&&i.notes).map(i=>`<div><span class="d">Notes</span><span style="white-space:pre-line">${esc(i.notes)}<small>${esc(whereOf(i))}</small></span></div>`).join("");
   const jl=p.items.find(i=>i.kind==="jade");const lat=jl&&jl.r[L.latest]?`<div><span class="d">Latest</span><span style="white-space:pre-line">${esc(jl.r[L.latest])}<small>Jade's board</small></span></div>`:"";
+  const brief=sv(c[CT.what])||p.what;
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slTh"><div class="sl-db">
-    <div class="sl-dh"><div style="min-width:0"><h2 id="slTh">${esc(p.name)}</h2><div class="sl-co" style="margin-top:2px">${esc([p.co].concat(bits).filter(Boolean).join(" · "))}</div>
+    <div class="sl-dh"><div style="min-width:0"><h2 id="slTh">${esc(p.name)}</h2><div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${otagH(p.origin)}${p.lastC?`<span class="pm">Last contact ${esc(short(p.lastC))}</span>`:""}</div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
-    ${p.what&&norm(p.what)!==norm(p.co)?`<p style="margin:0">${esc(p.what)}</p>`:""}
-    <section><p class="sl-sub">Where they are</p><div class="sl-whs">${where}</div></section>
+    <div class="sl-facts">
+      ${fact("Email",esc(sv(c[CT.email])))}${fact("Phone",esc(sv(c[CT.phone])))}
+      ${inp("slTl","Location","ctloc",c[CT.loc],"text","Add a city or country")}${inp("slTw","Website","ctweb",c[CT.web],"url","https://…")}
+      ${fact("Instagram",ig?esc("@"+norm(ig)):"")}${fact("LinkedIn",c[CT.li]?linkH(c[CT.li]):"")}${fact("Source",esc(sv(c[CT.src])))}
+    </div>
+    ${p.ct?"":'<p class="pm" style="margin:0">Not in Contacts yet: this person is only on a board.</p>'}
+    <section class="sl-hap"><h3>What they do</h3><p style="margin:0;white-space:pre-line">${brief?esc(brief):'<span class="pm">No brief yet.</span>'}</p></section>
+    <section><p class="sl-sub">Boards</p><div class="sl-whs">${boards.map(whH).join("")||'<p class="pm" style="margin:0">Not on any board yet.</p>'}</div></section>
+    <section><p class="sl-sub">Deals</p><div class="sl-whs">${deals.map(whH).join("")||'<p class="pm" style="margin:0">No deal on the Sales Pipeline.</p>'}</div></section>
     <section><p class="sl-sub">Conversations</p>
       ${S.ro?"":`<div class="sl-addc"><label class="vh" for="slTc">Channel</label><select id="slTc">${CHANNELS.map(x=>`<option>${x}</option>`).join("")}</select><label class="vh" for="slTt">What happened</label><input id="slTt" placeholder="Log a conversation with ${esc(p.name)}"><button type="button" class="sl-ghost" data-act="logct" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`}
       <div class="sl-tl">${lat+tl+notes||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
   </div></div></div>`;
 }
-/* name search in the header: people, with where they are */
+/* a podcast guest: view only */
+function gModalH(){
+  const g=deriveG().find(x=>x.id===S.openG);if(!g)return "";const r=g.r;
+  const fact=(l,v)=>`<div class="sl-fact"><span class="l">${l}</span><div class="sl-fv sl-wb">${v||"–"}</div></div>`;
+  const lu=sv(r[G.lead]);const lid=idFromUrl(lu);const inLeads=!!lid&&S.leads.some(x=>x._id===lid);
+  const ga=lu?(inLeads?`<button type="button" class="sl-ghost" data-act="open" data-id="${esc(lid)}">Open in Growth Audit</button>`:safeUrl(lu)?`<a class="sl-ghost" href="${esc(safeUrl(lu))}" target="_blank" rel="noopener noreferrer">Open in Growth Audit</a>`:""):"";
+  const ig=sv(r[G.ig]);const igH=ig?(safeUrl(ig)&&/instagram\.com/i.test(ig)?linkH(ig):esc(ig.startsWith("@")?ig:"@"+ig)):"";
+  const ln=(h,v)=>`<section class="sl-hap"><h3>${h}</h3><p style="margin:0;white-space:pre-line">${v?esc(v):'<span class="pm">Nothing yet.</span>'}</p></section>`;
+  return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slGh"><div class="sl-db">
+    <div class="sl-dh"><div style="min-width:0"><h2 id="slGh">${esc(g.name)}</h2><div class="sl-co" style="margin-top:2px">Podcast guest · view only</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px"><span class="sl-tag">${esc(g.stage?gLabel(g.stage):"No stage")}</span>${r[G.ga]?'<span class="sl-chip-s mine">Growth audit booked</span>':""}</div></div>
+      <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
+    <div class="sl-facts">
+      ${fact("Status",esc(g.stage||"No stage"))}${fact("Handled by",esc(g.by.join(", ")))}${fact("Source",esc(tv(r[G.src])))}
+      ${fact("First contacted",esc(dshort(r[G.first])))}${fact("Last contacted",esc(dshort(r[G.last])))}${fact("Pre-interview",esc(dshort(r[G.pre])))}
+      ${fact("Growth audit booked",r[G.ga]?"Yes":"No")}
+    </div>
+    ${ln("Latest update",sv(r[G.latest]))}${ln("Next step",sv(r[G.next]))}
+    <div class="sl-facts">
+      ${fact("Instagram",igH)}${fact("Personal email",esc(sv(r[G.email])))}${fact("Phone",esc(sv(r[G.phone])))}${fact("Website",r[G.web]?linkH(r[G.web]):"")}${fact("Based in",esc(tv(r[G.based])))}
+    </div>
+    <div class="sl-fbtns" style="justify-content:space-between;align-items:center"><span class="pm">Changes to guests are made in Airtable for now.</span>${ga}</div>
+  </div></div></div>`;
+}
+/* name search in the header: people, with where they are (and podcast guests) */
 function searchHits(q){
   q=norm(q);if(q.length<2)return [];
   return peopleOf(derive()).filter(p=>norm(p.name).includes(q)||norm(p.co).includes(q)).slice(0,10);
 }
+function guestHits(q){q=norm(q);if(q.length<2)return [];return deriveG().filter(g=>norm(g.name).includes(q)).slice(0,5)}
 function renderSearch(){
   const box=el("slQr");if(!box)return;const q=(el("slQ")||{}).value||"";
   if(norm(q).length<2){box.hidden=true;box.innerHTML="";return}
-  const hits=searchHits(q);box.hidden=false;
-  box.innerHTML=hits.length?hits.map(p=>`<button type="button" class="sl-qi" data-act="opent" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><span>${esc(p.items.map(i=>whereOf(i)+" · "+(i.stage||"No stage yet")+(i.kind!=="sp"&&i.owner?" · "+i.owner:"")).join(" | ")||"Contact")}</span></button>`).join(""):'<div class="sl-qi"><span>Nobody by that name yet. Use + to add them.</span></div>';
+  const hits=searchHits(q),gh=guestHits(q);box.hidden=false;
+  box.innerHTML=hits.length||gh.length?hits.map(p=>`<button type="button" class="sl-qi" data-act="opent" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><span>${esc(p.items.map(i=>whereOf(i)+" · "+(i.stage||"No stage yet")+(i.kind!=="sp"&&i.owner?" · "+i.owner:"")).join(" | ")||"Contact")}</span></button>`).join("")
+    +gh.map(g=>`<button type="button" class="sl-qi" data-act="openg" data-id="${esc(g.id)}"><b>${esc(g.name)}</b><span>${esc("Podcast Guests · "+(g.stage?gLabel(g.stage):"No stage")+(g.by.length?" · "+g.by.join(", "):""))}</span></button>`).join(""):'<div class="sl-qi"><span>Nobody by that name yet. Use + to add them.</span></div>';
 }
 /* Drop a note */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -522,7 +661,7 @@ function addH(){
     <label>Name<input id="slFn" placeholder="Full name"></label>
     <label>Company / what they do<input id="slFw" placeholder="e.g. Founder, DIRTEA"></label>
     <div class="two"><label>Goes to<select id="slFf" data-act="fboard">${boardOpts(bk)}</select></label>
-      <label>Stage<select id="slFs">${stagesFor(bk).map(s=>`<option ${s===(bk==="sp"?"To contact":"")?"selected":""}>${esc(s)}</option>`).join("")}</select></label>
+      <label>Stage<select id="slFs">${stagesFor(bk).map(s=>`<option ${s===(bk==="sp"?"To contact":bk==="prequal"?"New":"")?"selected":""}>${esc(s)}</option>`).join("")}</select></label>
       <label>Origin<select id="slFg">${ORIGINS.map(o=>`<option>${esc(o)}</option>`).join("")}</select></label>
       <label>Value / month<input id="slFv" inputmode="numeric" placeholder="$0"></label>
       <label>Chase date<input id="slFd" type="date" value="${TODAY}"></label>
@@ -539,15 +678,15 @@ function render(){
   if(S.err){body.innerHTML=`<div class="sl-msg"><b>Couldn't load the sales data.</b><br><span class="pm">${S.ro?"The sales data feed for this link isn't available yet.":"Check that your Airtable connection is on and has access to ReLearn Commercials and Rise Voice, then press Refresh."}</span></div>`;el("slModal").innerHTML="";putSearch();return}
   if(!S.loaded){putSearch();return}
   const D=derive();const plate=D.P.filter(p=>p.plate);const people=peopleOf(D);
+  if(OLD_VIEW[S.view])S.view=OLD_VIEW[S.view];if(!VIEWS.has(S.view))S.view="mine";
   const fab=el("slFab");if(fab&&S.ro)fab.hidden=true;
   const note=S.ro?`<p class="pm" style="margin:-2px 0 12px">View only on this link${S.fetchedAt?" · data from "+esc(String(S.fetchedAt).slice(11,16))+" UTC":""}. Open the Claude copy to make changes.</p>`:"";
-  if(S.view==="overview")S.view="mine";
-  const main=S.view==="mine"?spH(D):S.view==="contacts"?contactsH(D,people):boardH(BK[S.view]||BK.jade,D);
+  const main=S.view==="mine"?spH(D):S.view==="sales"?salesH(D):S.view==="contacts"?contactsH(D,people):S.view==="guests"?guestsH():boardH(BK[S.view]||BK.jade,D);
   const bd0=body.querySelector(".sl-board"),bl=bd0?bd0.scrollLeft:0,key=S.view+"|"+S.spView,sy=window.scrollY;
-  body.innerHTML=note+`<div class="sl-layout">${rail(D,plate,people)}<div class="sl-main">${main}</div></div>`;putSearch();
+  body.innerHTML=note+`<div class="sl-layout">${rail(D,plate)}<div class="sl-main">${main}</div></div>`;putSearch();
   const bd1=body.querySelector(".sl-board");if(bd1&&S.lastKey===key)bd1.scrollLeft=bl;if(S.lastKey===key&&window.scrollY!==sy)window.scrollTo(0,sy);S.lastKey=key;
   const rec=S.openCl?D.K.find(x=>x.id===S.openCl):null;const spr=S.openSp?D.P.find(x=>x.id===S.openSp):null;
-  el("slModal").innerHTML=(S.openId?modalH(D.J):"")+(rec?recModalH(rec,people):"")+(spr?spModalH(spr,D,people):"")+(S.openCt?ctModalH(people):"")+addH()+dropH();
+  el("slModal").innerHTML=(S.openId?modalH(D.J):"")+(rec?recModalH(rec,people):"")+(spr?spModalH(spr,D,people):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
   document.querySelectorAll("#v-sales textarea,#slModal textarea").forEach(grow);
   renderSearch();
   if(S.inAdd&&el("slIn"))el("slIn").focus();
@@ -560,12 +699,26 @@ document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;
 /* ---------- writes ---------- */
 const lead=id=>S.leads.find(r=>r._id===id);
 const KF={cl:{base:RB,tbl:T.cl,arr:"cl",next:CL.next,want:CL.want,notes:CL.notes,owner:CL.owner,chase:CL.chase,value:CL.val,est:CL.est,lastc:CL.lastc},
-          sp:{base:CB,tbl:T.sp,arr:"sp",next:SP.needed,want:null,notes:SP.notes,owner:SP.owner,chase:SP.chase,value:SP.value,est:SP.est,lastc:SP.lastc,stage:SP.stage}};
+          sp:{base:CB,tbl:T.sp,arr:"sp",next:SP.needed,want:null,notes:SP.notes,owner:SP.owner,chase:SP.chase,value:SP.value,est:SP.est,lastc:SP.lastc,stage:SP.stage},
+          ct:{base:CB,tbl:T.contacts,arr:"contacts"},pl:{base:CB,tbl:T.pipes,arr:"pipelines"}};
 const recOf=(kind,id)=>(S[KF[kind].arr]||[]).find(r=>r._id===id);
 async function saveLead(id,fields,typecast,quiet){const r=lead(id);const prev={};Object.keys(fields).forEach(k=>{prev[k]=r[k]});Object.assign(r,fields);if(!quiet)render();
   try{await upd(CB,T.leads,id,fields,typecast);toast("Saved")}catch(e){Object.assign(r,prev);render();toast("Couldn't save. Try again.")}}
-async function saveRec(kind,id,fields,quiet){const k=KF[kind];const r=recOf(kind,id);if(!r)return;const prev={};Object.keys(fields).forEach(f=>{prev[f]=r[f]});Object.assign(r,fields);if(!quiet)render();
-  try{await upd(k.base,k.tbl,id,fields,false);toast("Saved")}catch(e){Object.assign(r,prev);render();toast("Couldn't save. Try again.")}}
+async function saveRec(kind,id,fields,quiet,typecast){const k=KF[kind];const r=recOf(kind,id);if(!r)return false;const prev={};Object.keys(fields).forEach(f=>{prev[f]=r[f]});Object.assign(r,fields);if(!quiet)render();
+  try{await upd(k.base,k.tbl,id,fields,!!typecast);toast("Saved");return true}catch(e){Object.assign(r,prev);render();toast("Couldn't save. Try again.");return false}}
+/* a Company Lead's stage on one board; on Pre-qual, "Sales Pipeline" also opens (or moves up) the deal on Kash's Sales Pipeline, linked back */
+async function setClStage(id,b,st){
+  const ok=await saveRec("cl",id,{[b.field]:st||null});
+  if(ok&&b.key==="prequal"&&st==="Sales Pipeline")await handToSales(id,b);
+}
+async function handToSales(id,b){
+  const D=derive();const it=D.K.find(x=>x.id===id);if(!it)return;const ex=D.spOf[id];
+  try{
+    if(ex){if(ex.pre)await saveRec("sp",ex.id,{[SP.stage]:"To contact"},true)}
+    else{await newDeal({name:it.name,company:it.co,stage:"To contact",origin:ORIGINS.includes(it.origin)?it.origin:"Other",chase_date:TODAY,conversation:null},{rv:atUrl(RB,T.cl,id),from:b.from,contactIds:[idFromUrl(it.r[CL.contact])].filter(Boolean)});await load(true)}
+    toast("Handed to Kash's Sales Pipeline");
+  }catch(e){toast("Moved, but the deal couldn't be opened on the Sales Pipeline.")}
+}
 async function openComments(id){if(S.ro){S.comments[id]={list:[]};return}S.comments[id]={loading:true,list:[]};render();
   try{const p=await call("list_record_comments",{baseId:CB,tableId:T.leads,recordId:id,pageSize:100});
     const list=(p.comments||[]).map(c=>{const users=Object.assign({},p.mentioned||{},c.mentioned||{});let t=String(c.text||"");t=t.replace(/@\[([A-Za-z0-9]+)\]/g,(m,u)=>"@"+((users[u]&&(users[u].displayName||users[u].name||users[u].email))||"someone"));
@@ -583,7 +736,7 @@ async function ensureContact(p,source,extra){
   const f={[CT.name]:p.name};if(p.email)f[CT.email]=p.email;if(p.phone)f[CT.phone]=p.phone;if(p.instagram)f[CT.ig]=norm(p.instagram);if(p.linkedin)f[CT.li]=p.linkedin;if(p.company)f[CT.co]=p.company;if(p.what_they_do)f[CT.what]=p.what_they_do;if(source)f[CT.src]=source;Object.assign(f,extra||{});
   const id=await mk(CB,T.contacts,f,true);S.contacts.push(Object.assign({_id:id},f));return id;
 }
-const BOARD_CT_SRC={jade:"Podcast guest",event:"Event",referral:"Referral",social:"Instagram",episode:"Episode request",upwork:"Upwork",upsell:"Upsell",ai:"AI consulting"};
+const BOARD_CT_SRC={jade:"Podcast guest",upwork:"Upwork",upsell:"Upsell"};
 async function logConv(summary,ch,leadId,contactId){
   if(!summary)return;const w=viewer();const f={[C.sum]:summary,[C.date]:TODAY,[C.ch]:ch||"Other"};if(leadId)f[C.lead]=[leadId];if(contactId)f[C.contact]=[contactId];if(w)f[C.who]=w;
   const id=await mk(CB,T.conv,f,true);S.conv.push(Object.assign({_id:id},f));
@@ -638,7 +791,7 @@ async function saveProposal(it){
   }
   if(bk==="sp")return newDeal(it,null);
   /* new person for a team board */
-  const b=BK[bk]||BK.jade;const stage=b.stages.includes(it.stage)?it.stage:b.stages[0];
+  const b=BK[bk]||BK.jade;const stage=b.key==="prequal"?"New":b.stages.includes(it.stage)?it.stage:b.stages[0]; /* Pre-qual: new leads start in New */
   const person={name:it.name,company:it.company,what_they_do:it.what_they_do,email:it.email,phone:it.phone,instagram:it.instagram,linkedin:it.linkedin};
   if(b.kind==="jade"){
     let cid="";try{cid=await ensureContact(person,BOARD_CT_SRC.jade)}catch(e){} /* the lead still saves if Contacts can't be written */
@@ -647,11 +800,10 @@ async function saveProposal(it){
     const lid=await mk(CB,T.leads,f,false);
     if(conv)await logConv(conv.summary,conv.channel,lid,cid);
   }else{
-    const src=b.key==="social"&&conv&&conv.channel==="LinkedIn"?"LinkedIn":b.source;
-    const f={[CL.name]:it.name,[CL.src]:src,[b.field]:stage,[CL.leadin]:TODAY};if(b.defOwner)f[CL.owner]=b.defOwner;
+    const f={[CL.name]:it.name,[b.field]:stage,[CL.leadin]:TODAY};if(b.source)f[CL.src]=b.source;if(b.defOwner)f[CL.owner]=b.defOwner;
     if(it.company)f[CL.co]=it.company;if(it.email)f[CL.email]=it.email;if(it.phone)f[CL.phone]=it.phone;if(it.instagram)f[CL.ig]=norm(it.instagram);if(it.linkedin)f[CL.li]=it.linkedin;if(it.chase_date)f[CL.chase]=it.chase_date;if(it.what_they_want)f[CL.want]=it.what_they_want;if(val)f[CL.val]=val;
     if(conv){f[CL.lastc]=TODAY;f[CL.notes]=TODAY+" · "+conv.channel+": "+conv.summary+" (from Kash)"}
-    const clid=await mk(RB,T.cl,f,false);
+    const clid=await mk(RB,T.cl,f,b.defOwner==="Danica"); /* typecast adds the new Danica owner option */
     let cid="";try{cid=await ensureContact(person,BOARD_CT_SRC[b.key],{[CT.rvurl]:atUrl(RB,T.cl,clid),[CT.rvboard]:b.title+" · "+stage})}catch(e){}
     if(cid){await upd(RB,T.cl,clid,{[CL.contact]:atUrl(CB,T.contacts,cid)},false).catch(()=>{});
       if(conv)await logConv(conv.summary,conv.channel,"",cid).catch(()=>{})}
@@ -659,7 +811,7 @@ async function saveProposal(it){
 }
 function itemsForPrompt(){
   const D=derive();
-  return D.P.map(p=>({id:p.id,kind:"pipeline",name:p.name,company:p.co,stage:p.stage})).concat(D.J.map(l=>({id:l.id,kind:"team",name:l.name,company:l.co,where:"Podcast board (Jade) · "+l.stage})),D.K.filter(k=>k.board&&!k.closed).map(k=>({id:k.id,kind:"team",name:k.name,company:k.co,where:k.board.title+" · "+(k.stage||"no stage")})));
+  return D.P.map(p=>({id:p.id,kind:"pipeline",name:p.name,company:p.co,stage:p.stage})).concat(D.J.map(l=>({id:l.id,kind:"team",name:l.name,company:l.co,where:"Growth Audit Pipeline (Jade) · "+l.stage})),D.K.filter(k=>k.board&&!k.closed).map(k=>({id:k.id,kind:"team",name:k.name,company:k.co,where:k.board.title+" · "+(k.stage||"no stage")})));
 }
 function dropPrompt(text){
   return `You turn Kash's quick notes (often dictated on his phone) into updates for his sales pipeline. Today is ${TODAY} (${WD[now.getDay()]}).
@@ -699,13 +851,17 @@ document.addEventListener("click",async e=>{
   if(S.ro&&RO_BLOCK.has(act)){toast(VIEW_ONLY);return}
   if(a.closest("#slQr")&&el("slQ")){el("slQ").value=""} /* picking a search result clears the search */
   const hideQ=()=>{if(el("slQr"))el("slQr").hidden=true};
-  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=null};
-  if(act==="view"){S.view=a.dataset.v;S.inAdd=null;render();window.scrollTo({top:0});return}
+  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null};
+  if(act==="view"){S.view=OLD_VIEW[a.dataset.v]||a.dataset.v;S.inAdd=null;render();window.scrollTo({top:0});return}
+  if(act==="pqgroup"){S.pqGroup=a.dataset.v==="origin"?"origin":"stage";try{localStorage.setItem("slPqGroup",S.pqGroup)}catch(x){}S.inAdd=null;render();return}
+  if(act==="gall"){S.gAll[a.dataset.stage||""]=true;render();return}
+  if(act==="ctall"){S.ctAll=true;const pl=el("slPl");if(pl)pl.innerHTML=peopleRowsH(peopleOf(derive()));return}
+  if(act==="openg"){closeAll();S.openG=id;hideQ();render();return}
   if(act==="fold"){toggleFold(a.dataset.board,a.dataset.stage);S.inAdd=null;render();const f=document.querySelector(`#v-sales .sl-col[data-board="${a.dataset.board}"][data-stage="${CSS.escape(a.dataset.stage)}"] [data-act="fold"]`);if(f)f.focus();return}
   if(act==="boxtog"){S.boxOpen=!(S.boxOpen!==false);try{localStorage.setItem("slBox",S.boxOpen?"1":"0")}catch(x){}render();return}
   if(act==="spview"){S.spView=a.dataset.v;S.inAdd=null;render();return}
   if(act==="open"){closeAll();S.openId=id;S.cOpen=false;hideQ();render();openComments(id);return}
-  if(act==="openc"){closeAll();S.openCl=id;hideQ();render();return}
+  if(act==="openc"){closeAll();S.openCl=id;S.openClB=BK[S.view]?S.view:null;hideQ();render();return}
   if(act==="opensp"){closeAll();S.openSp=id;hideQ();render();return}
   if(act==="opent"){closeAll();S.openCt=id;hideQ();render();return}
   if(act==="close"||act==="closebg"){closeAll();S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();return}
@@ -769,7 +925,7 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("keydown",e=>{
   if(e.target&&e.target.id==="slIn"){if(e.key==="Enter"){e.preventDefault();const b=document.querySelector('#v-sales [data-act="insave"]');if(b)b.click();return}if(e.key==="Escape"){S.inAdd=null;render();return}}
-  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){S.openId=S.openCl=S.openSp=S.openCt=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render()}
+  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.openG||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render()}
 });
 document.addEventListener("change",e=>{
   const a=e.target.closest("[data-act]")||e.target;if(!(a.closest("#v-sales")||a.closest("#slModal")))return;
@@ -779,11 +935,15 @@ document.addEventListener("change",e=>{
   if(act==="pboard"){const i=a.dataset.i;const s=el("slP-s-"+i);if(s)s.innerHTML=stagesFor(a.value).map(x=>`<option>${esc(x)}</option>`).join("");return}
   if(act==="fboard"){const s=el("slFs");if(s)s.innerHTML=stagesFor(a.value).map(x=>`<option ${x==="To contact"?"selected":""}>${esc(x)}</option>`).join("");return}
   if(S.ro){if(a.type==="checkbox")a.checked=!a.checked;toast(VIEW_ONLY);render();return}
+  if(act==="plhealth"){const id2=a.dataset.id;saveRec("pl",id2,{[PL.health]:a.value||null});return}
+  if(act==="ctloc"||act==="ctweb"){if(!S.openCt||!recOf("ct",S.openCt))return;saveRec("ct",S.openCt,{[act==="ctloc"?CT.loc:CT.web]:a.value.trim()||null},true);return}
   const kind=card?card.dataset.kind:S.openSp?"sp":S.openCl?"cl":"jade";
   const id=(card&&card.dataset.id)||S.openSp||S.openCl||S.openId;
   if(kind==="cl"||kind==="sp"){const k=KF[kind];const r=recOf(kind,id);if(!r)return;
     if(act==="done"){if(a.checked){S.prevLastC[id]=r[k.lastc]||null;saveRec(kind,id,{[k.lastc]:TODAY})}else saveRec(kind,id,{[k.lastc]:S.prevLastC[id]||null});return}
-    if(act==="rstage"){const it=derive().K.find(x=>x.id===id);if(it&&it.board)saveRec("cl",id,{[it.board.field]:a.value||null});return}
+    if(act==="rstage"){const it=derive().K.find(x=>x.id===id);const b=it&&clBoardOf(it);if(b)setClStage(id,b,a.value);return}
+    if(act==="rorigin")return saveRec("cl",id,{[CL.pqo]:a.value||null});
+    if(act==="rowner")return saveRec(kind,id,{[k.owner]:a.value||null},false,a.value==="Danica");
     if(act==="spstage")return saveRec("sp",id,{[SP.stage]:a.value});
     if(act==="spoffer")return saveRec("sp",id,{[SP.offer]:a.value});
     if(act==="sporigin")return saveRec("sp",id,{[SP.origin]:a.value});
@@ -812,16 +972,16 @@ document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.clo
 document.addEventListener("dragover",e=>{
   if(slDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
     const bd=document.querySelector("#v-sales .sl-board");if(bd){const r=bd.getBoundingClientRect();if(y>r.top&&y<r.bottom){if(e.clientX<r.left+70)bd.scrollLeft-=16;else if(e.clientX>r.right-70)bd.scrollLeft+=16}}}
-  const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
+  const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;const cb=col.dataset.board;if(!(cb==="sp"||(BK[cb]&&!(cb==="prequal"&&S.pqGroup==="origin"))))return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
 document.addEventListener("dragleave",e=>{const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
 document.addEventListener("drop",e=>{slDrag=false;const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;e.preventDefault();col.classList.remove("over");
   const [kind,id]=(e.dataTransfer.getData("text/plain")||"").split(":");if(!id)return;if(S.ro){toast(VIEW_ONLY);return}
   const bk=col.dataset.board;const st=col.dataset.stage;if(!bk||!st)return;
   /* save after the drag has fully ended, so the card being dragged isn't redrawn mid-drag */
-  setTimeout(()=>{if(bk==="sp"&&kind==="sp")saveRec("sp",id,{[SP.stage]:st});else if(bk==="jade"&&kind==="jade")saveLead(id,{[L.stage]:st});else{const b=BK[bk];if(b&&b.kind==="cl"&&kind==="cl")saveRec("cl",id,{[b.field]:st})}},0)});
+  setTimeout(()=>{if(bk==="sp"&&kind==="sp")saveRec("sp",id,{[SP.stage]:st});else if(bk==="jade"&&kind==="jade")saveLead(id,{[L.stage]:st});else{const b=BK[bk];if(b&&b.kind==="cl"&&kind==="cl"&&derive().K.some(x=>x.id===id&&x.boards.includes(b)))setClStage(id,b,st)}},0)});
 
 /* hook into the page's tabs */
-if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=null;S.adding=false;S.drop=null;S.inAdd=null;if(el("slModal"))el("slModal").innerHTML=""}}}
+if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;S.drop=null;S.inAdd=null;if(el("slModal"))el("slModal").innerHTML=""}}}
 {const hb=el("refreshBtn");if(hb)hb.addEventListener("click",()=>{if(S.loaded&&!S.loading)load(true)})}
 if(location.hash==="#sales")showTab("sales");
 })();
