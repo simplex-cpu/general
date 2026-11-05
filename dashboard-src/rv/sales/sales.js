@@ -209,6 +209,8 @@ function deriveG(){
   });
 }
 const gActive=g=>!!g.stage&&g.stage!=="29 – Not interested";
+/* v5.3 (Karen, 5 Nov): "in progress" = talking to them, from In conversation to Recording booked (the rail count; 1,000+ researched/outreach rows are not open leads) */
+const gProg=g=>/^(20|30|40|50)\s*[–-]/.test(String(g.stage||""));
 /* the Pipelines table row for a board (Health is set by hand there; nothing here works it out) */
 const plOf=key=>S.pipelines.find(r=>sv(r[PL.key])===key)||null;
 const HEALTH_TONE={"On track":"s5","Slowing":"s2","Stuck":"lost"};
@@ -291,13 +293,16 @@ const spChip=(it,D)=>{const p=D.spOf[it.id];return p&&!p.pre?`<span class="sl-kc
 /* ---------- rendering ---------- */
 function valRow(it){const ro=S.ro?" readonly":"";return `<div class="sl-vrow"><div class="sl-lbl"><label for="slV-${it.id}">Deal value / month</label>${it.est&&it.value?'<span class="sl-est">Estimate</span>':""}</div><input id="slV-${it.id}" type="text" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" data-act="value" value="${esc(full(it.value))}"${ro}></div>`}
 /* a deal on his plate (by-date view): what's needed from him, chase, value */
+/* v5.3 (Karen, 5 Nov): one person with several offers (e.g. "Vishen Lakhiani · Content" and "· Podcast growth") is one deal per offer, not a duplicate */
+const offKey=s=>String(s||"").split(" · ")[0].trim().toLowerCase();
+function offersH(p){if(!String(p.name||"").includes(" · "))return "";const k=offKey(p.name);const n=(S.sp||[]).filter(r=>offKey(r[SP.deal])===k&&spStage(r[SP.stage])!=="Pre-qual").length;return n>1?`<span class="sl-kchip" title="Same person: one deal per offer">${n} offers</span>`:""}
 function spCardH(p){
   const ro=S.ro?" readonly":"";
   return `<article class="sl-card ${p.done?"done":p.due}" data-id="${p.id}" data-kind="sp">
   <div class="sl-ch"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted">
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp">${esc(p.name)}</button><div class="sl-co">${esc([p.co,stL(p.stage)].filter(Boolean).join(" · "))}</div></div>
     <button type="button" class="sl-exp" data-act="opensp" aria-label="Open details for ${esc(p.name)}">${svg(EXP)}</button></div>
-  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
+  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}${offersH(p)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
   <div class="sl-box">
     <div><div class="sl-lbl"><label for="slN-${p.id}">What's needed from you</label><span>${p.lastC?"Last contact "+esc(short(p.lastC)):""}</span></div><textarea id="slN-${p.id}" rows="1" data-act="needed" placeholder="What do you need to do?"${ro}>${esc(p.needed)}</textarea></div>
     ${valRow(p)}
@@ -312,7 +317,7 @@ function spKcardH(p,D,showOwner){
   return `<article class="sl-card sl-kc ${p.done?"done":p.due}" data-id="${p.id}" data-kind="sp" draggable="${S.ro?"false":"true"}">
   <div class="sl-ch"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted" style="width:18px;height:18px">
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${(()=>{const sub=[p.co,showOwner&&p.owner?p.owner:""].filter(Boolean).join(" · ");return sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""})()}</div></div>
-  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
+  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}${offersH(p)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
   <div class="sl-box"><div><span class="sl-cl"><b class="pm">Needed from you</b> ${esc(p.needed||"–")}</span></div>${p.value?`<div class="sl-kv"><b class="pm">Value</b><b>${esc(full(p.value))}/mo${p.est?' <span class="sl-est">Est.</span>':""}</b></div>`:""}</div>
   </article>`;
 }
@@ -346,7 +351,7 @@ function rail(D,plate){
   const item=(k,t,n,icon)=>`<button type="button" class="sl-ri" data-act="view" data-v="${esc(k)}" aria-current="${S.view===k?"page":"false"}">${icon?svg(icon,15):`<i class="sl-dot" style="background:var(--grey-line)"></i>`}<span>${esc(t)}</span>${n!=null?`<small>${n}</small>`:""}</button>`;
   const bi=k=>item(k,BK[k].title,activeCount(BK[k],D));
   const openDeals=spOpen(D).length;
-  return `<nav class="sl-rail" aria-label="Sales sections">${item("mine","My Board",plate.length,"M3 3v18h18M7 15l4-4 3 3 5-6")}<div class="sl-rl">Pipelines</div>${item("sales","Sales Pipeline",openDeals)}${bi("jade")}${item("guests","Podcast Guests",S.noG?null:deriveG().filter(gActive).length)}${bi("prequal")}${bi("upwork")}${bi("upsell")}<div class="sl-rl sl-rsep" aria-hidden="true"></div>${item("contacts","Leads",S.contacts.length,PEOPLE_I)}</nav>`;
+  return `<nav class="sl-rail" aria-label="Sales sections">${item("mine","My Board",plate.length,"M3 3v18h18M7 15l4-4 3 3 5-6")}<div class="sl-rl">Pipelines</div>${item("sales","Sales Pipeline",openDeals)}${bi("jade")}${item("guests","Podcast Guests",S.noG?null:deriveG().filter(gProg).length)}${bi("prequal")}${bi("upwork")}${bi("upsell")}<div class="sl-rl sl-rsep" aria-hidden="true"></div>${item("contacts","Leads",S.contacts.length,PEOPLE_I)}</nav>`;
 }
 const kpiH=(lab,val,col)=>`<div class="sl-kpi"><span>${lab}</span><b style="color:${col||"var(--ink)"}">${val}</b></div>`;
 /* the Sales pipeline columns, shared by My Board (his plate only) and the Sales Pipeline (every deal, every owner) */
@@ -502,7 +507,7 @@ function guestsH(){
     const inner=(shown.map(gcardH).join("")||'<div class="sl-empty">Nobody here</div>')+(cs.length>shown.length?`<button type="button" class="sl-inadd sl-more" data-act="gall" data-stage="${esc(st)}">Show all ${cs.length}</button>`:"");
     return colH("guests",stages,st,cs.length,inner,"","",st?gLabel(st):"No stage")}).join("");
   const note=S.gLoading?`<div class="sl-msg" style="margin-bottom:12px">Loading the podcast guests…</div>`:S.noG?`<div class="sl-msg" style="margin-bottom:12px">Couldn't load the podcast guests. Press Refresh to try again.</div>`:"";
-  return `<div class="sl-ftop"><div class="sl-tt"><h2>Podcast Guests</h2>${healthPill("guests")}</div><span class="pm">View only · ReLearn Operating System</span></div>
+  return `<div class="sl-ftop"><div class="sl-tt"><h2>Podcast Guests</h2>${healthPill("guests")}</div><span class="pm">View only · ReLearn Operating System</span></div>${S.gLoading||S.noG?"":`<p class="sl-goal"><b>${gs.filter(gProg).length}</b> in progress (In conversation to Recording booked) · ${gs.length.toLocaleString("en-GB")} guests in total, including researched and outreach sent.</p>`}
     <p class="sl-goal">Every guest from first research to a released episode. Click a guest to see their details. Changes are made in Airtable for now.</p>${note}${toolsH()}
     <div class="sl-board">${cols}</div>
     <p class="sl-foot">Long columns show the ${GUEST_CAP} most recently contacted first; press "Show all" for the rest. ${FOLD_FOOT}</p>`;
