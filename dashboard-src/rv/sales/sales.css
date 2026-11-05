@@ -339,4 +339,9 @@ i.sl-pie-c1{background:var(--pie1)}i.sl-pie-c2{background:var(--pie2)}i.sl-pie-c
 .sl-fv a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
 a.sl-ghost{text-decoration:none}
 .sl-rsep{min-height:1px}
+/* v5.2: one place per person (rule note, Pre-qual tile on the Sales Pipeline) */
+.sl-rule{font-size:12.5px;color:var(--ink);margin:-8px 0 14px;padding:6px 10px;border-left:3px solid var(--grey-line);background:var(--soft);border-radius:0 6px 6px 0;line-height:1.4}
+.sl-pqtile{background:var(--panel);border:1px dashed var(--grey-line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.sl-pqt{margin:0;font-size:13.5px;line-height:1.35;color:var(--ink)}.sl-pqt b{font-size:16px}
+.sl-pqtile .sl-pqn{color:var(--muted);line-height:1.4}
 </style>
