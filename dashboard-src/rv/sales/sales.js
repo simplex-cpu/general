@@ -138,6 +138,9 @@ async function load(force){
       const res=await fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store"});if(!res.ok)throw new Error("sales feed "+res.status);
       const j=await res.json();const n=a=>(a||[]).map(r=>Object.assign({_id:r.id},r.fields||{}));
       Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),pipelines:n(j.pipelines),guests:n(j.guests),guestTeam:n(j.guestTeam),noSp:!j.salesPipeline,noPl:!j.pipelines,noG:!j.guests,fetchedAt:j.fetchedAt||"",loaded:true});
+      /* v5.1: the 1,181 podcast guests come in a second, background request (header X-Sales-Part: guests), so the tab opens without waiting for them */
+      if(!j.guests){S.gLoading=true;S.noG=false;fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store",headers:{"X-Sales-Part":"guests"}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+        .then(g=>{S.guests=n(g.guests);S.guestTeam=n(g.guestTeam);S.noG=!g.guests;S.gLoading=false;render()}).catch(()=>{S.gLoading=false;S.noG=true;render()})}
     }else{
       const opt=p=>p.catch(()=>[]);
       /* the three v5 tables are optional: if one fails the tab still loads, with that part empty */
@@ -458,7 +461,7 @@ function guestsH(){
     const shown=S.gAll[st]?cs:cs.slice(0,GUEST_CAP);
     const inner=(shown.map(gcardH).join("")||'<div class="sl-empty">Nobody here</div>')+(cs.length>shown.length?`<button type="button" class="sl-inadd sl-more" data-act="gall" data-stage="${esc(st)}">Show all ${cs.length}</button>`:"");
     return colH("guests",stages,st,cs.length,inner,"","",st?gLabel(st):"No stage")}).join("");
-  const note=S.noG?`<div class="sl-msg" style="margin-bottom:12px">The guests list isn't in this link's data feed yet.</div>`:"";
+  const note=S.gLoading?`<div class="sl-msg" style="margin-bottom:12px">Loading the podcast guests…</div>`:S.noG?`<div class="sl-msg" style="margin-bottom:12px">Couldn't load the podcast guests. Press Refresh to try again.</div>`:"";
   return `<div class="sl-ftop"><div class="sl-tt"><h2>Podcast Guests Pipeline</h2>${healthPill("guests")}</div><span class="pm">View only · ReLearn Operating System</span></div>
     <p class="sl-goal">Every guest from first research to a released episode. Click a guest to see their details. Changes are made in Airtable for now.</p>${note}${toolsH()}
     <div class="sl-board">${cols}</div>
