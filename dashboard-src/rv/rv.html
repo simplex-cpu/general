@@ -1,0 +1,43 @@
+
+  <div id="v-risevoice" hidden>
+    <div id="rvGate" hidden></div>
+    <div id="rvBody" hidden>
+
+    <section id="rv-overview">
+      <div class="sh"><h2>Rise Voice overview</h2><span class="r" id="rvMeta"></span></div>
+      <div class="kpis six" id="rvKpis"></div>
+      <div class="askrow"><button class="ask" type="button" id="rvAskOpen"><span>✦</span><span><b>Ask about Rise Voice</b><small>Ask your assistant · brief and follow-up questions</small></span><span class="arr">→</span></button></div>
+      <div class="rvtwo">
+        <div><div class="sh"><h3>PNL Overview</h3><span class="r">Last 6 months · Revenue tracker</span></div><div class="chart" id="rvChartBox"></div></div>
+        <div><div class="sh"><h3>Late invoices</h3><span class="r" id="rvInvMeta"></span></div><div id="rvInv"></div></div>
+      </div>
+    </section>
+
+
+    <section id="rv-results">
+      <div class="sh"><h2>Client results</h2><span class="r">Each client against every other client</span></div>
+      <div class="pickrow"><span class="blink" id="rvBlink" aria-hidden="true"></span><label for="rvPick" class="pickmeta" style="position:absolute;left:-9999px">Client</label><select id="rvPick" class="picker"></select><span class="pickmeta" id="rvPickMeta"></span></div>
+      <div class="key3" id="rvKey3"></div>
+      <div class="five" id="rvFive"></div>
+      <div class="rvtwo even" style="margin-bottom:6px">
+        <div><div class="sh"><h3>Average views per post</h3><span class="r">By month · log scale</span></div><div class="chart" id="rvCmpV"></div></div>
+        <div><div class="sh"><h3>Average comments per post</h3><span class="r">By month · log scale</span></div><div class="chart" id="rvCmpC"></div></div>
+      </div>
+      <p class="pm" id="rvCmpNote" style="margin:0 2px 16px"></p>
+      <div class="sh"><h3>All clients</h3><span class="r" id="rvTblMeta"></span></div>
+      <div class="tblctl" id="rvTblCtl"></div>
+      <div class="tbl"><table id="rvTbl"></table></div>
+    </section>
+
+
+
+    </div>
+  </div>
+
+  <div id="v-pm" hidden>
+    <section id="pm">
+      <div class="sh"><h2>Project Management</h2><span class="r" id="pmMeta"></span></div>
+      <div class="pmbar" id="pmBar"></div>
+      <div id="pmBody"><p class="pm">Loading tasks…</p></div>
+    </section>
+  </div>
