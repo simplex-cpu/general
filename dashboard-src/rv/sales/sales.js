@@ -37,8 +37,8 @@ const SP_WON="Won – Handover to Ops",SP_LOST="Lost / No reply",SP_NEW="Lead in
 const PLATE=new Set(["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
 /* v5.2 (Karen, 5 Nov): the only origin / source names shown anywhere (Kash's funnel list from the 4 Nov ops meeting + the Pre-qual origins).
    Old values still in Airtable are shown (and written) as their standard name. */
-const ORIGINS=["Podcast guest","Kash brand community","ReLearn community leads","Events","Referrals","Episode keyword","Network","IG organic","Upwork","Upsells","Other"];
-const ORIG_MAP={"Podcast":"Podcast guest","Podcast guest":"Podcast guest","Referral":"Referrals","Referral / direct":"Referrals","Upsell":"Upsells","Old client":"Upsells","Personal Instagram":"IG organic","Instagram":"IG organic","Kash in person":"Network","In person":"Network","Event":"Events","Episode request":"Episode keyword","Old funnels / GHL":"Kash brand community","LinkedIn":"Other","AI consulting":"Other","Rise Voice":"Other","Tool":"Other"};
+const ORIGINS=["Podcast guest","Kash brand community","ReLearn community leads","Events","Referrals","Episode keyword","Network","IG organic","Upwork","Upsells","Old funnels / GHL","Other"];
+const ORIG_MAP={"Podcast":"Podcast guest","Podcast guest":"Podcast guest","Referral":"Referrals","Referral / direct":"Referrals","Upsell":"Upsells","Old client":"Upsells","Personal Instagram":"IG organic","Instagram":"IG organic","Kash in person":"Network","In person":"Network","Event":"Events","Episode request":"Episode keyword","Old funnels / GHL":"Old funnels / GHL","Old funnels/GHL":"Old funnels / GHL","GHL":"Old funnels / GHL","LinkedIn":"Other","AI consulting":"Other","Rise Voice":"Other","Tool":"Other"};
 const ORIG_LC={};ORIGINS.forEach(o=>ORIG_LC[o.toLowerCase()]=o);Object.keys(ORIG_MAP).forEach(k=>ORIG_LC[k.toLowerCase()]=ORIG_MAP[k]);
 /* standard origin for any old or new value; "" when blank (the caller picks "No source" or "Other") */
 const stdO=v=>{const s=String(sv(v)||"").replace(/^[^A-Za-z]+/,"").trim();return s?(ORIG_LC[s.toLowerCase()]||"Other"):""};
