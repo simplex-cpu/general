@@ -7,7 +7,7 @@
 .sl-ghost{all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--sl-ind,#4338CA);border:1.5px solid var(--sl-ind,#4338CA);background:var(--panel);border-radius:8px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;min-height:24px}
 .sl-ghost:focus-visible,.sl-solid:focus-visible{outline:2px solid #4338CA;outline-offset:2px}
 .sl-solid{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:13.5px;font-weight:600;color:#fff;background:#4338CA;border:1.5px solid #4338CA;border-radius:8px;padding:8px 16px}
-.sl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px;margin:14px 0 16px}
+.sl-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,128px),1fr));gap:12px;margin:14px 0 16px}
 .sl-kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
 .sl-kpi span{display:block;font-size:12.5px;color:var(--muted);font-weight:500}
 .sl-kpi b{display:block;font-size:22px;font-weight:700;line-height:1.3}
@@ -252,7 +252,7 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 .st-s0{--stb:#D9DCE2;--std:#4B5263}.st-s1{--stb:#E7E9ED;--std:#7C838E}.st-s2{--stb:#F9E7C2;--std:#B7791F}.st-s3{--stb:#F4EBB5;--std:#A18300}.st-s4{--stb:#E4EFC6;--std:#5E8C1F}.st-s5{--stb:#D3ECD9;--std:#2B8A4B}.st-won{--stb:#B9E2C6;--std:#11602F}.st-out{--stb:#F0F1F3;--std:#A3A9B3}.st-lost{--stb:#F6D5D2;--std:#B42B2B}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .st-s0{--stb:#353A43;--std:#A6ADB9}:root:not([data-theme="light"]) .st-s1{--stb:#2B2F36;--std:#7E8591}:root:not([data-theme="light"]) .st-s2{--stb:#3D3119;--std:#E5AC4E}:root:not([data-theme="light"]) .st-s3{--stb:#39361A;--std:#D9C65A}:root:not([data-theme="light"]) .st-s4{--stb:#2D3A1C;--std:#A9CB6B}:root:not([data-theme="light"]) .st-s5{--stb:#1E3A28;--std:#6FD39A}:root:not([data-theme="light"]) .st-won{--stb:#174A2E;--std:#86E3AE}:root:not([data-theme="light"]) .st-out{--stb:#23262C;--std:#5E646F}:root:not([data-theme="light"]) .st-lost{--stb:#45201E;--std:#FF8A80}}
 :root[data-theme="dark"] .st-s0{--stb:#353A43;--std:#A6ADB9}:root[data-theme="dark"] .st-s1{--stb:#2B2F36;--std:#7E8591}:root[data-theme="dark"] .st-s2{--stb:#3D3119;--std:#E5AC4E}:root[data-theme="dark"] .st-s3{--stb:#39361A;--std:#D9C65A}:root[data-theme="dark"] .st-s4{--stb:#2D3A1C;--std:#A9CB6B}:root[data-theme="dark"] .st-s5{--stb:#1E3A28;--std:#6FD39A}:root[data-theme="dark"] .st-won{--stb:#174A2E;--std:#86E3AE}:root[data-theme="dark"] .st-out{--stb:#23262C;--std:#5E646F}:root[data-theme="dark"] .st-lost{--stb:#45201E;--std:#FF8A80}
-.stx{background:var(--stb)!important}.stx .sl-dot{background:var(--std)!important}
+.stx{background-color:var(--stb)!important}.stx .sl-dot{background:var(--std)!important}
 .sl-colh .t .r{display:inline-flex;align-items:center;gap:4px}
 .sl-ccol{all:unset;box-sizing:border-box;cursor:pointer;width:26px;height:26px;margin:-4px -6px -4px 0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;color:var(--ink);opacity:.7}
 .sl-ccol:hover{opacity:1;background:rgba(127,127,127,.16)}.sl-ccol:focus-visible,.sl-cexp:focus-visible{outline:2px solid #4338CA;outline-offset:1px;opacity:1}
@@ -281,8 +281,13 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 /* v5 (Karen, 5 Nov): deal window: wider so the 5 facts stay on one row, more space between sections, red "What's needed", plain Notes, title opens the contact */
 .sl-dlg.sl-dlg-sp{max-width:900px}
 .sl-dlg-sp .sl-db{gap:28px;padding:28px 32px}
-.sl-dlg-sp .sl-facts{grid-template-columns:repeat(5,minmax(0,1fr))}
-@media (max-width:760px){.sl-dlg-sp .sl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.sl-dlg-sp .sl-db{padding:20px;gap:22px}}
+/* v5.4: the Podcast Leads and Pre-qual windows (sl-dlg-w) share the deal window's width and spacing; each fact row is weighted so the longest option fits */
+.sl-dlg.sl-dlg-w{max-width:900px}
+.sl-dlg-w .sl-db{gap:28px;padding:28px 32px}
+.sl-dlg-sp .sl-facts{grid-template-columns:minmax(0,1.5fr) minmax(0,1.7fr) minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr)}
+.sl-facts.sl-facts-j{grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.1fr)}
+.sl-facts.sl-facts-pq{grid-template-columns:minmax(0,1.3fr) minmax(0,1.7fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr)}
+@media (max-width:760px){.sl-dlg-sp .sl-facts,.sl-dlg-w .sl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.sl-dlg-sp .sl-db,.sl-dlg-w .sl-db{padding:20px;gap:22px}}
 .sl-dlg-sp .sl-need h3,:root .sl-dlg-sp .sl-need h3{color:#C62828}
 .sl-dlg-sp .sl-hap{background:transparent}
 .sl-ttl{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border-radius:8px}
@@ -292,13 +297,15 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-dlg-sp .sl-need h3{color:#FF8A80}}:root[data-theme="dark"] .sl-dlg-sp .sl-need h3{color:#FF8A80}
 /* v5 (Karen, 5 Nov): My Board summary (Pipelines at a glance + Leads by source), Leads table, Podcast Guests, Pre-qual */
 .sl-glance{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);gap:14px;align-items:stretch}
-@media (max-width:1000px){.sl-glance{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1260px){.sl-glance{grid-template-columns:minmax(0,1fr)}}
 .sl-glance>.sl-panel{min-width:0}
 .sl-glance .sl-ht{margin-top:10px}
 .sl-pt{width:100%;border-collapse:collapse;font-size:13.5px}
 .sl-pt th,.sl-pt td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--soft)}
 .sl-pt thead th{font-size:12px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}
-.sl-pt tbody th{font-weight:600}
+.sl-pt tbody th{font-weight:600;font-size:13.5px;color:var(--ink);white-space:normal}
+.sl-pt td{white-space:normal}
+.sl-glance .sl-pt tbody th{white-space:nowrap}
 .sl-pt tbody tr:last-child>*{border-bottom:0}
 .sl-glance .sl-pt{min-width:620px}
 .sl-glance .sl-pt td{color:var(--ink);white-space:pre-line}
@@ -353,4 +360,75 @@ a.sl-ghost{text-decoration:none}
 .sl-cted input,.sl-cted select,.sl-cted textarea{width:100%;box-sizing:border-box;margin-top:4px;padding:6px 8px;border:1px solid var(--grey-line);border-radius:6px;background:var(--panel);font:inherit;font-size:14px;font-weight:500;color:var(--ink);resize:vertical}
 .sl-cted input:focus-visible,.sl-cted select:focus-visible,.sl-cted textarea:focus-visible{outline:2px solid #4338CA;outline-offset:1px}
 @media (max-width:560px){.sl-cted input,.sl-cted select,.sl-cted textarea{font-size:16px}}
+/* v5.4 (QA, 5 Nov): one consistent finish: headers, chips, fields, dropdown arrows, tables, phone tap targets */
+/* board column headers: the count and fold arrow never shrink; a wrapped title keeps dot, count and arrow on its first line; JS gives the headers on one board one height */
+.sl-colh{box-sizing:border-box}
+.sl-colh .t{align-items:flex-start}
+.sl-colh .t>span:first-child{align-items:flex-start}
+.sl-colh .t .sl-dot{margin-top:6px}
+.sl-colh .t .r{flex:none;margin-top:1px}
+.sl-ccol{flex:none}
+.sl-spb .sl-col{flex:1 0 212px}
+/* long links and emails in card notes wrap instead of stretching the column */
+.sl-col{min-width:0}
+.sl-kc .sl-cl,.sl-kc .sl-co{overflow-wrap:anywhere}
+.sl-kv>b:last-child{text-align:right}.sl-kv .sl-est{white-space:nowrap}
+/* every chip in a row is the same height */
+.sl-tag,.sl-otag{border:1px solid transparent}
+.sl-kchip{border-width:1px}
+/* room for the round + button under the last line */
+#v-sales .sl-main{padding-bottom:96px}
+/* mouse and trackpad: the board scrolls inside the window, so its sideways scrollbar is always in reach; headers stay on top */
+@media (pointer:fine){#v-sales .sl-board{max-height:calc(100vh - 120px);overflow:auto}#v-sales .sl-board>.sl-col:not(.sl-colc){min-height:max-content}#v-sales .sl-board .sl-colh{position:sticky;top:0;z-index:2}}
+/* buttons keep their label on one line; button rows wrap instead */
+.sl-ghost,.sl-solid{white-space:nowrap}
+.sl-fbtns{flex-wrap:wrap;row-gap:10px}
+/* fact rows: same control height, control sits on the bottom line even when a label wraps */
+.sl-fact{display:flex;flex-direction:column}
+.sl-fact>label,.sl-fact>.l{margin-bottom:2px}
+.sl-facts:not(.sl-cted) .sl-fact input,.sl-facts:not(.sl-cted) .sl-fact select{height:28px;line-height:20px;font-size:13.5px}
+.sl-facts:not(.sl-cted)>.sl-fact>input,.sl-facts:not(.sl-cted)>.sl-fact>select{margin-top:auto}
+.sl-fact .sl-fv{font-size:13.5px;line-height:20px;padding:3px 0 5px;margin-top:2px}
+.sl-dlg-sp .sl-fact>.sl-fv,.sl-dlg-w .sl-fact>.sl-fv{margin-top:auto}
+/* one dropdown arrow everywhere, with the same inner padding as the text */
+#v-sales select,#slModal select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-size:14px 14px;background-position:right 10px center;padding-right:32px}
+#slModal .sl-facts:not(.sl-cted) .sl-fact select{background-size:12px 12px;background-position:right 0 center;padding-right:16px}
+#v-sales select[disabled],#slModal select[disabled]{background-image:none}
+#v-sales .sl-hsel[disabled]{padding-right:8px}
+#slModal .sl-facts:not(.sl-cted) .sl-fact select[disabled]{padding-right:0}
+/* dark mode: form fields sit on the dark page colour, not a white block */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) :is(.sl-addc,.sl-form) :is(input,select,textarea){background-color:var(--bg)}}
+:root[data-theme="dark"] :is(.sl-addc,.sl-form) :is(input,select,textarea){background-color:var(--bg)}
+/* deal window title: the name is the heading, not muted */
+.sl-dh h2 .sl-ttl>span:not(.ar){color:var(--ink);font-weight:700}
+.sl-cted input,.sl-cted select{height:36px}
+/* Leads table: names and companies wrap so every column fits */
+.sl-ctab td:nth-child(2){min-width:160px;max-width:300px}
+.sl-ctab td:nth-child(3){white-space:nowrap}
+.sl-ctab td.sl-wb{min-width:170px}
+/* Pipelines at a glance: the Health dropdown lines up with the first line of the other cells */
+.sl-glance .sl-pt td:has(.sl-hsel){padding-top:1px;padding-bottom:1px}
+/* rail: the 7px dot fills the same 15px slot as the icons, so labels line up */
+.sl-ri>.sl-dot{margin:0 4px}
+/* panel titles side by side sit at the same height (the Hide button no longer pushes its title down) */
+.sl-boxh>.sl-ghost{margin:-8px 0}
+/* Leads filter matches the name search above it */
+.sl-pfil input,.sl-pfil select{min-height:36px}
+.sl-pfil input{padding-left:34px;background:var(--panel) no-repeat 11px 50%/15px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238A94A6' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")}
+#slQr{z-index:66}
+@media (max-width:560px){.sl-addc select{flex:1 1 100%}}
+/* touch screens: no sticky hover; 40px tap targets without changing the layout */
+@media (hover:none){.sl-ri:hover{background:transparent}.sl-ri[aria-current="page"]{background:var(--sl-rail-on)}}
+.sl-cbx{flex:none;display:inline-flex;cursor:pointer}
+@media (pointer:coarse){
+.sl-kc .sl-name{display:inline-block;padding:10px 0;margin:-10px 0}
+.sl-ccol{width:40px;height:40px;margin:-11px -13px -11px -7px}
+.sl-cbx{width:40px;height:40px;margin:-11px;align-items:center;justify-content:center}
+.sl-cbx input[type=checkbox]{margin:0}
+.sl-facts:not(.sl-cted) .sl-fact input,.sl-facts:not(.sl-cted) .sl-fact select{height:36px;padding:6px 0}
+.sl-ghost,.sl-solid,.sl-inadd,.sl-srch input,.sl-inform input,.sl-inform select,.sl-hsel,.sl-chip,.sl-seg button{min-height:40px;box-sizing:border-box}
+.sl-seg button{display:inline-flex;align-items:center}
+.sl-x{width:40px;height:40px}
+.sl-cted input,.sl-cted select{height:40px}
+}
 </style>
