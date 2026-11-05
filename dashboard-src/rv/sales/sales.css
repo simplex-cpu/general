@@ -279,3 +279,15 @@ button.sl-qi:focus-visible{outline:2px solid #4338CA;outline-offset:-2px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-svc{border-color:#4F46E5;color:#C7D2FE}}
 :root[data-theme="dark"] .sl-svc{border-color:#4F46E5;color:#C7D2FE}
 </style>
+/* v5 (Karen, 5 Nov): deal window: wider so the 5 facts stay on one row, more space between sections, red "What's needed", plain Notes, title opens the contact */
+.sl-dlg.sl-dlg-sp{max-width:900px}
+.sl-dlg-sp .sl-db{gap:28px;padding:28px 32px}
+.sl-dlg-sp .sl-facts{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:760px){.sl-dlg-sp .sl-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.sl-dlg-sp .sl-db{padding:20px;gap:22px}}
+.sl-dlg-sp .sl-need h3,:root .sl-dlg-sp .sl-need h3{color:#C62828}
+.sl-dlg-sp .sl-hap{background:transparent}
+.sl-ttl{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;border-radius:8px}
+.sl-ttl span{text-decoration:underline;text-decoration-color:transparent;text-underline-offset:4px}
+.sl-ttl:hover span{text-decoration-color:currentColor}.sl-ttl .ar{color:var(--muted)}
+.sl-ttl:focus-visible{outline:2px solid #4338CA;outline-offset:3px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-dlg-sp .sl-need h3{color:#FF8A80}}:root[data-theme="dark"] .sl-dlg-sp .sl-need h3{color:#FF8A80}

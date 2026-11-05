@@ -432,7 +432,7 @@ function spModalH(p,D,people){
     <section><p class="sl-sub">Conversations</p>
       ${S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label><select id="slSc">${CHANNELS.map(x=>`<option>${x}</option>`).join("")}</select><label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${p.id}">${svg(PLUS)}Add</button></div>`}
       <div class="sl-tl">${tl||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
-    <div class="sl-fbtns" style="justify-content:space-between;align-items:center"><span class="pm">Last contact: ${esc(agoL(p.lastC))}</span>${per?`<button type="button" class="sl-ghost" data-act="opent" data-id="${esc(per.id)}">See contact</button>`:""}</div>
+    <div class="sl-fbtns" style="justify-content:flex-start;align-items:center"><span class="pm">Last contact: ${esc(agoL(p.lastC))}</span></div>
   </div></div></div>`;
 }
 function ctModalH(people){
