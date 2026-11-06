@@ -33,7 +33,13 @@ const SP_STAGES=["Pre-qual","Lead in","In conversation","Audit booked","Audit he
 const SP_OLD={"Potential":"Lead in","To contact":"Lead in","Follow-up":"In conversation","Discovery call":"Audit booked","Handover to Ops":"Won – Handover to Ops","Closed":"Won – Handover to Ops","Lost":"Lost / No reply","No reply":"Lost / No reply"};
 /* a deal's stage as shown and counted (old or new Airtable value); blank = Pre-qual */
 const spStage=v=>{const s=String(sv(v)||"").trim();return s?(SP_OLD[s]||s):"Pre-qual"};
-const SP_WON="Won – Handover to Ops",SP_LOST="Lost / No reply",SP_NEW="Lead in";
+/* v7 (Kash + Karen call, 6 Nov): Kash's Sales tab is ONE sales pipeline. It starts when a call is booked (Audit booked): nothing before
+   that shows (Pre-qual, Lead in and In conversation stay with the teams, for the lead-gen section to come). No side menu of team
+   pipelines, no Group by: the stages, and the source of each deal as the tag on its card. SALES_ONLY=false brings the team boards back. */
+const SALES_ONLY=true;
+const SP_WON="Won – Handover to Ops",SP_LOST="Lost / No reply",SP_NEW=SALES_ONLY?"Audit booked":"Lead in";
+const SALES_STAGES=["Audit booked","Audit held","Proposal sent","Follow-up call",SP_WON,SP_LOST];
+const SALES_SET=new Set(SALES_STAGES);
 const PLATE=new Set(["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
 /* v5.2 (Karen, 5 Nov): the only origin / source names shown anywhere (Kash's funnel list from the 4 Nov ops meeting + the Pre-qual origins).
    Old values still in Airtable are shown (and written) as their standard name. */
@@ -328,7 +334,7 @@ function deriveSP(){
   });
 }
 function derive(){
-  const J=deriveJ(),K=deriveCL(),P=deriveSP();
+  const J=SALES_ONLY?[]:deriveJ(),K=SALES_ONLY?[]:deriveCL(),P=SALES_ONLY?deriveSP().filter(p=>SALES_SET.has(p.stage)):deriveSP();
   const spOf={};P.forEach(p=>{if(p.jadeId)spOf[p.jadeId]=spOf[p.jadeId]||p;if(p.rvId&&!p.rvUl)spOf[p.rvId]=spOf[p.rvId]||p});
   return {J,K,P,spOf,all:J.concat(K,P)};
 }
@@ -609,6 +615,14 @@ function spH(D){
 /* SALES PIPELINE: every deal, every owner, every stage (Pre-qual folded by default, as on his board before) */
 function salesH(D){
   const open=spOpen(D);
+  if(SALES_ONLY){
+    const n=st=>D.P.filter(p=>p.stage===st).length;
+    const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Audits booked",n("Audit booked"))}${kpiH("Proposals out",n("Proposal sent")+n("Follow-up call"))}${kpiH("Won",n(SP_WON))}</div>`;
+    const nt=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
+    return `<div class="sl-ftop"><div class="sl-tt"><h2>Sales Pipeline</h2>${healthPill("sales")}</div><span class="pm">Owner: Kash · ReLearn · ${open.length} open ${open.length===1?"deal":"deals"}</span></div>
+    <p class="sl-goal">Everyone with a call booked, from the audit to won or lost. The tag on each card shows where they came from.</p>${nt}${kpis}${toolsH()}
+    <div class="sl-board sl-spb">${spColsH(D,SALES_STAGES,true)}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it. "}${FOLD_FOOT}</p>`;
+  }
   const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Still with the teams",D.P.filter(p=>p.pre).length)}${kpiH("Audits booked",D.P.filter(p=>p.stage==="Audit booked").length)}${kpiH("Won",D.P.filter(p=>p.stage===SP_WON).length)}</div>`;
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
   const grp=grpOf("sales"),bySrc=grp==="source";
@@ -851,7 +865,7 @@ function spModalH(p,D,people){
     <div class="sl-tabsr"><div class="sl-tabs" role="tablist" aria-label="${esc("Offers for "+who)}">${tabs}</div>${add}</div>
     <div class="sl-offa" id="slOffP" role="tabpanel" aria-labelledby="slTab-${esc(p.id)}">
     <div class="sl-facts sl-ofacts">
-      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:p.stage,opts:(SP_STAGES.includes(p.stage)?SP_STAGES:SP_STAGES.concat([p.stage])).map(s=>[s,stL(s)]),name:"Stage",act:"spstage",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:p.stage,opts:((L=>L.includes(p.stage)?L:L.concat([p.stage]))(SALES_ONLY?SALES_STAGES:SP_STAGES)).map(s=>[s,stL(s)]),name:"Stage",act:"spstage",dis:S.ro})}</div>
       <div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:p.offer,opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>
       <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
       <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",p.chase)}</div>
@@ -972,9 +986,9 @@ function gModalH(){
 /* name search in the header: people, with where they are (and podcast guests) */
 function searchHits(q){
   q=norm(q);if(q.length<2)return [];
-  return peopleOf(derive()).filter(p=>norm(p.name).includes(q)||norm(p.co).includes(q)).slice(0,10);
+  return peopleOf(derive()).filter(p=>(!SALES_ONLY||p.items.some(i=>i.kind==="sp"))&&(norm(p.name).includes(q)||norm(p.co).includes(q))).slice(0,10);
 }
-function guestHits(q){q=norm(q);if(q.length<2)return [];return deriveG().filter(g=>norm(g.name).includes(q)).slice(0,5)}
+function guestHits(q){q=norm(q);if(q.length<2||SALES_ONLY)return [];return deriveG().filter(g=>norm(g.name).includes(q)).slice(0,5)}
 function renderSearch(){
   const box=el("slQr");if(!box)return;const q=(el("slQ")||{}).value||"";
   if(norm(q).length<2){box.hidden=true;box.innerHTML="";return}
@@ -1001,8 +1015,8 @@ function dropH(){
     <div class="sl-dh"><div><h2 id="slDh" style="font-size:19px">${d.items?"Check before saving":"Drop a note"}</h2>${d.items?'<div class="sl-co">Change anything that\'s wrong, then save.</div>':""}</div><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     ${body}</div></div></div>`;
 }
-const boardList=()=>[["sp","My sales pipeline"]].concat(BOARDS.map(x=>[x.key,"Team: "+x.title]));
-const stagesFor=k=>k==="sp"?SP_STAGES:(BK[k]||BK.jade).stages;
+const boardList=()=>SALES_ONLY?[["sp","Sales Pipeline"]]:[["sp","My sales pipeline"]].concat(BOARDS.map(x=>[x.key,"Team: "+x.title]));
+const stagesFor=k=>k==="sp"?(SALES_ONLY?SALES_STAGES.filter(x=>PLATE.has(x)):SP_STAGES):(BK[k]||BK.jade).stages;
 /* stage options: the value is the Airtable stage, the text is how it is shown; coloured like the board they go to */
 const stList=k=>stagesFor(k).map(s=>[s,stL(s)]);
 const stKind=k=>k==="sp"?"sp":"st:"+(BK[k]?k:"jade");
@@ -1028,13 +1042,13 @@ function propH(it,i){
     </div></div>`;
 }
 function addH(){
-  if(!S.adding)return "";const bk=BK[S.view]?S.view:"sp";
+  if(!S.adding)return "";const bk=!SALES_ONLY&&BK[S.view]?S.view:"sp";
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg narrow" role="dialog" aria-modal="true" aria-labelledby="slAh"><div class="sl-db">
    <div class="sl-dh"><h2 id="slAh" style="font-size:19px">New lead</h2><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
    <div class="sl-form">
     <label>Name<input id="slFn" placeholder="Full name"></label>
     <label>Company / what they do<input id="slFw" placeholder="e.g. Founder, DIRTEA"></label>
-    <div class="two"><label>Goes to${pkH({id:"slFf",k:"board",v:bk,opts:boardList(),name:"Goes to",act:"fboard",field:true})}</label>
+    <div class="two">${SALES_ONLY?`<input type="hidden" id="slFf" value="sp">`:`<label>Goes to${pkH({id:"slFf",k:"board",v:bk,opts:boardList(),name:"Goes to",act:"fboard",field:true})}</label>`}
       <label>Stage${pkH({id:"slFs",k:stKind(bk),v:stDef(bk),opts:stList(bk),name:"Stage",field:true})}</label>
       <label>Origin${pkH({id:"slFg",k:"origin",v:ORIGINS[0],opts:ORIGINS,name:"Origin",field:true})}</label>
       <label>Value / month<input id="slFv" inputmode="numeric" placeholder="$0"></label>
@@ -1052,12 +1066,13 @@ function render(){
   if(S.err){body.innerHTML=`<div class="sl-msg"><b>Couldn't load the sales data.</b><br><span class="pm">${S.ro?"The sales data feed for this link isn't available yet.":"Check that your Airtable connection is on and has access to ReLearn Commercials and Rise Voice, then press Refresh."}</span></div>`;el("slModal").innerHTML="";putSearch();return}
   if(!S.loaded){putSearch();return}
   const D=derive();const plate=D.P.filter(p=>p.plate);const people=peopleOf(D);
+  if(SALES_ONLY)S.view="sales";
   if(OLD_VIEW[S.view])S.view=OLD_VIEW[S.view];if(!VIEWS.has(S.view))S.view="mine";
   const fab=el("slFab");if(fab&&S.ro)fab.hidden=true;
   const note=S.ro?`<p class="pm" style="margin:-2px 0 12px">View only on this link${S.fetchedAt?" · data from "+esc(String(S.fetchedAt).slice(11,16))+" UTC":""}. Open the Claude copy to make changes.</p>`:"";
   const main=S.view==="mine"?spH(D):S.view==="sales"?salesH(D):S.view==="contacts"?contactsH(D,people):S.view==="guests"?guestsH():boardH(BK[S.view]||BK.jade,D);
   const bd0=body.querySelector(".sl-board"),bl=bd0?bd0.scrollLeft:0,bt=bd0?bd0.scrollTop:0,key=S.view+"|"+(S.grp[S.view]||""),sy=window.scrollY;const rl0=body.querySelector(".sl-rail"),rsl=rl0?rl0.scrollLeft:0;
-  body.innerHTML=note+`<div class="sl-layout">${rail(D,plate)}<div class="sl-main">${main}</div></div>`;putSearch();
+  body.innerHTML=note+(SALES_ONLY?`<div class="sl-layout sl-solo"><div class="sl-main">${main}</div></div>`:`<div class="sl-layout">${rail(D,plate)}<div class="sl-main">${main}</div></div>`);putSearch();
   const bd1=body.querySelector(".sl-board");if(bd1&&S.lastKey===key){bd1.scrollLeft=bl;bd1.scrollTop=bt}if(S.lastKey===key&&window.scrollY!==sy)window.scrollTo(0,sy);S.lastKey=key;
   railKeep(body,rsl);eqHeads(body);
   const rec=S.openCl?D.K.find(x=>x.id===S.openCl):null;const spr=S.openSp?D.P.find(x=>x.id===S.openSp):null;
@@ -1556,7 +1571,7 @@ async function setWonLost(won){
   const id=S.openSp;const r=recOf("sp",id);if(!r)return;const st=won?SP_WON:SP_LOST;if(spStage(r[SP.stage])===st)return;
   const pr=saveRec("sp",id,{[SP.stage]:st},false,true);const b=el(won?"slWon":"slLost");if(b)b.focus({preventScroll:true});
   if(await pr)toast(won?"Marked as won":"Marked as lost")}
-/* ＋ Add offer: a new Sales Pipeline deal for the same person at Lead in, with the current deal's owner, origin, company, From and contacts */
+/* ＋ Add offer: a new Sales Pipeline deal for the same person at SP_NEW (Audit booked in sales-only mode), with the current deal's owner, origin, company, From and contacts */
 async function addOffer(svc){
   const D=derive();const p=D.P.find(x=>x.id===S.openSp);if(!p||p.pre||S.ro||!SERVICES.includes(svc))return;
   const g=personGroup(p,D.P);const who=offWho(g)||p.name;const r=p.r;
