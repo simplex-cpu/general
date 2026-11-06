@@ -36,7 +36,11 @@ const SALES_ONLY=true;
 /* v8 (Karen, 6 Nov): Kash's board reads the "Kash board" field on each person's own record: Jade's Leads, Rise Voice Company Leads,
    and (for leads he adds himself) the Sales pipeline table. Airtable automations keep it in step with the team stages; this page only
    translates a team stage itself when "Kash board" is empty (safety net), with the same map as the automations. */
-const KB_STAGES=["Audit Booked","Audit Held","Proposal Sent","Follow-up","Won","Onboarded","Lost"];
+/* Karen, 6 Nov (evening): "In Conversation" (Kash talking to them, no audit yet) and "Send Proposal" (proposal to write and send) are his stages too.
+   The team's pre-sales status is "Follow-up Team" (it was "In Conversation"). */
+const KB_STAGES=["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up","Won","Onboarded","Lost"];
+/* Jade's Leads spells it "In Conversations": read as the same stage */
+const kbNorm=v=>{const s=sv(v)||"";return s==="In Conversations"?"In Conversation":s};
 const KBF={jade:"fldzKqgC2SQOyGndm",cl:"fld5YT1cAYB56QePD",sp:"fldG9pzFmtKIGXCx1"},CL_NEED="fldb5I0h67Oqpp6QZ";
 const SP_STAGES=SALES_ONLY?KB_STAGES:["Pre-qual","Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call","Won – Handover to Ops","Lost / No reply"];
 /* old Sales pipeline names -> current ones; not used on Kash's board, where "Follow-up" and "Lost" are real stages (kbRows translates) */
@@ -46,7 +50,7 @@ const spStage=v=>{const s=String(sv(v)||"").trim();return s?(SP_OLD[s]||s):"Pre-
 const SP_WON=SALES_ONLY?"Won":"Won – Handover to Ops",SP_LOST=SALES_ONLY?"Lost":"Lost / No reply",SP_NEW=SALES_ONLY?"Audit Booked":"Lead in";
 const SALES_STAGES=SALES_ONLY?KB_STAGES:["Audit booked","Audit held","Proposal sent","Follow-up call",SP_WON,SP_LOST];
 const SALES_SET=new Set(SALES_STAGES);
-const PLATE=new Set(SALES_ONLY?["Audit Booked","Audit Held","Proposal Sent","Follow-up"]:["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
+const PLATE=new Set(SALES_ONLY?["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up"]:["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
 /* v5.2 (Karen, 5 Nov): the only origin / source names shown anywhere (Kash's funnel list from the 4 Nov ops meeting + the Pre-qual origins).
    Old values still in Airtable are shown (and written) as their standard name. */
 const ORIGINS=["Podcast guest","Kash brand community","ReLearn community leads","Events","Referrals","Episode keyword","Network","IG organic","Upwork","Upsells","Old funnels / GHL","Other"];
@@ -350,14 +354,14 @@ function deriveSP(){
 /* the team stage -> Kash board translation, only used when "Kash board" is empty (the automations normally fill it) */
 /* Karen, 6 Nov: same rule as the automations. A team hand-over (or any later team stage) lands at Audit Booked and Kash moves it on;
    a team Lost before the hand-over stays with the team (Not a Fit). Once a lead shows one of Kash's stages only Kash moves it. */
-const KB_JADE={"10 – Lead in":"In Conversation","20 – Audit booked":"Audit Booked","30 – Audit held":"Audit Booked","40 – Growth plan sent":"Audit Booked","50 – Follow-up call":"Audit Booked","60 – Proposal":"Audit Booked","70 – Won":"Audit Booked","79 – Lost":"Not a Fit","80 – Re-approach (60–90 days)":"Not a Fit"};
-const KB_PQ={"New":"New","First Outreach":"Contacted","Pre-qual":"In Conversation","In Conversation":"In Conversation","Follow-up":"In Conversation","Email sequence":"Nurture Sequence","Podcast Pipeline":"Sent to Podcast","Sales Pipeline":"Audit Booked","No Reply":"No Reply","Archive":"Not a Fit"};
+const KB_JADE={"10 – Lead in":"Follow-up Team","20 – Audit booked":"Audit Booked","30 – Audit held":"Audit Booked","40 – Growth plan sent":"Audit Booked","50 – Follow-up call":"Audit Booked","60 – Proposal":"Audit Booked","70 – Won":"Audit Booked","79 – Lost":"Not a Fit","80 – Re-approach (60–90 days)":"Not a Fit"};
+const KB_PQ={"New":"New","First Outreach":"Contacted","Pre-qual":"Follow-up Team","In Conversation":"Follow-up Team","Follow-up":"Follow-up Team","Email sequence":"Nurture Sequence","Podcast Pipeline":"Sent to Podcast","Sales Pipeline":"Audit Booked","No Reply":"No Reply","Archive":"Not a Fit"};
 const KB_UW={"New":"New","Proposal Sent":"Contacted","Sales Pipeline":"Audit Booked","Won":"Audit Booked","No Reply":"No Reply","Lost":"Not a Fit","Not Applicable":"Not a Fit"};
-const KB_US={"New":"New","Build Proposal":"In Conversation","Send Proposal":"In Conversation","Proposal Sent":"In Conversation","Sales Pipeline":"Audit Booked","Won":"Audit Booked","Lost":"Not a Fit","Archive":"Not a Fit"};
-const KB_REF={"Contact info provided by client":"New","First outreach":"Contacted","Following up":"In Conversation","Call booked":"Audit Booked","Post call follow-up":"Audit Booked","Offer accepted (Closed)":"Audit Booked","Offer declined (Rejected)":"Not a Fit","No response (Rejected)":"No Reply","Sales Pipeline":"Audit Booked"};
+const KB_US={"New":"New","Build Proposal":"Follow-up Team","Send Proposal":"Follow-up Team","Proposal Sent":"Follow-up Team","Sales Pipeline":"Audit Booked","Won":"Audit Booked","Lost":"Not a Fit","Archive":"Not a Fit"};
+const KB_REF={"Contact info provided by client":"New","First outreach":"Contacted","Following up":"Follow-up Team","Call booked":"Audit Booked","Post call follow-up":"Audit Booked","Offer accepted (Closed)":"Audit Booked","Offer declined (Rejected)":"Not a Fit","No response (Rejected)":"No Reply","Sales Pipeline":"Audit Booked"};
 const KB_SIMPLE={"New":"New","Sales Pipeline":"Audit Booked","Won":"Audit Booked","No Reply":"No Reply","Lost":"Not a Fit","Not Applicable":"Not a Fit","Growth Plan Booking":"Sent to Podcast"};
-const KB_OLD={"Audit booked":"Audit Booked","Audit held":"Audit Held","Proposal sent":"Proposal Sent","Follow-up call":"Follow-up","Won – Handover to Ops":"Won","Lost / No reply":"Lost","Lead in":"New","Potential":"New","To contact":"New","In conversation":"In Conversation","Follow-up":"In Conversation","Discovery call":"Audit Booked"};
-const KB_TO_OLD={"Audit Booked":"Audit booked","Audit Held":"Audit held","Proposal Sent":"Proposal sent","Follow-up":"Follow-up call","Won":"Won – Handover to Ops","Onboarded":"Won – Handover to Ops","Lost":"Lost / No reply"};
+const KB_OLD={"Audit booked":"Audit Booked","Audit held":"Audit Held","Proposal sent":"Proposal Sent","Follow-up call":"Follow-up","Won – Handover to Ops":"Won","Lost / No reply":"Lost","Lead in":"New","Potential":"New","To contact":"New","In conversation":"In Conversation","Follow-up":"Follow-up","Discovery call":"Audit Booked"};
+const KB_TO_OLD={"In Conversation":"In conversation","Send Proposal":"Audit held","Audit Booked":"Audit booked","Audit Held":"Audit held","Proposal Sent":"Proposal sent","Follow-up":"Follow-up call","Won":"Won – Handover to Ops","Onboarded":"Won – Handover to Ops","Lost":"Lost / No reply"};
 const JADE_SRC={"🎙️ Podcast":"Podcast guest","🤝 Referral / direct":"Referrals","🎪 Events":"Events"};
 function kbCl(r){const s=f=>sv(r[f]),src=s(CL.src);
   if(src==="Upwork"&&s(CL.uw))return KB_UW[s(CL.uw)]||"";
@@ -371,18 +375,18 @@ const clFrom=r=>{const src=sv(r[CL.src]);return src==="Upwork"?"Upwork (Danica)"
 function kbRows(){
   const out=[];
   (S.leads||[]).forEach(r=>{const st=sv(r[L.stage]);out.push({_id:r._id,_src:"jade",
-    [SP.deal]:r[L.name]||"",[SP.co]:r[L.co]||"",[SP.what]:r[L.what]||"",[SP.stage]:sv(r[KBF.jade])||KB_JADE[st]||"",
+    [SP.deal]:r[L.name]||"",[SP.co]:r[L.co]||"",[SP.what]:r[L.what]||"",[SP.stage]:kbNorm(r[KBF.jade])||KB_JADE[st]||"",
     [SP.origin]:JADE_SRC[sv(r[L.source])]||stdO(sv(r[L.source]))||"Other",[SP.owner]:sv(r[L.owner]),[SP.needed]:r[L.needed]||"",[SP.notes]:r[L.latest]||"",
     [SP.value]:r[L.value]||0,[SP.est]:!!r[L.est],[SP.chase]:r[L.chase]||"",[SP.lastc]:r[L.lastC]||"",[SP.leadin]:r[L.leadIn]||"",
     [SP.services]:(r[L.services]||[]).map(sv),[SP.offer]:sv(r[L.likely])||"Not sure yet",[SP.contacts]:ids(r[L.contacts]),[SP.jade]:[r._id],[SP.from]:"Podcast Leads (Jade)"})});
   (S.cl||[]).forEach(r=>{const ct=idFromUrl(r[CL.contact]);out.push({_id:r._id,_src:"cl",
-    [SP.deal]:String(r[CL.name]||"").trim(),[SP.co]:r[CL.co]||"",[SP.what]:r[CL.want]||"",[SP.stage]:sv(r[KBF.cl])||kbCl(r),
+    [SP.deal]:String(r[CL.name]||"").trim(),[SP.co]:r[CL.co]||"",[SP.what]:r[CL.want]||"",[SP.stage]:kbNorm(r[KBF.cl])||kbCl(r),
     [SP.origin]:stdO(sv(r[CL.pqo]))||stdO(sv(r[CL.src]))||"Other",[SP.owner]:ownerN(sv(r[CL.owner])),[SP.needed]:r[CL_NEED]||"",[SP.notes]:r[CL.notes]||"",
     [SP.value]:r[CL.val]||0,[SP.est]:!!r[CL.est],[SP.chase]:r[CL.chase]||"",[SP.lastc]:r[CL.lastc]||"",[SP.leadin]:r[CL.leadin]||"",
     [SP.services]:(r[CL.services]||[]).map(sv),[SP.offer]:"",[SP.contacts]:ct?[ct]:[],[SP.from]:clFrom(r)})});
   /* Kash's own leads: Sales pipeline rows that did not come from a team board */
   (S.spRaw||[]).forEach(r=>{if(ids(r[SP.jade]).length||String(r[SP.rv]||"").trim())return;
-    out.push(Object.assign({},r,{_src:"sp",[SP.stage]:sv(r[KBF.sp])||KB_OLD[sv(r[SP.stage])]||""}))});
+    out.push(Object.assign({},r,{_src:"sp",[SP.stage]:kbNorm(r[KBF.sp])||KB_OLD[sv(r[SP.stage])]||""}))});
   return out;
 }
 /* a save on Kash's board goes to the person's own record: the board's field ids are swapped for that table's */
@@ -452,7 +456,7 @@ function stageTone(stages,st){
 }
 /* what each column means, in two short lines (board-specific first) */
 const STAGE_INFO={
-  "sp|Audit Booked":"Call with Kash booked.","sp|Audit Held":"Audit done, proposal to write.","sp|Proposal Sent":"Proposal with the client.","sp|Follow-up":"Following up on the proposal: a call or a message.","sp|Won":"Signed.","sp|Onboarded":"Handed over to Ops and started.","sp|Lost":"Said no or went quiet.",
+  "sp|In Conversation":"Kash is talking to them; no audit booked yet.","sp|Audit Booked":"Call with Kash booked.","sp|Send Proposal":"Proposal to write and send.","sp|Audit Held":"Audit done, proposal to write.","sp|Proposal Sent":"Proposal with the client.","sp|Follow-up":"Following up on the proposal: a call or a message.","sp|Won":"Signed.","sp|Onboarded":"Handed over to Ops and started.","sp|Lost":"Said no or went quiet.",
   "sp|Pre-qual":"With the teams. Nothing needed from you yet.","sp|Lead in":"New, not contacted yet.","sp|In conversation":"Talking, before an audit is booked.","sp|Audit booked":"Growth audit / discovery call in the diary.","sp|Audit held":"Audit done, proposal to write.","sp|Proposal sent":"Proposal with the client.","sp|Follow-up call":"Call booked to go through the proposal.","sp|Won – Handover to Ops":"Signed. Ops takes over.","sp|Lost / No reply":"Said no or went quiet.",
   "10 – Lead in":"New guest or lead. Jade qualifies them for a growth audit.","20 – Audit booked":"Growth audit booked with Kash.","30 – Audit held":"Audit done. Growth plan to write.","40 – Growth plan sent":"Plan sent. Waiting for their response.","50 – Follow-up call":"Call to go through the plan and next steps.","60 – Proposal":"Proposal sent. Chase for a decision.","70 – Won":"Signed. Hand over to production.","79 – Lost":"Said no, or not a fit.","80 – Re-approach (60–90 days)":"Not now. Try again in 60–90 days.",
   "prequal|New":"Just came in. Not contacted yet.","prequal|First Outreach":"First message sent. Waiting for a reply.","prequal|Pre-qual":"Replied. Checking fit and route.","prequal|In Conversation":"Qualified and talking.","prequal|Follow-up":"Not replying. Chasing.","prequal|Email sequence":"Moved to an email sequence.","prequal|Podcast Pipeline":"Handed to Jade as a potential podcast guest.","prequal|Sales Pipeline":"Handed to Kash's Sales Pipeline.","upwork|Sales Pipeline":"Handed to the Sales Pipeline.","upsell|Sales Pipeline":"Handed to the Sales Pipeline.","jade-sent|Sent to Sales":"Has a deal on the Sales Pipeline. Kash has it from here.","prequal|No Reply":"No answer after follow-ups.","prequal|Archive":"Closed or not a fit.",
