@@ -675,9 +675,9 @@ function salesH(D){
     const n=st=>D.P.filter(p=>p.stage===st).length;
     const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Audits booked",n("Audit Booked"))}${kpiH("Proposals out",n("Proposal Sent")+n("Follow-up"))}${kpiH("Won",n(SP_WON)+n("Onboarded"))}</div>`;
     const nt=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
-    return `<div class="sl-ftop"><div class="sl-tt"><h2>Sales Pipeline</h2>${healthPill("sales")}</div><span class="pm">Owner: Kash · ReLearn · ${open.length} open ${open.length===1?"deal":"deals"}</span></div>
-    <p class="sl-goal">Everyone with a call booked, from the audit to won or lost. The tag on each card shows where they came from.</p>${nt}${kpis}${toolsH()}
-    <div class="sl-board sl-spb">${spColsH(D,SALES_STAGES,true)}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it. "}${FOLD_FOOT}</p>`;
+    /* Karen, 6 Nov: one title only ("Sales" above it is hidden), no status pill, owner line or explanations */
+    return `<div class="sl-ftop sl-ftop1"><div class="sl-tt"><h2>Sales Pipeline</h2></div></div>${nt}${kpis}${toolsH()}
+    <div class="sl-board sl-spb">${spColsH(D,SALES_STAGES,true)}</div>`;
   }
   const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Still with the teams",D.P.filter(p=>p.pre).length)}${kpiH("Audits booked",D.P.filter(p=>p.stage==="Audit booked").length)}${kpiH("Won",D.P.filter(p=>p.stage===SP_WON).length)}</div>`;
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
@@ -1159,7 +1159,7 @@ function render(){
   if(S.err){body.innerHTML=`<div class="sl-msg"><b>Couldn't load the sales data.</b><br><span class="pm">${S.ro?"The sales data feed for this link isn't available yet.":"Check that your Airtable connection is on and has access to ReLearn Commercials and Rise Voice, then press Refresh."}</span></div>`;el("slModal").innerHTML="";putSearch();return}
   if(!S.loaded){putSearch();return}
   const D=derive();const plate=D.P.filter(p=>p.plate);const people=peopleOf(D);
-  if(SALES_ONLY)S.view="sales";
+  if(SALES_ONLY){S.view="sales";const hd=document.querySelector("#sales .sl-head");if(hd)hd.style.display="none"}
   if(OLD_VIEW[S.view])S.view=OLD_VIEW[S.view];if(!VIEWS.has(S.view))S.view="mine";
   const fab=el("slFab");if(fab&&S.ro)fab.hidden=true;
   const note=S.ro?`<p class="pm" style="margin:-2px 0 12px">View only on this link${S.fetchedAt?" · data from "+esc(String(S.fetchedAt).slice(11,16))+" UTC":""}. Open the Claude copy to make changes.</p>`:"";
