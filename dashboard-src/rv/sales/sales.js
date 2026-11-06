@@ -348,12 +348,14 @@ function deriveSP(){
   });
 }
 /* the team stage -> Kash board translation, only used when "Kash board" is empty (the automations normally fill it) */
-const KB_JADE={"10 – Lead in":"In Conversation","20 – Audit booked":"Audit Booked","30 – Audit held":"Audit Held","40 – Growth plan sent":"Proposal Sent","50 – Follow-up call":"Follow-up","60 – Proposal":"Proposal Sent","70 – Won":"Won"};
+/* Karen, 6 Nov: same rule as the automations. A team hand-over (or any later team stage) lands at Audit Booked and Kash moves it on;
+   a team Lost before the hand-over stays with the team (Not a Fit). Once a lead shows one of Kash's stages only Kash moves it. */
+const KB_JADE={"10 – Lead in":"In Conversation","20 – Audit booked":"Audit Booked","30 – Audit held":"Audit Booked","40 – Growth plan sent":"Audit Booked","50 – Follow-up call":"Audit Booked","60 – Proposal":"Audit Booked","70 – Won":"Audit Booked","79 – Lost":"Not a Fit","80 – Re-approach (60–90 days)":"Not a Fit"};
 const KB_PQ={"New":"New","First Outreach":"Contacted","Pre-qual":"In Conversation","In Conversation":"In Conversation","Follow-up":"In Conversation","Email sequence":"Nurture Sequence","Podcast Pipeline":"Sent to Podcast","Sales Pipeline":"Audit Booked","No Reply":"No Reply","Archive":"Not a Fit"};
-const KB_UW={"New":"New","Proposal Sent":"Contacted","Sales Pipeline":"Audit Booked","No Reply":"No Reply","Won":"Won","Lost":"Lost","Not Applicable":"Not a Fit"};
-const KB_US={"New":"New","Build Proposal":"In Conversation","Send Proposal":"In Conversation","Proposal Sent":"In Conversation","Sales Pipeline":"Audit Booked","Won":"Won","Lost":"Lost","Archive":"Not a Fit"};
-const KB_REF={"Contact info provided by client":"New","First outreach":"Contacted","Following up":"In Conversation","Call booked":"Audit Booked","Post call follow-up":"Follow-up","Offer accepted (Closed)":"Won","Offer declined (Rejected)":"Lost","No response (Rejected)":"No Reply","Sales Pipeline":"Audit Booked"};
-const KB_SIMPLE={"New":"New","Sales Pipeline":"Audit Booked","No Reply":"No Reply","Won":"Won","Lost":"Lost","Not Applicable":"Not a Fit","Growth Plan Booking":"Sent to Podcast"};
+const KB_UW={"New":"New","Proposal Sent":"Contacted","Sales Pipeline":"Audit Booked","Won":"Audit Booked","No Reply":"No Reply","Lost":"Not a Fit","Not Applicable":"Not a Fit"};
+const KB_US={"New":"New","Build Proposal":"In Conversation","Send Proposal":"In Conversation","Proposal Sent":"In Conversation","Sales Pipeline":"Audit Booked","Won":"Audit Booked","Lost":"Not a Fit","Archive":"Not a Fit"};
+const KB_REF={"Contact info provided by client":"New","First outreach":"Contacted","Following up":"In Conversation","Call booked":"Audit Booked","Post call follow-up":"Audit Booked","Offer accepted (Closed)":"Audit Booked","Offer declined (Rejected)":"Not a Fit","No response (Rejected)":"No Reply","Sales Pipeline":"Audit Booked"};
+const KB_SIMPLE={"New":"New","Sales Pipeline":"Audit Booked","Won":"Audit Booked","No Reply":"No Reply","Lost":"Not a Fit","Not Applicable":"Not a Fit","Growth Plan Booking":"Sent to Podcast"};
 const KB_OLD={"Audit booked":"Audit Booked","Audit held":"Audit Held","Proposal sent":"Proposal Sent","Follow-up call":"Follow-up","Won – Handover to Ops":"Won","Lost / No reply":"Lost","Lead in":"New","Potential":"New","To contact":"New","In conversation":"In Conversation","Follow-up":"In Conversation","Discovery call":"Audit Booked"};
 const KB_TO_OLD={"Audit Booked":"Audit booked","Audit Held":"Audit held","Proposal Sent":"Proposal sent","Follow-up":"Follow-up call","Won":"Won – Handover to Ops","Onboarded":"Won – Handover to Ops","Lost":"Lost / No reply"};
 const JADE_SRC={"🎙️ Podcast":"Podcast guest","🤝 Referral / direct":"Referrals","🎪 Events":"Events"};
@@ -884,7 +886,7 @@ function recModalH(it,people,D){
    not in view-only mode, and in no other window. */
 const PERSON_I="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0",ARROW_I="M5 12h14M13 6l6 6-6 6";
 const DOTS_H='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
-const TRASH_I="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",CHECK_I="M20 6 9 17l-5-5";
+const TRASH_I="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",CHECK_I="M20 6 9 17l-5-5",BACK_I="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11";
 const quickOK=p=>!!p&&!S.ro&&!p.pre;
 /* the offers picker (Add offer, Select offer): the 8 offers; ones the person already has say "already in play" (still allowed) */
 const offerOpts=g=>{const have=new Set(g.flatMap(x=>x.services||[]));return SERVICES.map(s=>[s,s,have.has(s)?"already in play":""])};
@@ -975,7 +977,7 @@ function kbModalH(p,D,people){
     </div>
     <p class="sl-dmeta">${meta}</p>
   </div>
-  ${S.ro?"":`<div class="sl-dfoot"><span class="sl-dfh">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span></div>`}
+  ${S.ro?"":`<div class="sl-dfoot">${own?"":`<button type="button" class="sl-backbtn" id="slBack" data-act="spback" title="The lead leaves your board and goes back to the team">${svg(BACK_I,16)}<span>Send back<span class="sl-bkx"> to team</span></span></button>`}<span class="sl-dfh${own?"":" r"}">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span></div>`}
   </div></div>`;
 }
 /* the warning before an offer is deleted: a small dialog over the deal window (focus stays inside; Esc / Cancel close it) */
@@ -986,6 +988,17 @@ function delH(D){
     <div class="sl-cfmb"><span class="sl-cfmi">${svg(SEC_I.need,22)}</span><div style="min-width:0"><h2 id="slDelH">Delete this offer?</h2>
       <p id="slDelT">${lab?`Delete the <b>${esc(lab)}</b> offer for <b>${esc(who)}</b>?`:`Delete this offer for <b>${esc(who)}</b>?`} This removes it from Airtable. Their contact and other offers stay.</p></div></div>
     <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slDelC" data-act="delcancel">Cancel</button><button type="button" class="sl-dang" id="slDelGo" data-act="delgo"${d.busy?" disabled":""}>${svg(TRASH_I,15)}${d.busy?"Deleting…":"Delete offer"}</button></div>
+  </div></div>`;
+}
+/* Karen, 6 Nov: "Send back to team" on a lead a team handed over. Its Kash board status becomes Review: it leaves his board and
+   the team's own board drives it again (moving it to their hand-over stage puts it back on his board at Audit Booked). */
+function backH(D){
+  const b=S.back;if(!b)return "";const p=D.P.find(x=>x.id===b.id);if(!p||(p.r._src||"sp")==="sp"){S.back=null;return ""}
+  const team=(String(p.from||"").match(/\(([^)]+)\)/)||[])[1]||"the team";
+  return `<div class="sl-ov sl-ov2" data-act="backbg"><div class="sl-dlg sl-cfm" role="alertdialog" aria-modal="true" aria-labelledby="slBackH" aria-describedby="slBackT">
+    <div class="sl-cfmb"><span class="sl-cfmi back">${svg(BACK_I,22)}</span><div style="min-width:0"><h2 id="slBackH">Send back to the team?</h2>
+      <p id="slBackT"><b>${esc(p.name)}</b> leaves your board and goes back to ${esc(team)}. They pick it up from there and can hand it to you again.</p></div></div>
+    <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slBackC" data-act="backcancel">Cancel</button><button type="button" class="sl-solid" id="slBackGo" data-act="backgo"${b.busy?" disabled":""}>${svg(BACK_I,15)}${b.busy?"Sending…":"Send back"}</button></div>
   </div></div>`;
 }
 const safeUrl=u=>{const s=String(sv(u)||"").trim();if(!s)return "";const t=/^https?:\/\//i.test(s)?s:/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)?"https://"+s:"";return t};
@@ -1179,10 +1192,10 @@ function render(){
   /* v6.1: only on the same deal: a field of another offer (same id, new tab) never takes over text typed for the last one */
   const same=S.mSp===S.openSp;S.mSp=S.openSp;
   const fa=document.activeElement;const ftx=same&&fid&&(fa.tagName==="TEXTAREA"||(fa.tagName==="INPUT"&&!/^(checkbox|radio|date)$/.test(fa.type)))?{v:fa.value,s:fa.selectionStart,e:fa.selectionEnd,d:fa.dataset.dirty==="1"||fa.value!==fa.defaultValue}:null;
-  if(!spr)S.del=null;
+  if(!spr){S.del=null;S.back=null}
   /* the offer tab strip keeps its sideways scroll on a redraw of the same window (it only moves when the selected tab is out of view) */
   const otl=S.mKey===mkey&&mo.querySelector(".sl-tabs"),tsl=otl?otl.scrollLeft:0;
-  mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
+  mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D)+backH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
   S.mKey=mkey;const ndb=mo.querySelector(".sl-dlg:not(.sl-cfm) .sl-db");
   document.querySelectorAll("#v-sales textarea,#slModal textarea").forEach(grow);
   if(ndb&&mst)ndb.scrollTop=mst;
@@ -1194,7 +1207,7 @@ function render(){
     /* a field being typed in keeps its text; it still saves when the person leaves it */
     if(ftx&&ftx.d&&(f.tagName==="TEXTAREA"||f.tagName==="INPUT")&&f.value!==ftx.v){f.value=ftx.v;f.dataset.dirty="1";f.addEventListener("change",()=>{f.dataset.dirty=""},{once:true});f.addEventListener("blur",()=>{if(f.dataset.dirty==="1"){f.dataset.dirty="";f.dispatchEvent(new Event("change",{bubbles:true}))}},{once:true});if(f.tagName==="TEXTAREA")grow(f)}
     f.focus({preventScroll:true});if(ftx)try{f.setSelectionRange(ftx.s,ftx.e)}catch(x){}}}
-  if(S.del&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".sl-cfm"))){const c=el("slDelC");if(c)c.focus({preventScroll:true})}
+  if((S.del||S.back)&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".sl-cfm"))){const c=el("slDelC")||el("slBackC");if(c)c.focus({preventScroll:true})}
   menuSync();
   renderSearch();
   if(S.inAdd&&el("slIn")&&!PK)el("slIn").focus();
@@ -1449,11 +1462,15 @@ document.addEventListener("click",async e=>{
   if(S.ro&&RO_BLOCK.has(act)){toast(VIEW_ONLY);return}
   if(a.closest("#slQr")&&el("slQ")){el("slQ").value=""} /* picking a search result clears the search */
   const hideQ=()=>{if(el("slQr"))el("slQr").hidden=true};
-  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;S.del=null;menuClose(false)};
+  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;S.del=null;S.back=null;menuClose(false)};
   /* v6 deal window: the delete warning, the ⋯ menu, Won / Lost, the offer tabs, the folding sections */
   if(act==="delbg"){if(e.target===a)delClose();return}
   if(act==="delcancel"){delClose();return}
   if(act==="delgo"){delOffer();return}
+  if(act==="spback"){if(S.openSp&&!S.ro){S.back={id:S.openSp,busy:false};render();const c=el("slBackC");if(c)c.focus({preventScroll:true})}return}
+  if(act==="backbg"){if(e.target===a)backClose();return}
+  if(act==="backcancel"){backClose();return}
+  if(act==="backgo"){sendBack();return}
   if(act==="spmore"){if(menuIsOpen())menuClose(true);else menuOpen();return}
   if(act==="spwon"||act==="splost"){if(a.getAttribute("aria-pressed")!=="true")setWonLost(act==="spwon");return}
   if(act==="sectog"){const k=a.dataset.sec;S.sec[k]=!S.sec[k];a.setAttribute("aria-expanded",String(S.sec[k]));const b=el("slSec-"+k);if(b){b.hidden=!S.sec[k];b.querySelectorAll("textarea").forEach(grow)}return}
@@ -1542,10 +1559,10 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("keydown",e=>{
   /* v6: the delete warning keeps focus inside itself; Esc closes it (only it) */
-  if(S.del&&el("slModal").querySelector(".sl-cfm")){const box=el("slModal").querySelector(".sl-cfm");
-    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();delClose();return}
+  if((S.del||S.back)&&el("slModal").querySelector(".sl-cfm")){const box=el("slModal").querySelector(".sl-cfm");
+    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();if(S.del)delClose();else backClose();return}
     if(e.key==="Tab"){const f=[...box.querySelectorAll("button:not([disabled])")];if(!f.length){e.preventDefault();return}const i=f.indexOf(document.activeElement);e.preventDefault();f[(i<0?0:i+(e.shiftKey?-1:1)+f.length)%f.length].focus();return}
-    if(!box.contains(e.target)){e.preventDefault();const c=el("slDelC");if(c)c.focus();return}}
+    if(!box.contains(e.target)){e.preventDefault();const c=el("slDelC")||el("slBackC");if(c)c.focus();return}}
   if(e.key==="Escape"&&menuIsOpen()){e.preventDefault();menuClose(true);return}
   /* ⋯ opens from the keyboard with ArrowDown too */
   if(e.key==="ArrowDown"&&e.target&&e.target.id==="slMore"){e.preventDefault();menuOpen();return}
@@ -1714,6 +1731,13 @@ async function delOffer(){
   else{S.openSp=null;render();backToOpener()}
   toast("Offer deleted")}
 function delClose(){if(!S.del)return;S.del=null;render();const m=el("slMore");if(m)m.focus({preventScroll:true})}
+/* Send back to team: only from the dialog's "Send back"; the card leaves Kash's board when the save succeeds */
+async function sendBack(){
+  const b=S.back;if(!b||b.busy)return;b.busy=true;render();
+  const ok=await saveRec("sp",b.id,{[SP.stage]:"Review"},true,true);
+  if(!ok){if(S.back)S.back.busy=false;render();const g=el("slBackGo");if(g)g.focus({preventScroll:true});return}
+  S.back=null;S.openSp=null;leaveOffer();render();backToOpener();toast("Sent back to the team")}
+function backClose(){if(!S.back)return;S.back=null;render();const m=el("slBack");if(m)m.focus({preventScroll:true})}
 /* the ⋯ menu next to ✕: one item, "Delete this offer" (a small menu on top of the window, like the pickers) */
 function menuEl(){let m=el("slMenu");if(m)return m;m=document.createElement("div");m.id="slMenu";m.className="sl-menu";m.setAttribute("role","menu");m.hidden=true;document.body.appendChild(m);
   m.addEventListener("click",e=>{const it=e.target.closest("[data-mi]");if(!it)return;menuClose(false);if(it.dataset.mi==="del"&&S.openSp&&!S.ro){S.del={id:S.openSp,busy:false};render();const c=el("slDelC");if(c)c.focus({preventScroll:true})}});

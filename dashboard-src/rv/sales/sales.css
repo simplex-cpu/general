@@ -705,4 +705,16 @@ html:has(#slModal .sl-ov) body{overflow:hidden}
 .sl-dlg-kb .sl-svcrow{margin-bottom:12px}
 .sl-dlg-kb .sl-dmeta{margin-top:6px}
 .sl-dlg-kb .sl-db{padding-bottom:28px}
+/* Karen, 6 Nov (4): "Send back to team" on the left of Kash's window footer (not on his own leads); "Outcome for" moves next to Lost / Won */
+.sl-backbtn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 10px;margin-left:-10px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap}
+.sl-backbtn:hover{color:var(--ink);background:var(--soft)}
+.sl-backbtn:focus-visible{outline:2px solid #4338CA;outline-offset:2px}
+.sl-dfh.r{margin-left:auto}
+.sl-dfh.r+.sl-dfb{margin-left:0}
+.sl-cfmi.back{background:#EEF0FF;color:#4338CA}
+.sl-cfm .sl-solid{display:inline-flex;align-items:center;gap:6px}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-cfmi.back{background:#1F2A47;color:#C7D2FE}}
+:root[data-theme="dark"] .sl-cfmi.back{background:#1F2A47;color:#C7D2FE}
+@media (pointer:coarse){.sl-backbtn{min-height:44px}}
+@media (max-width:560px){.sl-dlg-kb .sl-dfh.r{display:none}.sl-backbtn .sl-bkx{display:none}}
 </style>
