@@ -101,11 +101,11 @@ const OI={
 OI["Podcast guest"]=OI.Podcast;OI.Referrals=OI.Referral;OI.Events=OI.Event;OI["IG organic"]=OI.Instagram;OI.Upsells=OI.Upsell;
 OI["Kash brand community"]={c:"#4338CA",p:OI["Rise Voice"].p};OI["ReLearn community leads"]={c:"#DB2777",p:OI.Referral.p};OI["Episode keyword"]=OI["Episode request"];
 const DUE_ORDER={overdue:0,today:1,week:2,later:3};
-const RO_BLOCK=new Set(["ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
+const RO_BLOCK=new Set(["addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
 const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
-const S={boxOpen:(()=>{try{return localStorage.getItem("slBox")!=="0"}catch(e){return true}})(),pqGroup:(()=>{try{return localStorage.getItem("slPqGroup")==="origin"?"origin":"stage"}catch(e){return "stage"}})(),loaded:false,loading:false,err:"",leads:[],conv:[],calls:[],money:[],contacts:[],cl:[],sp:[],ul:[],pipelines:[],guests:[],guestTeam:[],view:"mine",spView:"pipeline",groupBy:"date",openId:null,openCl:null,openClB:null,openSp:null,openCt:null,openG:null,gAll:{},ctAll:false,comments:{},cOpen:false,adding:false,drop:null,prevLastC:{},inAdd:null,cq:"",co:""};
+const S={boxOpen:(()=>{try{return localStorage.getItem("slBox")!=="0"}catch(e){return true}})(),pqGroup:(()=>{try{return localStorage.getItem("slPqGroup")==="origin"?"origin":"stage"}catch(e){return "stage"}})(),loaded:false,loading:false,err:"",leads:[],conv:[],calls:[],money:[],contacts:[],cl:[],sp:[],ul:[],pipelines:[],guests:[],guestTeam:[],view:"mine",openId:null,openCl:null,openClB:null,openSp:null,openCt:null,openG:null,gAll:{},ctAll:false,comments:{},cOpen:false,adding:false,drop:null,prevLastC:{},inAdd:null,cq:"",co:""};
 /* v5.4: re-level the board headers when a board changes width (window resize, tab shown) */
 const headW=new WeakMap();
 const headRO=typeof ResizeObserver==="function"?new ResizeObserver(es=>{if(es.some(e=>headW.get(e.target)!==Math.round(e.contentRect.width))){es.forEach(e=>headW.set(e.target,Math.round(e.contentRect.width)));requestAnimationFrame(()=>eqHeads())}}):null;
@@ -122,7 +122,15 @@ const short=d=>{if(!d)return"";const x=new Date(String(d).slice(0,10)+"T12:00:00
 const agoL=d=>{if(!d)return"no contact logged";const n=dd(TODAY,d);return n<=0?"today":n===1?"1 day ago":n+" days ago"};
 const money=n=>!n?"–":n>=1000?"$"+(Math.round(n/100)/10)+"K":"$"+n;
 const full=n=>n?"$"+Number(n).toLocaleString("en-US"):"";
-const digits=v=>{const d=String(v).replace(/[^0-9]/g,"");return d?Number(d):null};
+/* a typed amount: "12000", "$12,000", "12k", "1.5m", "5000/mo"; a range ("10-15k", "10k to 15k") keeps its low end, as the
+   Drop-a-note prompt does. "" = cleared (null); anything else is NaN and is not saved */
+const amt=v=>{if(typeof v==="number")return isFinite(v)?Math.round(v):NaN;let s=String(v==null?"":v).trim().toLowerCase();if(!s)return null;
+  s=s.replace(/usd|[$£€,\s]/g,"").replace(/(?:\/|per|a)?(?:month|mo|pm)$/,"");
+  const m=s.match(/^(\d+(?:\.\d+)?|\.\d+)([km]?)(?:(?:-|–|—|to)(\d+(?:\.\d+)?|\.\d+)([km]?))?$/);if(!m)return NaN;
+  const mul=x=>x==="k"?1e3:x==="m"?1e6:1;return Math.round(Number(m[1])*mul(m[2]||m[4]||""))};
+/* the same, for values that were already checked (a form, Claude's reply): unreadable = nothing */
+const amtOK=v=>{const n=amt(v);return Number.isNaN(n)?null:n};
+const AMT_MSG="Type the value as a number, e.g. 12000, $12,000 or 12k.";
 const norm=s=>String(s||"").toLowerCase().replace(/^@/,"").replace(/\s+/g," ").trim();
 const svg=(d,s)=>`<svg width="${s||14}" height="${s||14}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"></path></svg>`;
 const viewer=()=>{const v=(window.__rlViewer||(window.claude?.use?"":"Kash")).trim();return OWNERS.includes(v)?v:""};
@@ -137,6 +145,126 @@ function otagH(o){o=stdO(o)||"Other";return `<span class="sl-otag">${oIconH(o)}$
 const svcTagsH=list=>(list||[]).map(x=>`<span class="sl-svc">${esc(x)}</span>`).join("");
 function svcPickH(act,list,gid){const ro=S.ro;return `<div role="group" aria-labelledby="${gid}"><p class="sl-sub" id="${gid}">Services in play (the offer)${ro?"":` <span style="text-transform:none;letter-spacing:0;font-weight:400">· click to add or remove</span>`}</p><div class="sl-chips">${ro?((list||[]).length?list.map(x=>`<span class="sl-chip" aria-pressed="true">${esc(x)}</span>`).join(""):'<span class="pm">None yet</span>'):SERVICES.map(x=>`<button type="button" class="sl-chip" data-act="${act}" data-v="${esc(x)}" aria-pressed="${(list||[]).includes(x)}">${esc(x)}</button>`).join("")}</div></div>`}
 function tagH(o){return `<span class="sl-tag${o==="High ticket"?" hi":""}">${svg(ICON[o]||ICON["Not sure yet"],13)}${esc(o)}</span>`}
+
+/* ---------- v6 (Karen, 6 Nov): ONE branded picker for every dropdown in the Sales tab ----------
+   Closed: the value as a coloured pill (+ caret); in forms and filters a field-sized button holding the pill.
+   Open: the dashboard's own listbox (a popover; a bottom sheet on phones). The trigger is a <button> whose value is the
+   selected value, and picking fires the same "change" event the old <select> fired, so every save path is unchanged. */
+const TICKET_C={"High ticket":"blue","Mid ticket":"violet","Low ticket":"teal","AI solutions":"purple","Sponsor":"yellow","Not sure yet":"grey"};
+const CH_C={WhatsApp:"green",Instagram:"pink",Email:"blue",Call:"purple","In person":"yellow",LinkedIn:"teal",Other:"grey"};
+const OI_C=o=>(OI[o]&&OI[o].c)||({LinkedIn:"#0A66C2",Upwork:"#14A800"})[o]||"#94A3B8";
+/* a stage's tone, the same one its board column uses */
+function stoneOf(k,v){if(k==="sp")return stageTone(SP_STAGES,v);const bk=k.slice(3);if(!v)return "out";const tm=TONE_MAP[bk];if(tm)return tm[v]||"s1";const b=BK[bk];return stageTone(b?b.stages:[v],v)}
+/* the pill for value v (label l) of a picker kind: sp | st:<board> | health | origin | filter | owner | ticket | ch | board */
+function pillH(k,v,l){
+  l=l==null?v:l;let cls="pc-grey",st="",ic='<i class="sl-dot"></i>';
+  if(v===MIXED){cls="pc-grey pc-mix"}
+  else if(k==="sp"||k.startsWith("st:"))cls="stx st-"+stoneOf(k,v);
+  else if(k==="health")cls=HEALTH_TONE[v]?"stx st-"+HEALTH_TONE[v]:"pc-grey";
+  else if(k==="origin"||k==="filter"){if(v&&v!=="No source"&&v!=="No origin yet"){const o=OI[v]?v:"Other";cls="pc-o";st=` style="--pd:${OI_C(o)}"`;ic=oIconH(o,13)}else if(k==="filter"&&!v){cls="pc-none";ic=""}}
+  else if(k==="owner"){if(v){cls="pc-ind";ic=`<span class="sl-pav" aria-hidden="true">${esc(v.charAt(0).toUpperCase())}</span>`}}
+  else if(k==="ticket"){cls="pc-"+(TICKET_C[v]||"grey");ic=svg(ICON[v]||ICON["Not sure yet"],13)}
+  else if(k==="ch")cls="pc-"+(CH_C[v]||"grey");
+  else if(k==="date")cls=v==="overdue"?"pc-od":v==="today"?"pc-td":v==="none"?"pc-grey pc-dnone":"pc-grey";
+  else if(k==="board"||k==="offer")cls=v==="sp"||k==="offer"?"pc-ind":"pc-grey";
+  return `<span class="sl-pill ${cls}"${st}>${ic}<span class="t">${esc(l)}</span></span>`;
+}
+/* an option is [value, label] (or just the value); an optional third item is a short note shown on the right (e.g. "already in play") */
+const pkNorm=opts=>(opts||[]).map(x=>Array.isArray(x)?[String(x[0]),String(x[1]==null?x[0]:x[1])].concat(x[2]?[String(x[2])]:[]):[String(x),String(x)]);
+const CARET="m6 9 6 6 6-6";
+/* the value a person-level picker shows when the person's offers differ */
+const MIXED="\u2217mixed";
+/* o: {id, k (kind), v (value), opts ([value,label] or value), name (what it is, for screen readers and the sheet title), act, field, dis, attrs, cls}.
+   Like a native <select>, a value that is not in the list shows (and is) the first option. */
+function pkH(o){
+  const opts=pkNorm(o.opts);const cur=opts.find(x=>x[0]===String(o.v==null?"":o.v))||opts[0]||["",""];
+  return `<button type="button" class="sl-pk${o.field?" fld":""}${o.cls?" "+o.cls:""}" id="${esc(o.id)}" value="${esc(cur[0])}"${o.act?` data-act="${esc(o.act)}"`:""} data-k="${esc(o.k)}" data-n="${esc(o.name)}" data-o="${esc(JSON.stringify(opts))}" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(o.name+": "+cur[1])}" title="${esc(cur[1])}"${o.dis?" disabled":""}${o.attrs||""}>${pillH(o.k,cur[0],cur[1])}${o.dis?"":`<span class="car" aria-hidden="true">${svg(CARET,14)}</span>`}</button>`;
+}
+/* v6.1: a chase date in a window's facts is a real pill ("Fri 7 Nov"; red when overdue, amber today; "Set a date" when empty) with the
+   date input laid over it, so a click anywhere on the pill opens the browser's date picker and the save path is the input's, as before */
+const dLab=v=>v?WD[new Date(String(v).slice(0,10)+"T12:00:00").getDay()]+" "+short(v):"Set a date";
+const dState=v=>{if(!v)return "none";const d=dueOf(v).due;return d==="overdue"||d==="today"?d:""};
+const dateH=(id,act,v)=>`<span class="sl-dpw${S.ro?" ro":""}">${pillH("date",dState(v),dLab(v))}${S.ro?"":`<span class="car" aria-hidden="true">${svg(CARET,14)}</span>`}<input id="${id}" type="date" class="sl-dpi" data-act="${act}" value="${esc(v||"")}"${S.ro?" readonly":""}></span>`;
+const dpSync=i=>{const p=i.closest(".sl-dpw")&&i.closest(".sl-dpw").querySelector(".sl-pill");if(p)p.outerHTML=pillH("date",dState(i.value),dLab(i.value))};
+const pkOptsOf=t=>{try{return pkNorm(JSON.parse(t.dataset.o||"[]"))}catch(e){return []}};
+/* set a picker's value (and its pill) without firing anything */
+function pkSet(t,v){const opts=pkOptsOf(t);const c=opts.find(x=>x[0]===String(v==null?"":v))||opts[0]||["",""];t.value=c[0];t.setAttribute("aria-label",t.dataset.n+": "+c[1]);t.title=c[1];const p=t.querySelector(".sl-pill");if(p)p.outerHTML=pillH(t.dataset.k,c[0],c[1])}
+/* give a picker a new list (e.g. the stages after "Goes to" changes) */
+function pkReplace(t,opts,v,k){t.dataset.o=JSON.stringify(pkNorm(opts));if(k)t.dataset.k=k;pkSet(t,v)}
+let PK=null;
+const pkVis=()=>PK.opts.map((x,i)=>i).filter(i=>!PK.q||PK.opts[i][1].toLowerCase().includes(PK.q));
+function pkEl(){let p=el("slPk");if(p)return p;
+  p=document.createElement("div");p.id="slPk";p.className="sl-pop";p.hidden=true;document.body.appendChild(p);
+  const s=document.createElement("div");s.id="slPkS";s.className="sl-pkscrim";s.hidden=true;document.body.appendChild(s);
+  p.addEventListener("mousedown",e=>{if(e.target.closest(".sl-pko"))e.preventDefault()});
+  p.addEventListener("click",e=>{const o=e.target.closest(".sl-pko");if(o&&PK)pkPick(Number(o.dataset.i))});
+  p.addEventListener("mousemove",e=>{const o=e.target.closest(".sl-pko");if(o&&PK&&Number(o.dataset.i)!==PK.act){PK.act=Number(o.dataset.i);pkMark(false)}});
+  p.addEventListener("input",e=>{if(PK&&e.target.id==="slPkF"){PK.q=e.target.value.trim().toLowerCase();const v=pkVis();if(!v.includes(PK.act))PK.act=v.length?v[0]:-1;pkList()}});
+  p.addEventListener("keydown",pkKey);
+  return p}
+function pkList(){const l=el("slPkL");if(!l||!PK)return;const v=pkVis();
+  /* v6.1: deal stages: a line before the closing stages (Won, Lost) */
+  const cl=x=>x===SP_WON||x===SP_LOST;
+  l.innerHTML=v.length?v.map((i,n)=>{const [val,lab,note]=PK.opts[i];const sel=val===PK.t.value;const sep=PK.k==="sp"&&cl(val)&&n>0&&!cl(PK.opts[v[n-1]][0])?'<div class="sl-pksep" aria-hidden="true"></div>':"";return sep+`<div role="option" id="slPkO-${i}" class="sl-pko${i===PK.act?" act":""}" data-i="${i}" data-v="${esc(val)}" aria-selected="${sel}">${pillH(PK.k,val,lab)}${note?`<span class="sl-pkn">${esc(note)}</span>`:""}${sel?'<span class="sl-ck" aria-hidden="true">✓</span>':""}</div>`}).join(""):'<div class="sl-pke">No matches</div>';
+  pkMark(true)}
+function pkMark(scroll){const l=el("slPkL");if(!l||!PK)return;l.querySelectorAll(".sl-pko.act").forEach(x=>x.classList.remove("act"));const a=el("slPkO-"+PK.act);
+  const f=el("slPkF")||l;if(a){a.classList.add("act");f.setAttribute("aria-activedescendant",a.id);if(scroll)a.scrollIntoView({block:"nearest"})}else f.removeAttribute("aria-activedescendant")}
+function pkPlace(){
+  if(!PK)return;const p=el("slPk"),l=el("slPkL");if(!p||!l)return;
+  if(PK.sheet){p.style.left=p.style.top=p.style.width="";l.style.maxHeight="";return}
+  const r=PK.t.getBoundingClientRect(),vw=document.documentElement.clientWidth,vh=innerHeight,M=8,G=6;
+  /* v6.1: as wide as its widest option (so "Social growth · already in play" is not cut), between the button's width / 220px and 360px */
+  l.style.maxHeight="";p.style.width="max-content";const nat=Math.ceil(p.getBoundingClientRect().width);const w=Math.min(Math.max(r.width,220,nat),360,vw-2*M);p.style.width=w+"px";
+  p.style.left=Math.round(Math.min(Math.max(M,r.left),vw-w-M))+"px";p.style.top="0px";
+  const h=p.offsetHeight,extra=h-l.offsetHeight,below=vh-r.bottom-G-M,above=r.top-G-M;
+  if(h<=below||below>=above){if(h>below)l.style.maxHeight=Math.max(96,below-extra)+"px";p.style.top=Math.round(r.bottom+G)+"px";PK.up=false}
+  else{if(h>above)l.style.maxHeight=Math.max(96,above-extra)+"px";p.style.top=Math.round(Math.max(M,r.top-G-p.offsetHeight))+"px";PK.up=true}
+  p.classList.toggle("up",!!PK.up)}
+function pkOpen(t){
+  pkClose(false);if(!t||t.disabled)return;
+  const opts=pkOptsOf(t);const sheet=matchMedia("(max-width:560px)").matches;const big=opts.length>10;
+  PK={t,id:t.id,sp:S.openSp,opts,k:t.dataset.k||"",sheet,q:"",act:Math.max(0,opts.findIndex(x=>x[0]===t.value)),ta:"",tt:0};
+  const p=pkEl(),n=t.dataset.n||"Options";
+  p.innerHTML=(sheet?`<div class="sl-pkh"><b>${esc(n)}</b><button type="button" class="sl-pkx" aria-label="Close">${svg(XI,16)}</button></div>`:"")
+    +(big?`<div class="sl-pkf"><input id="slPkF" type="text" placeholder="Type to filter" aria-label="${esc("Filter "+n)}" aria-controls="slPkL" aria-autocomplete="list" autocomplete="off" spellcheck="false"></div>`:"")
+    +`<div class="sl-pkl" id="slPkL" role="listbox" tabindex="-1" aria-label="${esc(n)}"></div>`;
+  p.classList.toggle("sheet",sheet);p.hidden=false;el("slPkS").hidden=!sheet;
+  const x=p.querySelector(".sl-pkx");if(x)x.addEventListener("click",()=>pkClose(true));
+  t.setAttribute("aria-expanded","true");t.setAttribute("aria-controls","slPkL");
+  /* phones: focus the list, not the filter box, so the keyboard does not cover the sheet (tap the box to filter) */
+  pkList();pkPlace();(!sheet&&el("slPkF")||el("slPkL")).focus({preventScroll:true});pkMark(true);
+}
+function pkClose(back){if(!PK)return;const t=PK.t;PK=null;const p=el("slPk");if(p){p.hidden=true;p.innerHTML="";p.classList.remove("sheet","up")}const s=el("slPkS");if(s)s.hidden=true;
+  if(t&&t.isConnected){t.setAttribute("aria-expanded","false");if(back)t.focus({preventScroll:true})}}
+/* pick option i: the same change event as the old select (nothing when the value is the same), then focus back on the picker */
+function pkPick(i){if(!PK)return;const t=PK.t,o=PK.opts[i],id=t.id;pkClose(false);if(!o)return;
+  if(t.value!==o[0]){pkSet(t,o[0]);t.dispatchEvent(new Event("change",{bubbles:true}))}
+  const n=t.isConnected?t:el(id);if(n)n.focus({preventScroll:true})}
+function pkKey(e){
+  if(!PK)return;const v=pkVis();const at=v.indexOf(PK.act);const inF=e.target.id==="slPkF";const k=e.key;
+  const go=j=>{if(!v.length)return;PK.act=v[Math.max(0,Math.min(v.length-1,j))];pkMark(true)};
+  if(k==="ArrowDown"){e.preventDefault();go(at<0?0:at+1)}
+  else if(k==="ArrowUp"){e.preventDefault();go(at<0?0:at-1)}
+  else if(k==="Home"&&!inF){e.preventDefault();go(0)}else if(k==="End"&&!inF){e.preventDefault();go(v.length-1)}
+  else if(k==="PageDown"){e.preventDefault();go(at+8)}else if(k==="PageUp"){e.preventDefault();go(at-8)}
+  else if(k==="Enter"||(k===" "&&!inF)){e.preventDefault();if(at>=0)pkPick(PK.act)}
+  else if(k==="Escape"){e.preventDefault();pkClose(true)}
+  else if(k==="Tab"){e.preventDefault();pkClose(true)}
+  else if(!inF&&k.length===1&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    /* type to jump: the next option whose name starts with what was typed */
+    const ts=Date.now();PK.ta=(ts-PK.tt>700?"":PK.ta)+k.toLowerCase();PK.tt=ts;
+    const order=PK.ta.length===1?v.slice(at+1).concat(v.slice(0,at+1)):v.slice(Math.max(at,0)).concat(v.slice(0,Math.max(at,0)));
+    const hit=order.find(i=>PK.opts[i][1].toLowerCase().startsWith(PK.ta));if(hit!=null){PK.act=hit;pkMark(true)}e.preventDefault()}
+  else return;
+  e.stopPropagation()}
+/* after a redraw: keep the open list on the new copy of its picker, or close it when the picker is gone */
+function pkSync(){if(!PK)return;if(PK.sp!==S.openSp){pkClose(false);return}if(PK.t.isConnected)return;const n=el(PK.id);if(!n||n.disabled){pkClose(false);return}PK.t=n;n.setAttribute("aria-expanded","true");n.setAttribute("aria-controls","slPkL");pkPlace()}
+/* a click anywhere else closes the list and does nothing else (like a native dropdown) */
+let pkSwallow=0;
+document.addEventListener("pointerdown",e=>{if(!PK)return;const p=el("slPk");if(p&&p.contains(e.target))return;if(PK.t.contains(e.target))return;pkSwallow=Date.now();pkClose(false)},true);
+document.addEventListener("click",e=>{if(pkSwallow&&Date.now()-pkSwallow<800){pkSwallow=0;e.stopPropagation();e.preventDefault()}pkSwallow=0},true);
+document.addEventListener("scroll",e=>{if(!PK||PK.sheet)return;const p=el("slPk");if(p&&e.target instanceof Node&&p.contains(e.target))return;pkPlace()},true);
+window.addEventListener("resize",()=>{if(PK){const sh=matchMedia("(max-width:560px)").matches;if(sh!==PK.sheet)pkClose(false);else pkPlace()}});
 
 let mcpP=null;
 async function mcp(){if(!window.claude?.use)throw new Error("unavailable");if(!mcpP)mcpP=window.claude.use("mcp");const m=await mcpP;if(!m)throw new Error("unavailable");return m}
@@ -247,6 +375,7 @@ const TONE_MAP={
   prequal:{"New":"s0","First Outreach":"s1","Pre-qual":"s2","In Conversation":"s3","Follow-up":"s4","Email sequence":"won","Podcast Pipeline":"won","Sales Pipeline":"won","No Reply":"out","Archive":"out"},
   "prequal-o":{},
   "sp-src":{},
+  "sp-date":{overdue:"lost",today:"s2",week:"s5",later:"s0",none:"out"},
   guests:{"0 – Researched":"s0","10 – Outreach sent":"s1","19 – No reply":"out","20 – In conversation":"s2","28 - Later Trip":"out","28 – Not now":"out","28 – Not now (try a later trip)":"out","29 – Not interested":"lost","30 – Intro call booked":"s3","40 – Intro call done":"s4","50 – Recording booked":"s5","60 – Episode released (stay in touch)":"won","":"out"}
 };
 function stageTone(stages,st){
@@ -262,7 +391,8 @@ const STAGE_INFO={
   "New":"New lead. Not qualified yet.","upwork|New":"New Upwork job or invite. Not applied yet.","upsell|New":"Client flagged as ready for more.",
   "Sales Pipeline":"Handed to Kash: now on his sales pipeline.","Build Proposal":"Proposal being prepared.","Send Proposal":"Proposal ready. Send it.","Proposal Sent":"Sent. Waiting for their answer.","upwork|Proposal Sent":"Proposal sent on Upwork. Waiting for a reply.",
   "No Reply":"Didn't answer after follow-ups.","Won":"Signed.","Lost":"Said no.","Not Applicable":"Not a sales lead: spam, fan or peer.","Archive":"Parked for now.","":"No stage set yet. Pick one.",
-  "prequal-o|":"No Pre-qual origin set yet.","sp-src|":"No origin set on these deals yet. Set it in the deal window.","guests|":"No status set in Airtable yet."};
+  "prequal-o|":"No Pre-qual origin set yet.","sp-src|":"No origin set on these deals yet. Set it in the deal window.","guests|":"No status set in Airtable yet.",
+  "sp-date|overdue":"Chase date has passed.","sp-date|today":"Chase them today.","sp-date|week":"Chase in the next 7 days.","sp-date|later":"Chase date more than a week away.","sp-date|none":"No chase date set yet."};
 const stageInfo=(bk,st)=>STAGE_INFO[bk+"|"+st]??STAGE_INFO[st]??"";
 /* folded columns, remembered per viewer; Pre-qual starts folded */
 const COLS_KEY="slCols";
@@ -308,52 +438,61 @@ const offPerson=s=>String(s||"").split(OFF_SEP)[0].replace(/\s+/g," ").trim();
 const offKey=s=>offPerson(s).toLowerCase();
 /* v5.5 (Karen, 5 Nov): the offer is the part of the deal name after " · " (the whole name when there is none); the person is the part before */
 const offName=s=>{const t=String(s||"").trim();const m=t.match(OFF_SEP);return !m?t:(t.slice(m.index+m[0].length).trim()||t)};
-/* a person's offers = the deals whose name shares the part before " · " (a deal named just the person counts too, both ways).
-   Pre-qual deals are still with the teams, so they are not offers anywhere: a Pre-qual deal has no offers list and is in no one else's */
-function offerGroup(p,P){if(p.pre)return [p];const k=offKey(p.name);if(!k)return [p];return P.filter(x=>x.id===p.id||(!x.pre&&offKey(x.name)===k))}
+/* v6 (Karen, 6 Nov): the deal window is about a PERSON; each of their Sales Pipeline deals is one OFFER, shown as one tab.
+   A person = the deals (not Pre-qual) that share the part of the name before " · " OR share a linked contact (followed through, so
+   A–B by name and B–C by contact are one person). Pre-qual deals are still with the teams: they are their own single tab.
+   Tabs keep the order the deals have in Airtable (a new offer is added last), so a tab never jumps when its stage changes. */
+function personGroup(p,P){
+  if(p.pre)return [p];
+  const g=new Map([[p.id,p]]);let grew=true;
+  while(grew){grew=false;const ks=new Set([...g.values()].map(x=>offKey(x.name)).filter(Boolean)),cs=new Set([...g.values()].flatMap(x=>x.contactIds));
+    P.forEach(x=>{if(x.pre||g.has(x.id))return;if(ks.has(offKey(x.name))||x.contactIds.some(c=>cs.has(c))){g.set(x.id,x);grew=true}})}
+  const o={};S.sp.forEach((r,i)=>{o[r._id]=i});return [...g.values()].sort((a,b)=>(o[a.id]??1e9)-(o[b.id]??1e9));
+}
 const stIdx=st=>{const i=SP_STAGES.indexOf(st);return i<0?99:i};
 const offSort=g=>g.slice().sort((a,b)=>stIdx(a.stage)-stIdx(b.stage)||offName(a.name).localeCompare(offName(b.name)));
-/* the "N offers" chip on a card: a button that opens the deal window at its offers */
 /* the person's name as most of their deals spell it (so "vishen  lakhiani · Ads" still says "Vishen Lakhiani") */
-const offWho=g=>{const n={};g.forEach(x=>{const w=offPerson(x.name);n[w]=(n[w]||0)+1});return Object.keys(n).reduce((a,b)=>n[b]>n[a]?b:a)};
-function offersH(p,P){const g=offSort(offerGroup(p,P));if(g.length<2)return "";const names=g.map(x=>offName(x.name)).join(", ");
-  return `<button type="button" class="sl-kchip sl-offb" data-act="offers" title="${esc(g.length+" offers for "+offWho(g)+": "+names)}" aria-label="${esc(g.length+" offers: "+names+". Show them")}">${g.length} offers</button>`}
+const offWho=g=>{const n={};g.forEach(x=>{const w=offPerson(x.name);if(w)n[w]=(n[w]||0)+1});const k=Object.keys(n);return k.length?k.reduce((a,b)=>n[b]>n[a]?b:a):""};
+/* an offer's tab name: its Services joined with " + "; else the part of the deal name after " · "; else "" (the tab then reads "Select offer") */
+const offLabel=x=>{if((x.services||[]).length)return x.services.join(" + ");const t=String(x.name||"");const m=t.match(OFF_SEP);return m?t.slice(m.index+m[0].length).trim():""};
+const isOpenOffer=x=>x.stage!==SP_WON&&x.stage!==SP_LOST;
+/* the person as the window names them: their linked contact's name (the real person, e.g. "Daniel Carmody" for
+   "Lee Harris Energy (Daniel Carmody)"), else the name their deals share. New deal names still use the deals' own spelling (offWho). */
+const personName=g=>{for(const x of g)for(const id of x.contactIds){const c=S.contacts.find(r=>r._id===id);const n=c&&String(sv(c[CT.name])||"").trim();if(n)return n}return offWho(g)};
 /* a deal's stage as a chip in its stage colour */
 const stcH=st=>`<span class="sl-stc stx st-${stageTone(SP_STAGES,st)}"><i class="sl-dot"></i>${esc(stL(st)||"No stage yet")}</span>`;
 /* one deal in an offers list (deal window) or a Deals list (contact window); the deal whose window is open is "This one" and not a button */
 function offRowH(x,cur){
   const meta=[otagH(x.origin),x.owner?`<span>Owner: ${esc(x.owner)}</span>`:"",x.from?`<span>From ${esc(x.from)}</span>`:"",x.lastC?`<span>Last contact ${esc(short(x.lastC))}</span>`:""].filter(Boolean).join("");
   const val=x.value?`<span class="sl-ofv">${esc(full(x.value))}/mo${x.est?' <span class="sl-est">Est.</span>':""}</span>`:"";
-  const inner=`<span class="sl-oft"><b>${esc(offName(x.name))}</b>${stcH(x.stage)}</span><span class="sl-ofr">${val}${cur?'<span class="sl-ofme">This one</span>':`<span class="sl-ofa">${svg(ARROW_I,15)}</span>`}</span><span class="sl-ofm">${meta}</span>`;
+  const inner=`<span class="sl-oft"><b>${esc(offLabel(x)||offName(x.name))}</b>${stcH(x.stage)}</span><span class="sl-ofr">${val}${cur?'<span class="sl-ofme">This one</span>':`<span class="sl-ofa">${svg(ARROW_I,15)}</span>`}</span><span class="sl-ofm">${meta}</span>`;
   const pre=x.pre?" data-pre":"";
   return cur?`<div class="sl-of cur" aria-current="true"${pre}>${inner}</div>`:`<button type="button" class="sl-of" data-act="opensp" data-id="${esc(x.id)}"${pre}${x.needed&&!x.pre?` title="${esc("Needed from you: "+x.needed)}"`:""}>${inner}</button>`;
 }
 const OFF_NOTE="Each offer is its own deal, so it can move through the stages on its own.";
 const PRE_NOTE="Pre-qual deals are still with the teams and are not counted as offers yet.";
-function offersSecH(p,D){const g=offerGroup(p,D.P);if(g.length<2)return "";
-  return `<section class="sl-offs" id="slOffers" aria-labelledby="slOfH"><p class="sl-sub" id="slOfH" tabindex="-1">Offers for this person (${g.length})</p><p class="sl-offn">${esc(OFF_NOTE)}</p><div class="sl-ofl">${offSort(g).map(x=>offRowH(x,x.id===p.id)).join("")}</div></section>`}
 function spCardH(p,D){
   const ro=S.ro?" readonly":"";
   return `<article class="sl-card ${p.done?"done":p.due}" data-id="${p.id}" data-kind="sp">
   <div class="sl-ch"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted">
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp">${esc(p.name)}</button><div class="sl-co">${esc([p.co,stL(p.stage)].filter(Boolean).join(" · "))}</div></div>
     <button type="button" class="sl-exp" data-act="opensp" aria-label="Open details for ${esc(p.name)}">${svg(EXP)}</button></div>
-  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}${offersH(p,D.P)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
+  <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
   <div class="sl-box">
     <div><div class="sl-lbl"><label for="slN-${p.id}">What's needed from you</label><span>${p.lastC?"Last contact "+esc(short(p.lastC)):""}</span></div><textarea id="slN-${p.id}" rows="1" data-act="needed" placeholder="What do you need to do?"${ro}>${esc(p.needed)}</textarea></div>
     ${valRow(p)}
   </div></article>`;
 }
-function spKcardH(p,D,showOwner,bySrc){
+function spKcardH(p,D,showOwner,bySrc,byDate){
   if(p.pre){const lv=liveOf(p,D);
     return `<article class="sl-card sl-kc sl-pq" data-id="${p.id}" data-kind="sp" draggable="${S.ro?"false":"true"}">
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${p.co?`<div class="sl-co" style="font-size:12.5px">${esc(p.co)}</div>`:""}</div>
     <div class="sl-cm"><span class="sl-tags">${otagH(p.origin)}</span></div>
     <p class="sl-with">${lv?`With ${esc(lv.who||"the team")} · ${esc(lv.where)} · <b>${esc(lv.stage)}</b>`:`With ${esc(p.owner||"the team")}`}</p></article>`}
-  return `<article class="sl-card sl-kc ${p.done?"done":p.due}${bySrc&&p.closed?" sl-closed":""}" data-id="${p.id}" data-kind="sp" draggable="${S.ro?"false":"true"}">
+  return `<article class="sl-card sl-kc ${p.done?"done":p.due}${bySrc&&p.closed?" sl-closed":""}" data-id="${p.id}" data-kind="sp" draggable="${S.ro||byDate?"false":"true"}">
   <div class="sl-ch"><label class="sl-cbx"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted" style="width:18px;height:18px"></label>
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${(()=>{const sub=[p.co,showOwner&&p.owner?p.owner:""].filter(Boolean).join(" · ");return sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""})()}</div></div>
-  <div class="sl-cm"><span class="sl-tags">${bySrc?stcH(p.stage):otagH(p.origin)}${tagH(p.offer)}${svcTagsH(p.services)}${offersH(p,D.P)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
+  <div class="sl-cm"><span class="sl-tags">${bySrc||byDate?stcH(p.stage):otagH(p.origin)}${byDate?otagH(p.origin):""}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
   <div class="sl-box"><div><span class="sl-cl"><b class="pm">Needed from you</b> ${esc(p.needed||"–")}</span></div>${p.value?`<div class="sl-kv"><b class="pm">Value</b><b>${esc(full(p.value))}/mo${p.est?' <span class="sl-est">Est.</span>':""}</b></div>`:""}</div>
   </article>`;
 }
@@ -377,7 +516,7 @@ function inlineAdd(o){
   const key=[o.ctx,o.board||"",o.stage||"",o.chase||""].join("|");
   if(S.inAdd!==key)return `<button type="button" class="sl-inadd" data-act="inadd" data-ikey="${esc(key)}">${svg(PLUS,14)}Add a lead</button>`;
   return `<div class="sl-inform"><label class="vh" for="slIn">Name of the new lead</label><input id="slIn" placeholder="Name" autocomplete="off">
-    ${o.board==="sp"?`<label class="vh" for="slInO">Origin</label><select id="slInO">${ORIGINS.map(x=>`<option ${x==="Network"?"selected":""}>${esc(x)}</option>`).join("")}</select>`:""}
+    ${o.board==="sp"?`<label class="vh" for="slInO">Origin</label>${pkH({id:"slInO",k:"origin",v:"Network",opts:ORIGINS,name:"Origin",field:true})}`:""}
     <div class="sl-inbtn"><button type="button" class="sl-ghost" data-act="incancel">Cancel</button><button type="button" class="sl-solid" data-act="insave" data-ikey="${esc(key)}">Add</button></div></div>`;
 }
 /* v5 sidebar: My Board, then the Pipelines, then Leads. No automatic health dots: a neutral dot only */
@@ -396,13 +535,27 @@ function spColsH(D,stages,all){
     if(st==="Pre-qual"){const pq=D.P.filter(p=>p.pre);return colH("sp",SP_STAGES,st,pq.length,pqTileH(pq,D),"","")}
     const cs=D.P.filter(p=>p.stage===st).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
     const inner=cs.map(p=>spKcardH(p,D,all)).join("")||'<div class="sl-empty">Nobody here</div>';
-    return colH("sp",SP_STAGES,st,cs.length,inner,inlineAdd({ctx:"p",board:"sp",stage:st}),"")}).join("");
+    /* "Add a lead" only on open stages (a new lead never starts as won or lost) */
+    return colH("sp",SP_STAGES,st,cs.length,inner,PLATE.has(st)?inlineAdd({ctx:"p",board:"sp",stage:st}):"","")}).join("");
 }
-/* v5.5 (Karen, 5 Nov): Sales Pipeline and My Board can be grouped by Stage or by Source (origin); each view remembers its own choice */
+/* v6 (Karen, 6 Nov): My Board and the Sales Pipeline each have ONE "Group by: Date | Stage | Source" (it replaces My Board's
+   "Pipeline / By date" and the separate "Stage / Source"); each view remembers its own choice. Default Stage on both (what Kash sees today). */
 const GRP_KEY={sales:"slGrpSales",mine:"slGrpMine"};
-S.grp={};Object.keys(GRP_KEY).forEach(k=>{try{S.grp[k]=localStorage.getItem(GRP_KEY[k])==="source"?"source":"stage"}catch(e){S.grp[k]="stage"}});
-const grpOf=v=>S.grp[v]==="source"?"source":"stage";
-const grpSegH=v=>`<div class="sl-seg" role="group" aria-label="Group by"><span aria-hidden="true">Group by</span>${[["stage","Stage"],["source","Source"]].map(([k,t])=>`<button type="button" data-act="spgroup" data-k="${v}" data-v="${k}" aria-pressed="${grpOf(v)===k}">${t}</button>`).join("")}</div>`;
+const GRPS=["date","stage","source"];
+S.grp={};Object.keys(GRP_KEY).forEach(k=>{let v="";try{v=localStorage.getItem(GRP_KEY[k])||""}catch(e){}S.grp[k]=GRPS.includes(v)?v:"stage"});
+const grpOf=v=>GRPS.includes(S.grp[v])?S.grp[v]:"stage";
+const grpSegH=v=>`<div class="sl-seg" role="group" aria-label="Group by"><span aria-hidden="true">Group by</span>${[["date","Date"],["stage","Stage"],["source","Source"]].map(([k,t])=>`<button type="button" data-act="spgroup" data-k="${v}" data-v="${k}" aria-pressed="${grpOf(v)===k}">${t}</button>`).join("")}</div>`;
+/* grouped by chase date: Overdue, Today, This week, Later, No date */
+const DATE_COLS=[["overdue","Overdue"],["today","Today"],["week","This week"],["later","Later"],["none","No date"]];
+const dateKey=p=>p.chase?p.due:"none";
+/* Sales Pipeline by date: the Pre-qual tile first, then the open deals by chase date (cards open the window; no drag here) */
+function dateColsH(D,cards){
+  const pq=D.P.filter(p=>p.pre);const pre=colH("sp",SP_STAGES,"Pre-qual",pq.length,pqTileH(pq,D),"","");
+  const srt=(a,c)=>((a.done?1:0)-(c.done?1:0))||String(a.chase).localeCompare(String(c.chase))||a.name.localeCompare(c.name);
+  return pre+DATE_COLS.map(([k,t])=>{const cs=cards.filter(p=>dateKey(p)===k).sort(srt);
+    return colH("sp-date",DATE_COLS.map(x=>x[0]),k,cs.length,cs.map(p=>spKcardH(p,D,true,false,true)).join("")||'<div class="sl-empty">Nobody here</div>',"","",t)}).join("");
+}
+const DATE_FOOT="Grouped by chase date. Cards can't be dragged here: switch to Stage or Source to move them. Fold any column with its arrow.";
 /* one column per standard origin that has a card (ORIGINS order, Other then No source last); each card shows its stage instead of its origin.
    Won and lost deals stay in, after the open ones and greyed. withPre: the Pre-qual tile first, exactly as when grouped by stage */
 function srcColsH(D,cards,withPre,showOwner){
@@ -436,16 +589,16 @@ function spH(D){
   const od=plate.filter(p=>p.due==="overdue"&&!p.done).length,td=plate.filter(p=>p.due==="today"&&!p.done).length;
   const val=plate.reduce((a,p)=>a+(p.value||0),0);
   const kpis=`<div class="sl-kpis">${kpiH("On your plate",plate.length)}${kpiH("Overdue",od,od?"var(--act)":"")}${kpiH("Due today",td,td?"var(--watch)":"")}${kpiH("Audits booked",plate.filter(p=>p.stage==="Audit booked").length)}${kpiH("On your plate / month",money(val))}</div>`;
-  const seg=[["pipeline","Pipeline"],["date","By date"]].map(([k,t])=>`<button type="button" data-act="spview" data-v="${k}" aria-pressed="${S.spView===k}">${t}</button>`).join("");
-  const bySrc=S.spView!=="date"&&grpOf("mine")==="source";
-  const head=`<div class="sl-ftop"><h2>My Board</h2></div><p class="sl-goal">${bySrc?"What needs you, grouped by where each deal came from.":"What needs you, stage by stage."} Every deal, with every owner, is on the Sales Pipeline.</p>`;
-  const tools=toolsH(`<div class="sl-segs"><div class="sl-seg" role="group" aria-label="Show as">${seg}</div>${S.spView==="date"?"":grpSegH("mine")}</div>`);
+  const grp=grpOf("mine"),bySrc=grp==="source";
+  const head=`<div class="sl-ftop"><h2>My Board</h2></div><p class="sl-goal">${bySrc?"What needs you, grouped by where each deal came from.":grp==="date"?"What needs you, by chase date.":"What needs you, stage by stage."} Every deal, with every owner, is on the Sales Pipeline.</p>`;
+  const tools=toolsH(grpSegH("mine"));
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
   let body;
-  if(S.spView==="date"){
+  if(grp==="date"){
+    /* his plate as the By date view always showed it (cards with what's needed and the value), now with "No date" on its own */
     const sortC=(a,b)=>((a.done?1:0)-(b.done?1:0))||(DUE_ORDER[a.due]-DUE_ORDER[b.due])||String(a.chase).localeCompare(String(b.chase));
-    const groups=[["overdue","Overdue",null,"lost"],["today","Today",TODAY,"s2"],["week","This week",plusDays(3),"s5"],["later","Later","","s0"]].map(([k,t,ch,tone])=>({t,k,tone,ls:plate.filter(p=>p.due===k).sort(sortC),add:ch===null?null:{ctx:"d",board:"sp",stage:SP_NEW,chase:ch}}));
-    body=`<div class="sl-groups">${groups.map(g=>`<div><div class="sl-gh stx st-${g.tone}"><i class="sl-dot"></i><span>${esc(g.t)}</span><small>${g.ls.length}</small></div><div class="sl-gcards">${g.ls.length?g.ls.map(p=>spCardH(p,D)).join(""):'<div class="sl-empty">Nobody here</div>'}${g.add?inlineAdd(g.add):""}</div></div>`).join("")}</div>`;
+    const groups=[["overdue","Overdue",null,"lost"],["today","Today",TODAY,"s2"],["week","This week",plusDays(3),"s5"],["later","Later",null,"s0"],["none","No date","","out"]].map(([k,t,ch,tone])=>({t,k,tone,ls:plate.filter(p=>dateKey(p)===k).sort(sortC),add:ch===null?null:{ctx:"d",board:"sp",stage:SP_NEW,chase:ch}}));
+    body=`<div class="sl-groups" data-group="date">${groups.map(g=>`<div data-due="${g.k}"><div class="sl-gh stx st-${g.tone}"><i class="sl-dot"></i><span>${esc(g.t)}</span><small>${g.ls.length}</small></div><div class="sl-gcards">${g.ls.length?g.ls.map(p=>spCardH(p,D)).join(""):'<div class="sl-empty">Nobody here</div>'}${g.add?inlineAdd(g.add):""}</div></div>`).join("")}</div>`;
   }else if(bySrc){
     body=`<div class="sl-board sl-spb" data-group="source">${srcColsH(D,plate,false,false)}</div><p class="sl-foot">${S.ro?"":"Drag a card to another source to change where the deal came from. "}${SRC_FOOT}</p>`;
   }else{
@@ -458,9 +611,12 @@ function salesH(D){
   const open=spOpen(D);
   const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Still with the teams",D.P.filter(p=>p.pre).length)}${kpiH("Audits booked",D.P.filter(p=>p.stage==="Audit booked").length)}${kpiH("Won",D.P.filter(p=>p.stage===SP_WON).length)}</div>`;
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
-  const bySrc=grpOf("sales")==="source";
-  const goal=bySrc?"Every deal past Pre-qual, grouped by where it came from. Won and lost deals are included: they sit under each source's open deals, greyed. Pre-qual counts the leads the teams are still working on.":"Every deal, every owner, every stage. Pre-qual counts the leads the teams are still working on; they are on the team boards.";
+  const grp=grpOf("sales"),bySrc=grp==="source";
+  const goal=bySrc?"Every deal past Pre-qual, grouped by where it came from. Won and lost deals are included: they sit under each source's open deals, greyed. Pre-qual counts the leads the teams are still working on."
+    :grp==="date"?"Every open deal, grouped by its chase date. Pre-qual counts the leads the teams are still working on; they are on the team boards."
+    :"Every deal, every owner, every stage. Pre-qual counts the leads the teams are still working on; they are on the team boards.";
   const board=bySrc?`<div class="sl-board sl-spb" data-group="source">${srcColsH(D,D.P.filter(p=>!p.pre&&SP_STAGES.includes(p.stage)),true,true)}</div><p class="sl-foot">${S.ro?"":"Drag a card to another source to change where the deal came from. "}${SRC_FOOT}</p>`
+    :grp==="date"?`<div class="sl-board sl-spb" data-group="date">${dateColsH(D,open)}</div><p class="sl-foot">${DATE_FOOT}</p>`
     :`<div class="sl-board sl-spb">${spColsH(D,SP_STAGES,true)}</div><p class="sl-foot">${S.ro?"":"Drag a card to move it. "}${FOLD_FOOT}</p>`;
   return `<div class="sl-ftop"><div class="sl-tt"><h2>Sales Pipeline</h2>${healthPill("sales")}</div><span class="pm">Owner: Kash · ReLearn · ${open.length} open ${open.length===1?"deal":"deals"}</span></div>
     <p class="sl-goal">${goal}</p><p class="sl-rule">${esc(RULE_NOTE)}</p>${note}${kpis}${toolsH(grpSegH("sales"))}
@@ -473,7 +629,7 @@ function contactsH(D,people){
   const srcs=[...new Set(people.filter(p=>p.ct).map(p=>p.src||"No source"))].sort();
   return `<div class="sl-ftop"><h2>Leads</h2><span class="pm">Everyone we've been in touch with</span></div>${toolsH()}
    <div class="sl-pfil"><label class="vh" for="slCq">Filter leads</label><input id="slCq" type="search" placeholder="Filter by name, company or email…" value="${esc(S.cq)}" autocomplete="off">
-   <label class="vh" for="slCo">Source</label><select id="slCo"><option value="">All sources</option>${srcs.map(o=>`<option ${o===S.co?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
+   <label class="vh" for="slCo">Source</label>${pkH({id:"slCo",k:"filter",v:S.co,opts:[["","All sources"]].concat(srcs),name:"Source",field:true})}</div>
    <div id="slPl">${peopleRowsH(people)}</div>`;
 }
 const CT_CAP=200;
@@ -507,7 +663,7 @@ function pipesH(){
     const key=sv(r[PL.key]);const v=VIEWS.has(key)&&key!=="mine"&&key!=="contacts"?key:"";const h=sv(r[PL.health]);const tone=HEALTH_TONE[h];
     const name=plTxt(sv(r[PL.name]))||"(no name)";const opts=HEALTHS.includes(h)?HEALTHS:HEALTHS.concat([h]);
     const nm=v?`<button type="button" class="sl-plink" data-act="view" data-v="${esc(v)}">${esc(name)}</button>`:`<b>${esc(name)}</b>`;
-    const sel=`<label class="vh" for="slPh-${esc(r._id)}">Health of ${esc(name)}</label><select id="slPh-${esc(r._id)}" class="sl-hsel${tone?" stx st-"+tone:""}" data-act="plhealth" data-id="${esc(r._id)}"${S.ro?" disabled":""}>${opts.map(o=>`<option value="${esc(o)}" ${o===h?"selected":""}>${o?esc(o):"–"}</option>`).join("")}</select>`;
+    const sel=`<label class="vh" for="slPh-${esc(r._id)}">Health of ${esc(name)}</label>${pkH({id:"slPh-"+r._id,k:"health",v:h,opts:opts.map(o=>[o,o||"–"]),name:"Health of "+name,act:"plhealth",dis:S.ro,cls:"sl-hsel",attrs:` data-id="${esc(r._id)}"`})}`;
     return `<tr><th scope="row">${nm}</th><td>${sel}</td><td>${esc(plTxt(tv(r[PL.who])))}</td><td>${esc(plTxt(tv(r[PL.fall])))}</td><td>${esc(plTxt(tv(r[PL.next])))}</td></tr>`}).join("");
   return `<div class="sl-ht"><table class="sl-pt"><thead><tr><th scope="col">Pipeline</th><th scope="col">Health</th><th scope="col">Who handles it?</th><th scope="col">Who falls in here?</th><th scope="col">Where do they go next?</th></tr></thead><tbody>${rows}</tbody></table></div><p class="sl-foot">Health is set by hand here and saved to the Pipelines table. Click a pipeline to open its board.</p>`;
 }
@@ -574,29 +730,42 @@ function guestsH(){
     <div class="sl-board">${cols}</div>
     <p class="sl-foot">Long columns show the ${GUEST_CAP} most recently contacted first; press "Show all" for the rest. ${FOLD_FOOT}</p>`;
 }
+/* v6 (Karen, 6 Nov): the windows' long blocks (What's needed, notes, conversations…) are collapsible sections: bold title, icon,
+   a count badge (dark with a number, outlined 0 when empty), chevron. All start folded; each kind remembers open / closed for the
+   session, so a section Kash opens stays open as he moves between deals and tabs. */
+const SEC_I={need:"M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01",notes:"M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5",conv:"M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z",next:"M5 12h14M13 6l6 6-6 6",want:"M3 21c3 0 7-1 7-8V5H3v7h4c0 3-2 4-4 4M14 21c3 0 7-1 7-8V5h-7v7h4c0 3-2 4-4 4"};
+S.sec={};
+/* o: {key, icon, title, count, meta, body, cls} */
+function secH(o){const open=!!S.sec[o.key],id="slSec-"+o.key,n=o.count||0;
+  return `<section class="sl-sec sl-sec-${o.icon}${o.cls?" "+o.cls:""}" data-sec="${esc(o.key)}"><h3 class="sl-sech"><button type="button" class="sl-sect" id="${id}-h" data-act="sectog" data-sec="${esc(o.key)}" aria-expanded="${open}" aria-controls="${id}"><span class="ic">${svg(SEC_I[o.icon]||SEC_I.notes,18)}</span><span class="tt">${esc(o.title)}</span><span class="sl-cnt${n?"":" zero"}" data-cnt>${n}</span>${o.meta?`<span class="meta">${esc(o.meta)}</span>`:""}<span class="chev">${svg(CARET,16)}</span></button></h3><div class="sl-secb" id="${id}" role="region" aria-labelledby="${id}-h"${open?"":" hidden"}>${o.body}</div></section>`}
+/* a text block inside a section: a white box (the What's needed one has an orange edge) */
+const secTextH=(id,act,val,ph,label,cls)=>`<div class="sl-secbox${cls?" "+cls:""}"><label class="vh" for="${id}">${esc(label)}</label><textarea id="${id}" data-act="${act}" rows="1" placeholder="${esc(ph||"")}"${S.ro?" readonly":""}>${esc(val)}</textarea></div>`;
+const secReadH=v=>`<div class="sl-secbox"><p>${v?esc(v):'<span class="pm">Nothing yet.</span>'}</p></div>`;
+/* conversations as plain rows, newest first: channel, what was said, date · who (extra rows, e.g. notes, may be added) */
+const cvRowH=(ch,txt,meta)=>`<div class="sl-cv"><span class="ch">${esc(ch)}</span><p>${esc(txt)}</p><span class="d">${esc(meta)}</span></div>`;
+const cvRowsH=(convs,extra,after)=>`<div class="sl-cvl">${(extra||"")+convs.map(x=>cvRowH(sv(x[C.ch])||"Other",x[C.sum]||"",[short(x[C.date]),sv(x[C.who]),sv(x[C.dir])].filter(Boolean).join(" · "))).join("")+(after||"")||'<p class="pm sl-cve">No conversations logged yet.</p>'}</div>`;
 function modalH(D){
   const l=D.J.find(x=>x.id===S.openId);if(!l)return "";
   const r=l.r;const svc=(r[L.services]||[]).map(sv);
   const cm=S.comments[l.id];const cmList=cm&&cm.list||[];
-  const tl=l.conv.map(c=>`<div><span class="d">${esc(short(c[C.date]))}</span><span>${esc(c[C.sum]||"")}<small>${esc([sv(c[C.ch]),sv(c[C.who]),sv(c[C.dir])].filter(Boolean).join(" · "))}</small></span></div>`).join("")||'<div><span class="pm">No conversations logged yet.</span></div>';
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg sl-dlg-w" role="dialog" aria-modal="true" aria-labelledby="slMh">
    <div class="sl-db">
     <div class="sl-dh"><div style="min-width:0"><h2 id="slMh">${esc(l.name)}</h2><div class="sl-co" style="margin-top:2px">${esc(l.co)}</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(l.origin)}${tagH(l.offer)}<span class="sl-due ${l.due}">${esc(l.dueL)}</span><span class="pm">${esc(BK.jade.title)} · ${esc(l.stage)}</span>${spChip(l,D)}</div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     <div class="sl-facts sl-facts-j">
-      <div class="sl-fact"><label for="slMst">Stage</label><select id="slMst" data-act="jstage"${S.ro?" disabled":""}>${JADE_STAGES.map(x=>`<option ${x===l.stage?"selected":""}>${esc(x)}</option>`).join("")}</select></div>
+      <div class="sl-fact"><label for="slMst">Stage</label>${pkH({id:"slMst",k:"st:jade",v:l.stage,opts:JADE_STAGES,name:"Stage",act:"jstage",dis:S.ro})}</div>
       <div class="sl-fact"><label for="slMv">Value / month${l.est&&l.value?' <span class="sl-est">Estimate</span>':""}</label><input id="slMv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(l.value))}"${S.ro?" readonly":""}></div>
-      <div class="sl-fact"><label for="slMo">Owner</label><select id="slMo" data-act="owner"${S.ro?" disabled":""}><option value="">–</option>${OWNERS.map(o=>`<option ${o===l.owner?"selected":""}>${o}</option>`).join("")}</select></div>
-      <div class="sl-fact"><label for="slMlo">Likely offer</label><select id="slMlo" data-act="likely"${S.ro?" disabled":""}>${OFFERS.map(o=>`<option ${o===(sv(r[L.likely])||"Not sure yet")?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div class="sl-fact"><label for="slMo">Owner</label>${pkH({id:"slMo",k:"owner",v:l.owner,opts:[["","–"]].concat(OWNERS),name:"Owner",act:"owner",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slMlo">Likely offer</label>${pkH({id:"slMlo",k:"ticket",v:sv(r[L.likely])||"Not sure yet",opts:OFFERS,name:"Likely offer",act:"likely",dis:S.ro})}</div>
       <div class="sl-fact"><span class="l">Last contact</span><div class="sl-fv">${agoL(l.lastC)}</div></div>
     </div>
     <div role="group" aria-labelledby="slMs"><p class="sl-sub" id="slMs">Services in play${S.ro?"":` <span style="text-transform:none;letter-spacing:0;font-weight:400">· click to add or remove</span>`}</p><div class="sl-chips">${S.ro?(svc.length?svc.map(s=>`<span class="sl-chip" aria-pressed="true">${esc(s)}</span>`).join(""):'<span class="pm">None yet</span>'):SERVICES.map(s=>`<button type="button" class="sl-chip" data-act="svc" data-v="${esc(s)}" aria-pressed="${svc.includes(s)}">${esc(s)}</button>`).join("")}</div></div>
-    <section class="sl-need"><h3><label for="slMn">What's needed from Kash</label></h3><textarea id="slMn" data-act="needed" rows="1" placeholder="What does Kash need to do next?"${S.ro?" readonly":""}>${esc(r[L.needed]||"")}</textarea></section>
-    <section class="sl-hap"><h3><label for="slMl">What's happening</label></h3><textarea id="slMl" data-act="latest" rows="1" placeholder="A short summary of where things stand"${S.ro?" readonly":""}>${esc(r[L.latest]||"")}</textarea>${r[L.want]?`<p class="sl-want"><b>In their words:</b> ${esc(r[L.want])}</p>`:""}</section>
-    <section><p class="sl-sub">Conversations</p>
-      <div class="sl-addc"${S.ro?" hidden":""}><label class="vh" for="slCc">Channel</label><select id="slCc">${CHANNELS.map(c=>`<option>${c}</option>`).join("")}</select><label class="vh" for="slCt">What happened</label><input id="slCt" placeholder="Log a conversation: what was said?"><button type="button" class="sl-ghost" data-act="addconv">${svg(PLUS)}Add</button></div>
-      <div class="sl-tl">${tl}</div></section>
+    <div class="sl-secs">
+    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from Kash",count:String(r[L.needed]||"").trim()?1:0,body:secTextH("slMn","needed",r[L.needed]||"","What does Kash need to do next?","What's needed from Kash","need")})}
+    ${secH({key:"hap",icon:"notes",title:"What's happening",count:String(r[L.latest]||"").trim()?1:0,body:secTextH("slMl","latest",r[L.latest]||"","A short summary of where things stand","What's happening")+(r[L.want]?`<p class="sl-want"><b>In their words:</b> ${esc(r[L.want])}</p>`:"")})}
+    ${secH({key:"conv",icon:"conv",title:"Conversations",count:l.conv.length,body:cvRowsH(l.conv)+`<div class="sl-addc"${S.ro?" hidden":""}><label class="vh" for="slCc">Channel</label>${pkH({id:"slCc",k:"ch",v:CHANNELS[0],opts:CHANNELS,name:"Channel",field:true})}<label class="vh" for="slCt">What happened</label><input id="slCt" placeholder="Log a conversation: what was said?"><button type="button" class="sl-ghost" data-act="addconv">${svg(PLUS)}Add</button></div>`})}
+    </div>
    </div>
    <div class="sl-cmts">
     ${S.cOpen&&cmList.length?`<div class="sl-clist">${cmList.map(c=>`<div><span class="sl-av">${esc((c.who||"?").charAt(0))}</span><div><div><b>${esc(c.who)}</b> <span class="pm">${esc(c.when)}</span></div><div>${esc(c.text)}</div></div></div>`).join("")}</div>`:""}
@@ -618,47 +787,95 @@ function recModalH(it,people,D){
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(it.origin)}<span class="sl-tag">${esc("Rise Voice · "+(b?b.title:"Company Leads"))}</span><span class="sl-due ${it.due}">${esc(it.dueL)}</span>${spChip(it,D)}</div></div>
       <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     <div class="sl-facts${pq?" sl-facts-pq":""}">
-      <div class="sl-fact"><label for="slKs">${pq?"Pre-qual stage":"Stage"}</label><select id="slKs" data-act="rstage"${dis}>${b?(cur?"":'<option value="">No stage yet</option>')+b.stages.map(s=>`<option value="${esc(s)}" ${s===cur?"selected":""}>${esc(stL(s))}</option>`).join(""):""}</select></div>
-      ${pq?`<div class="sl-fact"><label for="slKg">Origin</label><select id="slKg" data-act="rorigin"${dis}><option value="">No origin yet</option>${pqOrigins.map(o=>`<option ${o===it.pqo?"selected":""}>${esc(o)}</option>`).join("")}</select></div>`:""}
-      <div class="sl-fact"><label for="slKo">Owner</label><select id="slKo" data-act="rowner"${dis}><option value="">–</option>${owners.map(o=>`<option ${o===it.owner?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
-      <div class="sl-fact"><label for="slKd">Chase date</label><input id="slKd" type="date" data-act="rchase" value="${esc(it.chase)}"${ro}></div>
+      <div class="sl-fact"><label for="slKs">${pq?"Pre-qual stage":"Stage"}</label>${pkH({id:"slKs",k:"st:"+(b?b.key:""),v:cur,opts:b?(cur?[]:[["","No stage yet"]]).concat(b.stages.map(s=>[s,stL(s)])):[],name:pq?"Pre-qual stage":"Stage",act:"rstage",dis:S.ro})}</div>
+      ${pq?`<div class="sl-fact"><label for="slKg">Origin</label>${pkH({id:"slKg",k:"origin",v:it.pqo,opts:[["","No origin yet"]].concat(pqOrigins),name:"Origin",act:"rorigin",dis:S.ro})}</div>`:""}
+      <div class="sl-fact"><label for="slKo">Owner</label>${pkH({id:"slKo",k:"owner",v:it.owner,opts:[["","–"]].concat(owners),name:"Owner",act:"rowner",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slKd">Chase date</label>${dateH("slKd","rchase",it.chase)}</div>
       <div class="sl-fact"><label for="slKv">Value / month${it.est&&it.value?' <span class="sl-est">Estimate</span>':""}</label><input id="slKv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(it.value))}"${ro}></div>
     </div>
     ${svcPickH("clsvc",it.services,"slKsv")}
-    <section class="sl-need"><h3><label for="slKn">Next step (team)</label></h3><textarea id="slKn" data-act="next" rows="1"${ro}>${esc(it.next)}</textarea></section>
-    <section class="sl-hap"><h3><label for="slKw">What they want</label></h3><textarea id="slKw" data-act="rwant" rows="1"${ro}>${esc(it.want)}</textarea></section>
-    <section class="sl-hap"><h3><label for="slKt">Notes</label></h3><textarea id="slKt" data-act="rnotes" rows="1"${ro}>${esc(it.notes)}</textarea></section>
+    <div class="sl-secs">
+    ${secH({key:"next",icon:"next",title:"Next step (team)",count:String(it.next||"").trim()?1:0,body:secTextH("slKn","next",it.next,"","Next step (team)")})}
+    ${secH({key:"want",icon:"want",title:"What they want",count:String(it.want||"").trim()?1:0,body:secTextH("slKw","rwant",it.want,"","What they want")})}
+    ${secH({key:"notes",icon:"notes",title:"Notes",count:String(it.notes||"").trim()?1:0,body:secTextH("slKt","rnotes",it.notes,"","Notes")})}
+    </div>
     <div class="sl-fbtns" style="justify-content:space-between;align-items:center"><span class="pm">Last contact: ${esc(agoL(it.lastC))}${b?" · board owner "+esc(b.owner):""}</span>${p?`<button type="button" class="sl-ghost" data-act="opent" data-id="${esc(p.id)}">See contact and conversations</button>`:""}</div>
   </div></div></div>`;
 }
-/* a deal on Kash's Sales pipeline (v5 look: wider, title opens the contact) */
+/* v6 (Karen, 6 Nov): the deal window = one PERSON, their offers as tabs (see personGroup).
+   Header: person, company, ⋯ (Delete this offer) and ✕. Row 1 = the person: total value of their open offers, Origin and Owner
+   (set on every offer at once), last contact. Tabs = offers; under them a full-bleed grey area with the selected offer's facts,
+   What's needed / Notes (that offer) and Conversations (the person). Footer: Won / Lost on the selected offer.
+   Quick actions (⋯, Won / Lost, Add offer) are only for Sales Pipeline deals Kash handles: not Pre-qual (still with the teams),
+   not in view-only mode, and in no other window. */
 const PERSON_I="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0",ARROW_I="M5 12h14M13 6l6 6-6 6";
+const DOTS_H='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+const TRASH_I="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",CHECK_I="M20 6 9 17l-5-5";
+const quickOK=p=>!!p&&!S.ro&&!p.pre;
+/* the offers picker (Add offer, Select offer): the 8 offers; ones the person already has say "already in play" (still allowed) */
+const offerOpts=g=>{const have=new Set(g.flatMap(x=>x.services||[]));return SERVICES.map(s=>[s,s,have.has(s)?"already in play":""])};
 function spModalH(p,D,people){
-  if(!p)return "";const ro=S.ro?" readonly":"",dis=S.ro?" disabled":"";
-  const pers=people.filter(x=>x.items.includes(p));const per=pers.find(x=>x.id===p.contactIds[0])||pers[0];
+  if(!p)return "";const ro=S.ro?" readonly":"";
+  const g=personGroup(p,D.P);const gids=new Set(g.map(x=>x.id));
+  const pers=people.filter(x=>x.items.some(i=>gids.has(i.id)));const per=pers.find(x=>x.id===p.contactIds[0])||pers.find(x=>x.ct)||pers[0];
+  const who=personName(g)||(per&&per.name)||p.name;const first=who.split(/\s+/)[0]||who;
+  const co=String(p.co||(g.find(x=>x.co)||{}).co||"");
   const convs=[...new Set(pers.flatMap(x=>x.convs))].sort((x,y)=>String(y[C.date]||"").localeCompare(String(x[C.date]||"")));
-  const tl=convs.map(x=>`<div><span class="d">${esc(short(x[C.date]))}</span><span>${esc(x[C.sum]||"")}<small>${esc([sv(x[C.ch]),sv(x[C.who])].filter(Boolean).join(" · "))}</small></span></div>`).join("");
-  const ttl=per?`<button type="button" class="sl-ttl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">${svg(PERSON_I,18)}<span>${esc(p.name)}</span><span class="ar">${svg(ARROW_I,16)}</span></button>`:esc(p.name);
+  const open=g.filter(isOpenOffer);const tot=open.reduce((a,x)=>a+(Number(x.value)||0),0);const est=open.some(x=>x.est&&x.value);
+  const lastc=g.map(x=>x.lastC).filter(Boolean).sort().pop()||"";
+  const lab=offLabel(p);const quick=quickOK(p);
+  /* v6.1: Origin and Owner are the person's: the value all their offers share, or "Mixed" when the offers differ (picking a value sets it on every offer) */
+  const oneOf=vs=>new Set(vs).size===1?vs[0]:MIXED;const pOrigin=oneOf(g.map(x=>x.origin)),pOwner=oneOf(g.map(x=>x.owner||""));
+  const mixed=[[MIXED,"Mixed","differs by offer"]];const xOwn=[...new Set(g.map(x=>x.owner).filter(o=>o&&!OWNERS.includes(o)))];
+  const owners=(pOwner===MIXED?mixed:[]).concat([["","–"]],OWNERS.concat(xOwn).map(o=>[o,ownerN(o)]));
+  const ttl=per?`<button type="button" class="sl-ttl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">${svg(PERSON_I,18)}<span>${esc(who)}</span><span class="ar">${svg(ARROW_I,16)}</span></button>`:esc(who);
+  const oo=esc(JSON.stringify(pkNorm(offerOpts(g))));
+  const tabs=g.map(x=>{const l=offLabel(x),sel=x.id===p.id,ph=!l,pick=ph&&!S.ro;
+    return `<button type="button" role="tab" id="slTab-${esc(x.id)}" class="sl-tab${ph?" sl-tph":""}" aria-selected="${sel}" aria-controls="slOffP" tabindex="${sel?0:-1}" data-act="sptab" data-id="${esc(x.id)}"${pick?` value="" data-k="offer" data-n="Offer" data-o="${oo}" aria-haspopup="listbox" aria-expanded="false"`:""}>${ph?(pick?`Select offer <span aria-hidden="true">▾</span>`:"No offer yet"):esc(l)}</button>`}).join("");
+  const add=quick?`<button type="button" class="sl-tab add" id="slAddOff" data-act="addoffer" value="" data-k="offer" data-n="Add an offer" data-o="${oo}" aria-haspopup="listbox" aria-expanded="false" aria-label="Add offer">${svg(PLUS,15)}<span class="tl">Add offer</span></button>`:"";
+  const lv=p.pre?liveOf(p,D):null;
+  const meta=[lv?`<span>With ${esc(lv.who||"the team")} · ${esc(lv.where)} · <b>${esc(lv.stage)}</b></span>`:p.pre?`<span>Pre-qual · with ${esc(p.owner||"the team")}</span>`:"",
+    p.from?`<span>From ${esc(p.from)}</span>`:"",
+    pers.length?`<span>${pers.length>1?"Contacts":"Contact"}: ${pers.map(x=>`<button type="button" class="sl-plink" data-act="opent" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join(", ")}</span>`:'<span class="pm">No linked contact yet</span>'].filter(Boolean).join("");
+  const log=S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label>${pkH({id:"slSc",k:"ch",v:CHANNELS[0],opts:CHANNELS,name:"Channel",field:true})}<label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`;
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg sl-dlg-sp" role="dialog" aria-modal="true" aria-labelledby="slSh"><div class="sl-db">
-    <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${ttl}</h2><div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px">${otagH(p.origin)}${tagH(p.offer)}${p.pre?'<span class="pm">Pre-qual · with the team</span>':`<span class="sl-due ${p.due}">${esc(p.dueL)}</span>`}${p.owner?`<span class="pm">Owner: ${esc(p.owner)}</span>`:""}</div></div>
-      <button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
-    <div class="sl-facts">
-      <div class="sl-fact"><label for="slSs">Stage</label><select id="slSs" data-act="spstage"${dis}>${(SP_STAGES.includes(p.stage)?SP_STAGES:SP_STAGES.concat([p.stage])).map(s=>`<option value="${esc(s)}" ${s===p.stage?"selected":""}>${esc(stL(s))}</option>`).join("")}</select></div>
-      <div class="sl-fact"><label for="slSo">Origin</label><select id="slSo" data-act="sporigin"${dis}>${ORIGINS.map(o=>`<option ${o===p.origin?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
-      <div class="sl-fact"><label for="slSd">Chase date</label><input id="slSd" type="date" data-act="spchase" value="${esc(p.chase)}"${ro}></div>
-      <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Estimate</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
-      <div class="sl-fact"><label for="slSk">Ticket</label><select id="slSk" data-act="spoffer"${dis}>${OFFERS.map(o=>`<option ${o===p.offer?"selected":""}>${esc(o)}</option>`).join("")}</select></div>
+    <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${ttl}</h2>${co?`<div class="sl-co" style="margin-top:2px">${esc(co)}</div>`:""}</div>
+      <div class="sl-dhb">${quick?`<button type="button" class="sl-x sl-dmore" id="slMore" data-act="spmore" aria-haspopup="menu" aria-expanded="false" aria-label="More actions for this offer" title="More">${DOTS_H}</button>`:""}<button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div></div>
+    <div class="sl-facts sl-pfacts">
+      <div class="sl-fact sl-ftot"><span class="l">Total value / month</span><div class="sl-fv"><b>${tot?esc(full(tot)):"–"}</b> <small>${open.length} open ${open.length===1?"offer":"offers"}</small>${est?' <span class="sl-est">Est.</span>':""}</div></div>
+      <div class="sl-fact"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:pOrigin,opts:(pOrigin===MIXED?mixed:[]).concat(ORIGINS),name:"Origin",act:"porigin",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:pOwner,opts:owners,name:"Owner",act:"powner",dis:S.ro})}</div>
+      <div class="sl-fact"><span class="l">Last contact</span><div class="sl-fv">${lastc?`${esc(short(lastc))} <small>· ${esc(agoL(lastc))}</small>`:'<small>No contact logged</small>'}</div></div>
     </div>
-    ${offersSecH(p,D)}
-    ${svcPickH("spsvc",p.services,"slSsv")}
-    <section class="sl-need"><h3><label for="slSn">What's needed from you</label></h3><textarea id="slSn" data-act="needed" rows="1" placeholder="${p.pre?"Nothing yet: it's with the team":"What do you need to do?"}"${ro}>${esc(p.needed)}</textarea></section>
-    <section class="sl-hap"><h3><label for="slSt">Notes</label></h3><textarea id="slSt" data-act="spnotes" rows="1"${ro}>${esc(p.notes)}</textarea></section>
-    <section><p class="sl-sub">Conversations</p>
-      ${S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label><select id="slSc">${CHANNELS.map(x=>`<option>${x}</option>`).join("")}</select><label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${p.id}">${svg(PLUS)}Add</button></div>`}
-      <div class="sl-tl">${tl||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
-    <div class="sl-fbtns" style="justify-content:flex-start;align-items:center"><span class="pm">Last contact: ${esc(agoL(p.lastC))}</span></div>
-  </div></div></div>`;
+    <div class="sl-offw">
+    <div class="sl-tabsr"><div class="sl-tabs" role="tablist" aria-label="${esc("Offers for "+who)}">${tabs}</div>${add}</div>
+    <div class="sl-offa" id="slOffP" role="tabpanel" aria-labelledby="slTab-${esc(p.id)}">
+    <div class="sl-facts sl-ofacts">
+      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:p.stage,opts:(SP_STAGES.includes(p.stage)?SP_STAGES:SP_STAGES.concat([p.stage])).map(s=>[s,stL(s)]),name:"Stage",act:"spstage",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:p.offer,opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
+      <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",p.chase)}</div>
+    </div>
+    <div class="sl-secs">
+    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:String(p.needed||"").trim()?1:0,body:secTextH("slSn","needed",p.needed,p.pre?"Nothing yet: it's with the team":"What do you need to do?","What's needed from you","need")})}
+    ${secH({key:"notes",icon:"notes",title:"Notes",count:String(p.notes||"").trim()?1:0,body:secTextH("slSt","spnotes",p.notes,"","Notes")})}
+    ${secH({key:"conv",icon:"conv",title:"Conversations",count:convs.length,meta:"For "+first+", across all offers",body:cvRowsH(convs)+log})}
+    </div>
+    <p class="sl-dmeta">${meta}</p>
+    </div></div>
+  </div>
+  ${quick?`<div class="sl-dfoot"><span class="sl-dfh">${lab?`Applies to the <b>${esc(lab)}</b> offer`:"Applies to this offer"}</span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span></div>`:""}
+  </div></div>`;
+}
+/* the warning before an offer is deleted: a small dialog over the deal window (focus stays inside; Esc / Cancel close it) */
+function delH(D){
+  const d=S.del;if(!d)return "";const p=D.P.find(x=>x.id===d.id);if(!p){S.del=null;return ""}
+  const who=personName(personGroup(p,D.P))||p.name;const lab=offLabel(p);
+  return `<div class="sl-ov sl-ov2" data-act="delbg"><div class="sl-dlg sl-cfm" role="alertdialog" aria-modal="true" aria-labelledby="slDelH" aria-describedby="slDelT">
+    <div class="sl-cfmb"><span class="sl-cfmi">${svg(SEC_I.need,22)}</span><div style="min-width:0"><h2 id="slDelH">Delete this offer?</h2>
+      <p id="slDelT">${lab?`Delete the <b>${esc(lab)}</b> offer for <b>${esc(who)}</b>?`:`Delete this offer for <b>${esc(who)}</b>?`} This removes it from Airtable. Their contact and other offers stay.</p></div></div>
+    <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slDelC" data-act="delcancel">Cancel</button><button type="button" class="sl-dang" id="slDelGo" data-act="delgo"${d.busy?" disabled":""}>${svg(TRASH_I,15)}${d.busy?"Deleting…":"Delete offer"}</button></div>
+  </div></div>`;
 }
 const safeUrl=u=>{const s=String(sv(u)||"").trim();if(!s)return "";const t=/^https?:\/\//i.test(s)?s:/^[\w.-]+\.[a-z]{2,}(\/|$)/i.test(s)?"https://"+s:"";return t};
 const linkH=u=>{const h=safeUrl(u);return h?`<a href="${esc(h)}" target="_blank" rel="noopener noreferrer">${esc(sv(u))}</a>`:esc(sv(u))};
@@ -697,7 +914,7 @@ function ctModalH(people){
   const ig=sv(c[CT.ig]);const dv=k=>S.ctDraft&&S.ctDraft[k]!=null?S.ctDraft[k]:ctCur(c,k);
   const PH={name:"Full name",co:"Company",email:"name@company.com",phone:"+44 7700 900000",ig:"@handle",li:"linkedin.com/in/…",web:"company.com",loc:"City or country",what:"What they do",notes:"Anything worth keeping"};
   const edH=([k,l,t])=>{const id="slTe-"+k,v=dv(k);
-    if(t==="select"){const opts=(v&&!ORIGINS.includes(v)?[v]:[]).concat(ORIGINS);return `<div class="sl-fact"><label for="${id}">${l}</label><select id="${id}" data-ct="${k}">${v?"":'<option value="" selected>No source</option>'}${opts.map(o=>`<option value="${esc(o)}" ${o===v?"selected":""}>${esc(o)}</option>`).join("")}</select></div>`}
+    if(t==="select"){const opts=(v?[]:[["","No source"]]).concat((v&&!ORIGINS.includes(v)?[v]:[]).concat(ORIGINS));return `<div class="sl-fact"><label for="${id}">${l}</label>${pkH({id,k:"origin",v,opts,name:l,field:true,attrs:` data-ct="${k}"`})}</div>`}
     if(t==="area")return `<div class="sl-fact wide"><label for="${id}">${l}</label><textarea id="${id}" data-ct="${k}" rows="2" placeholder="${esc(PH[k]||"")}">${esc(v)}</textarea></div>`;
     return `<div class="sl-fact"><label for="${id}">${l}</label><input id="${id}" data-ct="${k}" type="${t}" value="${esc(v)}" placeholder="${esc(PH[k]||"")}" autocomplete="off"${k==="name"?" required":""}></div>`};
   const info=ed?`<div class="sl-facts sl-cted">${CT_EDIT.map(edH).join("")}</div>
@@ -709,9 +926,9 @@ function ctModalH(people){
     </div>`;
   const whH=i=>`<button type="button" class="sl-wh${i.kind==="sp"&&!i.pre?" mine":""}"${i.kind==="sp"&&!i.pre&&i.needed?` title="${esc(i.needed)}"`:""} data-act="${i.kind==="jade"?"open":i.kind==="sp"?"opensp":"openc"}" data-id="${i.id}"><span class="w">${esc(whereOf(i))}</span><b>${esc(stL(i.stage)||"No stage yet")}</b><span class="pm">${esc(i.kind==="sp"?(i.pre?"with the team":(i.needed||"")):[i.owner,i.closed?"":i.dueL].filter(Boolean).join(" · "))}</span></button>`;
   const boards=p.items.filter(i=>i.kind!=="sp"),deals=p.items.filter(i=>i.kind==="sp");
-  const tl=p.convs.map(x=>`<div><span class="d">${esc(short(x[C.date]))}</span><span>${esc(x[C.sum]||"")}<small>${esc([sv(x[C.ch]),sv(x[C.who])].filter(Boolean).join(" · "))}</small></span></div>`).join("");
-  const notes=p.items.filter(i=>i.kind!=="jade"&&i.notes).map(i=>`<div><span class="d">Notes</span><span style="white-space:pre-line">${esc(i.notes)}<small>${esc(whereOf(i))}</small></span></div>`).join("");
-  const jl=p.items.find(i=>i.kind==="jade");const lat=jl&&jl.r[L.latest]?`<div><span class="d">Latest</span><span style="white-space:pre-line">${esc(jl.r[L.latest])}<small>Jade's board</small></span></div>`:"";
+  /* the conversations, with the boards' latest summary and notes after them (as before) */
+  const notes=p.items.filter(i=>i.kind!=="jade"&&i.notes).map(i=>cvRowH("Notes",i.notes,whereOf(i))).join("");
+  const jl=p.items.find(i=>i.kind==="jade");const lat=jl&&jl.r[L.latest]?cvRowH("Latest",jl.r[L.latest],"Jade's board"):"";
   const brief=sv(c[CT.what])||p.what;
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slTh"><div class="sl-db">
     <div class="sl-dh"><div style="min-width:0"><h2 id="slTh">${esc(p.name)}</h2><div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>
@@ -723,9 +940,7 @@ function ctModalH(people){
     ${ed?"":`<section class="sl-hap"><h3>What they do</h3><p style="margin:0;white-space:pre-line">${brief?esc(brief):'<span class="pm">No brief yet.</span>'}</p></section>`}
     <section><p class="sl-sub">Boards</p><div class="sl-whs">${boards.map(whH).join("")||'<p class="pm" style="margin:0">Not on any board yet.</p>'}</div></section>
     <section class="sl-ctdeals"><p class="sl-sub">Deals${deals.length>1?" ("+deals.length+")":""}</p>${deals.length>1?`<p class="sl-offn">${esc(OFF_NOTE)}${deals.some(x=>x.pre)?" "+esc(PRE_NOTE):""}</p>`:""}${deals.length?`<div class="sl-ofl">${offSort(deals).sort((a,b)=>(a.pre?1:0)-(b.pre?1:0)).map(x=>offRowH(x,false)).join("")}</div>`:'<p class="pm" style="margin:0">No deal on the Sales Pipeline.</p>'}</section>
-    <section><p class="sl-sub">Conversations</p>
-      ${S.ro?"":`<div class="sl-addc"><label class="vh" for="slTc">Channel</label><select id="slTc">${CHANNELS.map(x=>`<option>${x}</option>`).join("")}</select><label class="vh" for="slTt">What happened</label><input id="slTt" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logct" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`}
-      <div class="sl-tl">${lat+tl+notes||'<div><span class="pm">No conversations logged yet.</span></div>'}</div></section>
+    <div class="sl-secs">${secH({key:"conv",icon:"conv",title:"Conversations",count:p.convs.length,body:cvRowsH(p.convs,lat,notes)+(S.ro?"":`<div class="sl-addc"><label class="vh" for="slTc">Channel</label>${pkH({id:"slTc",k:"ch",v:CHANNELS[0],opts:CHANNELS,name:"Channel",field:true})}<label class="vh" for="slTt">What happened</label><input id="slTt" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logct" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`)})}</div>
   </div></div></div>`;
 }
 /* a guest's Source as shown: an old origin name (Referral, Event…) in its standard name; guest-only sources (Outlier research, Inbound…) as they are */
@@ -737,7 +952,7 @@ function gModalH(){
   const lu=sv(r[G.lead]);const lid=idFromUrl(lu);const inLeads=!!lid&&S.leads.some(x=>x._id===lid);
   const ga=lu?(inLeads?`<button type="button" class="sl-ghost" data-act="open" data-id="${esc(lid)}">Open in ${esc(BK.jade.title)}</button>`:safeUrl(lu)?`<a class="sl-ghost" href="${esc(safeUrl(lu))}" target="_blank" rel="noopener noreferrer">Open in ${esc(BK.jade.title)}</a>`:""):"";
   const ig=sv(r[G.ig]);const igH=ig?igLinkH(ig):"";
-  const ln=(h,v)=>`<section class="sl-hap"><h3>${h}</h3><p style="margin:0;white-space:pre-line">${v?esc(v):'<span class="pm">Nothing yet.</span>'}</p></section>`;
+  const ln=(h,v,key,icon)=>secH({key,icon,title:h,count:String(v||"").trim()?1:0,body:secReadH(v)});
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg" role="dialog" aria-modal="true" aria-labelledby="slGh"><div class="sl-db">
     <div class="sl-dh"><div style="min-width:0"><h2 id="slGh">${esc(g.name)}</h2><div class="sl-co" style="margin-top:2px">Podcast guest · view only</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px"><span class="sl-tag">${esc(g.stage?gLabel(g.stage):"No stage")}</span>${r[G.ga]?'<span class="sl-chip-s mine">Growth audit booked</span>':""}</div></div>
@@ -747,7 +962,7 @@ function gModalH(){
       ${fact("First contacted",esc(dshort(r[G.first])))}${fact("Last contacted",esc(dshort(r[G.last])))}${fact("Pre-interview",esc(dshort(r[G.pre])))}
       ${fact("Growth audit booked",r[G.ga]?"Yes":"No")}
     </div>
-    ${ln("Latest update",sv(r[G.latest]))}${ln("Next step",sv(r[G.next]))}
+    <div class="sl-secs">${ln("Latest update",sv(r[G.latest]),"glatest","notes")}${ln("Next step",sv(r[G.next]),"gnext","next")}</div>
     <div class="sl-facts">
       ${fact("Instagram",igH)}${fact("Personal email",esc(sv(r[G.email])))}${fact("Phone",esc(sv(r[G.phone])))}${fact("Website",r[G.web]?linkH(r[G.web]):"")}${fact("Based in",esc(tv(r[G.based])))}
     </div>
@@ -764,7 +979,11 @@ function renderSearch(){
   const box=el("slQr");if(!box)return;const q=(el("slQ")||{}).value||"";
   if(norm(q).length<2){box.hidden=true;box.innerHTML="";return}
   const hits=searchHits(q),gh=guestHits(q);box.hidden=false;
-  box.innerHTML=hits.length||gh.length?hits.map(p=>`<button type="button" class="sl-qi" data-act="opent" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><span>${esc(p.items.map(i=>whereOf(i)+" · "+(stL(i.stage)||"No stage yet")+(i.kind!=="sp"&&i.owner?" · "+i.owner:"")).join(" | ")||"Contact")}</span></button>`).join("")
+  /* v6.1: the name opens the contact; each Sales Pipeline offer is its own chip ("Sponsorship · In conversation") that opens the deal window on that offer */
+  box.innerHTML=hits.length||gh.length?hits.map(p=>{const sp=offSort(p.items.filter(i=>i.kind==="sp")).sort((a,b)=>(a.pre?1:0)-(b.pre?1:0)),other=p.items.filter(i=>i.kind!=="sp");
+      const sub=other.map(i=>whereOf(i)+" · "+(stL(i.stage)||"No stage yet")+(i.owner?" · "+i.owner:"")).join(" | ")||(sp.length?"Sales Pipeline":"Contact");
+      const chips=sp.map(i=>{const l=(offLabel(i)||offName(i.name))+" · "+(stL(i.stage)||"No stage yet");return `<button type="button" class="sl-qo stx st-${stageTone(SP_STAGES,i.stage)}" data-act="opensp" data-id="${esc(i.id)}" aria-label="${esc("Open the "+l+" deal for "+p.name)}"><i class="sl-dot"></i><span>${esc(l)}</span></button>`}).join("");
+      return `<div class="sl-qg"><button type="button" class="sl-qi" data-act="opent" data-id="${esc(p.id)}"><b>${esc(p.name)}</b><span>${esc(sub)}</span></button>${chips?`<div class="sl-qos">${chips}</div>`:""}</div>`}).join("")
     +gh.map(g=>`<button type="button" class="sl-qi" data-act="openg" data-id="${esc(g.id)}"><b>${esc(g.name)}</b><span>${esc("Podcast Guests · "+(g.stage?gLabel(g.stage):"No stage")+(g.by.length?" · "+g.by.join(", "):""))}</span></button>`).join(""):'<div class="sl-qi"><span>Nobody by that name yet. Use + to add them.</span></div>';
 }
 /* Drop a note */
@@ -782,10 +1001,12 @@ function dropH(){
     <div class="sl-dh"><div><h2 id="slDh" style="font-size:19px">${d.items?"Check before saving":"Drop a note"}</h2>${d.items?'<div class="sl-co">Change anything that\'s wrong, then save.</div>':""}</div><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div>
     ${body}</div></div></div>`;
 }
-const boardOpts=sel=>`<option value="sp" ${sel==="sp"?"selected":""}>My sales pipeline</option>`+BOARDS.map(x=>`<option value="${x.key}" ${x.key===sel?"selected":""}>Team: ${esc(x.title)}</option>`).join("");
+const boardList=()=>[["sp","My sales pipeline"]].concat(BOARDS.map(x=>[x.key,"Team: "+x.title]));
 const stagesFor=k=>k==="sp"?SP_STAGES:(BK[k]||BK.jade).stages;
-/* stage options: the value is the Airtable stage, the text is how it is shown */
-const stOpts=(k,sel)=>stagesFor(k).map(s=>`<option value="${esc(s)}" ${s===sel?"selected":""}>${esc(stL(s))}</option>`).join("");
+/* stage options: the value is the Airtable stage, the text is how it is shown; coloured like the board they go to */
+const stList=k=>stagesFor(k).map(s=>[s,stL(s)]);
+const stKind=k=>k==="sp"?"sp":"st:"+(BK[k]?k:"jade");
+const stDef=k=>k==="sp"?SP_NEW:k==="prequal"?"New":"";
 function propH(it,i){
   const bk=it.board||"sp";const match=it.match;const sp=bk==="sp";
   const what=match?(match.kind==="sp"?(match.stage==="Pre-qual"?"Move "+match.name+" from Pre-qual onto your plate":"Update "+match.name+" on your pipeline"):sp?"Move "+match.name+" onto your pipeline":"Update "+match.name):"New person"+(sp?" on your pipeline":"");
@@ -794,16 +1015,16 @@ function propH(it,i){
     <div class="sl-form"><div class="two">
       <label>Name<input id="slP-n-${i}" value="${esc(it.name||"")}"></label>
       <label>Company / what they do<input id="slP-c-${i}" value="${esc(it.company||it.what_they_do||"")}"></label>
-      <label>Goes to<select id="slP-b-${i}" data-act="pboard" data-i="${i}"${match&&match.kind==="sp"?" disabled":""}>${boardOpts(bk)}</select></label>
-      <label>Stage<select id="slP-s-${i}">${stOpts(bk,it.stage)}</select></label>
-      <label>Origin<select id="slP-g-${i}">${ORIGINS.map(o=>`<option ${o===(stdO(it.origin)||"Network")?"selected":""}>${esc(o)}</option>`).join("")}</select></label>
+      <label>Goes to${pkH({id:"slP-b-"+i,k:"board",v:bk,opts:boardList(),name:"Goes to",act:"pboard",field:true,dis:!!(match&&match.kind==="sp"),attrs:` data-i="${i}"`})}</label>
+      <label>Stage${pkH({id:"slP-s-"+i,k:stKind(bk),v:it.stage,opts:stList(bk),name:"Stage",field:true})}</label>
+      <label>Origin${pkH({id:"slP-g-"+i,k:"origin",v:stdO(it.origin)||"Network",opts:ORIGINS,name:"Origin",field:true})}</label>
       <label>Chase date<input id="slP-d-${i}" type="date" value="${esc(it.chase_date||"")}"></label>
     </div>
     <label>What's needed from you<input id="slP-x-${i}" value="${esc(it.needed||"")}" placeholder="What do you need to do next?"></label>
     <label>Conversation to log<input id="slP-v-${i}" value="${esc(it.conversation&&it.conversation.summary||"")}" placeholder="Leave empty to log nothing"></label>
-    <div class="two"><label>Channel<select id="slP-h-${i}">${CHANNELS.map(c=>`<option ${it.conversation&&c===it.conversation.channel?"selected":""}>${c}</option>`).join("")}</select></label>
+    <div class="two"><label>Channel${pkH({id:"slP-h-"+i,k:"ch",v:it.conversation&&it.conversation.channel,opts:CHANNELS,name:"Channel",field:true})}</label>
       <label>Value / month<input id="slP-m-${i}" inputmode="numeric" value="${esc(full(it.monthly_value))}" placeholder="$0"></label>
-      <label>Likely offer<select id="slP-o-${i}">${OFFERS.map(o=>`<option ${o===(it.likely_offer||"Not sure yet")?"selected":""}>${o}</option>`).join("")}</select></label></div>
+      <label>Likely offer${pkH({id:"slP-o-"+i,k:"ticket",v:it.likely_offer||"Not sure yet",opts:OFFERS,name:"Likely offer",field:true})}</label></div>
     </div></div>`;
 }
 function addH(){
@@ -813,12 +1034,12 @@ function addH(){
    <div class="sl-form">
     <label>Name<input id="slFn" placeholder="Full name"></label>
     <label>Company / what they do<input id="slFw" placeholder="e.g. Founder, DIRTEA"></label>
-    <div class="two"><label>Goes to<select id="slFf" data-act="fboard">${boardOpts(bk)}</select></label>
-      <label>Stage<select id="slFs">${stOpts(bk,bk==="sp"?SP_NEW:bk==="prequal"?"New":"")}</select></label>
-      <label>Origin<select id="slFg">${ORIGINS.map(o=>`<option>${esc(o)}</option>`).join("")}</select></label>
+    <div class="two"><label>Goes to${pkH({id:"slFf",k:"board",v:bk,opts:boardList(),name:"Goes to",act:"fboard",field:true})}</label>
+      <label>Stage${pkH({id:"slFs",k:stKind(bk),v:stDef(bk),opts:stList(bk),name:"Stage",field:true})}</label>
+      <label>Origin${pkH({id:"slFg",k:"origin",v:ORIGINS[0],opts:ORIGINS,name:"Origin",field:true})}</label>
       <label>Value / month<input id="slFv" inputmode="numeric" placeholder="$0"></label>
       <label>Chase date<input id="slFd" type="date" value="${TODAY}"></label>
-      <label>Likely offer<select id="slFo">${OFFERS.map(o=>`<option ${o==="Not sure yet"?"selected":""}>${o}</option>`).join("")}</select></label></div>
+      <label>Likely offer${pkH({id:"slFo",k:"ticket",v:"Not sure yet",opts:OFFERS,name:"Likely offer",field:true})}</label></div>
     <label>What's needed from you<textarea id="slFx" rows="2" placeholder="What do you need to do next?"></textarea></label>
    </div>
    <div class="sl-fbtns"><button type="button" class="sl-ghost" data-act="close">Cancel</button><button type="button" class="sl-solid" data-act="savelead">Add lead</button></div>
@@ -835,36 +1056,72 @@ function render(){
   const fab=el("slFab");if(fab&&S.ro)fab.hidden=true;
   const note=S.ro?`<p class="pm" style="margin:-2px 0 12px">View only on this link${S.fetchedAt?" · data from "+esc(String(S.fetchedAt).slice(11,16))+" UTC":""}. Open the Claude copy to make changes.</p>`:"";
   const main=S.view==="mine"?spH(D):S.view==="sales"?salesH(D):S.view==="contacts"?contactsH(D,people):S.view==="guests"?guestsH():boardH(BK[S.view]||BK.jade,D);
-  const bd0=body.querySelector(".sl-board"),bl=bd0?bd0.scrollLeft:0,bt=bd0?bd0.scrollTop:0,key=S.view+"|"+S.spView+"|"+(S.grp[S.view]||""),sy=window.scrollY;const rl0=body.querySelector(".sl-rail"),rsl=rl0?rl0.scrollLeft:0;
+  const bd0=body.querySelector(".sl-board"),bl=bd0?bd0.scrollLeft:0,bt=bd0?bd0.scrollTop:0,key=S.view+"|"+(S.grp[S.view]||""),sy=window.scrollY;const rl0=body.querySelector(".sl-rail"),rsl=rl0?rl0.scrollLeft:0;
   body.innerHTML=note+`<div class="sl-layout">${rail(D,plate)}<div class="sl-main">${main}</div></div>`;putSearch();
   const bd1=body.querySelector(".sl-board");if(bd1&&S.lastKey===key){bd1.scrollLeft=bl;bd1.scrollTop=bt}if(S.lastKey===key&&window.scrollY!==sy)window.scrollTo(0,sy);S.lastKey=key;
   railKeep(body,rsl);eqHeads(body);
   const rec=S.openCl?D.K.find(x=>x.id===S.openCl):null;const spr=S.openSp?D.P.find(x=>x.id===S.openSp):null;
-  el("slModal").innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
+  /* v6: a redraw keeps the window's scroll position (and focus, when the same control is still there), e.g. when moving between offer tabs */
+  const mo=el("slModal");const mdb=mo.querySelector(".sl-dlg:not(.sl-cfm) .sl-db");const mkey=[S.openId,S.openCl,S.openSp?"sp":"",S.openCt,S.openG].join("|");const mst=mdb&&S.mKey===mkey?mdb.scrollTop:0;
+  const fid=document.activeElement&&mo.contains(document.activeElement)&&document.activeElement.id||"";
+  /* v6.1: only on the same deal: a field of another offer (same id, new tab) never takes over text typed for the last one */
+  const same=S.mSp===S.openSp;S.mSp=S.openSp;
+  const fa=document.activeElement;const ftx=same&&fid&&(fa.tagName==="TEXTAREA"||(fa.tagName==="INPUT"&&!/^(checkbox|radio|date)$/.test(fa.type)))?{v:fa.value,s:fa.selectionStart,e:fa.selectionEnd,d:fa.dataset.dirty==="1"||fa.value!==fa.defaultValue}:null;
+  if(!spr)S.del=null;
+  /* the offer tab strip keeps its sideways scroll on a redraw of the same window (it only moves when the selected tab is out of view) */
+  const otl=S.mKey===mkey&&mo.querySelector(".sl-tabs"),tsl=otl?otl.scrollLeft:0;
+  mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
+  S.mKey=mkey;const ndb=mo.querySelector(".sl-dlg:not(.sl-cfm) .sl-db");
   document.querySelectorAll("#v-sales textarea,#slModal textarea").forEach(grow);
+  if(ndb&&mst)ndb.scrollTop=mst;
+  const ntl=mo.querySelector(".sl-tabs");if(ntl&&tsl)ntl.scrollLeft=tsl;
+  /* the selected tab in view (only when it is out of view; the first / last tab scroll right to the edge), and the edge fades */
+  const stab=mo.querySelector('.sl-tabs [aria-selected="true"]');if(stab){const tl=stab.parentElement;tabFade(tl);const a=stab.getBoundingClientRect(),r=tl.getBoundingClientRect();
+    if(a.left<r.left-1)tl.scrollLeft=stab===tl.firstElementChild?0:tl.scrollLeft+a.left-r.left-8;else if(a.right>r.right+1)tl.scrollLeft=stab===tl.lastElementChild?tl.scrollWidth:tl.scrollLeft+a.right-r.right+8;tabFade(tl,false)}
+  if(fid&&same&&!PK){const f=el(fid);if(f&&mo.contains(f)&&!f.disabled){
+    /* a field being typed in keeps its text; it still saves when the person leaves it */
+    if(ftx&&ftx.d&&(f.tagName==="TEXTAREA"||f.tagName==="INPUT")&&f.value!==ftx.v){f.value=ftx.v;f.dataset.dirty="1";f.addEventListener("change",()=>{f.dataset.dirty=""},{once:true});f.addEventListener("blur",()=>{if(f.dataset.dirty==="1"){f.dataset.dirty="";f.dispatchEvent(new Event("change",{bubbles:true}))}},{once:true});if(f.tagName==="TEXTAREA")grow(f)}
+    f.focus({preventScroll:true});if(ftx)try{f.setSelectionRange(ftx.s,ftx.e)}catch(x){}}}
+  if(S.del&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".sl-cfm"))){const c=el("slDelC");if(c)c.focus({preventScroll:true})}
+  menuSync();
   renderSearch();
-  if(S.inAdd&&el("slIn"))el("slIn").focus();
+  if(S.inAdd&&el("slIn")&&!PK)el("slIn").focus();
+  pkSync();
 }
 /* v5.4: the rail keeps its sideways scroll and shows the selected item (phone); the headers on one board share one height so first cards line up */
+/* v6.1: a tab row that scrolls fades at the edge(s) that hide more tabs */
+/* v6.2: on a phone "Add offer" shrinks to the + only when the tabs do not fit beside its full label (measured with the label shown, so it never flips back and forth); a scroll only updates the fades */
+function tabFade(tl,fit){if(!tl)return;const row=tl.parentElement;if(fit!==false&&row){row.classList.remove("sl-tov");row.classList.toggle("sl-tov",tl.scrollWidth>tl.clientWidth+1)}
+  const ov=tl.scrollWidth>tl.clientWidth+1,max=tl.scrollWidth-tl.clientWidth;tl.classList.toggle("sl-tfl",ov&&tl.scrollLeft>1);tl.classList.toggle("sl-tfr",ov&&tl.scrollLeft<max-1)}
+document.addEventListener("scroll",e=>{const t=e.target;if(t&&t.classList&&t.classList.contains("sl-tabs"))tabFade(t,false)},true);
+window.addEventListener("resize",()=>tabFade(document.querySelector("#slModal .sl-tabs")));
 function railKeep(body,sl){const r=body.querySelector(".sl-rail");if(!r)return;r.scrollLeft=sl;if(r.scrollWidth<=r.clientWidth)return;const a=r.querySelector('[aria-current="page"]');if(!a)return;const rr=r.getBoundingClientRect(),ar=a.getBoundingClientRect();if(ar.left<rr.left||ar.right>rr.right)r.scrollLeft+=ar.left-rr.left-12}
 /* grouped by source: only the source columns are lined up (the Pre-qual tile keeps its two-line note, as when grouped by stage, and stays out of the sum) */
 function eqHeads(root){(root||document).querySelectorAll("#v-sales .sl-board").forEach(bd=>{const src=bd.matches('[data-group="source"]');const all=[...bd.querySelectorAll(".sl-col:not(.sl-colc)>.sl-colh")];all.forEach(h=>{h.style.minHeight=""});const hs=src?all.filter(h=>h.parentElement.dataset.board==="sp-src"):all;if(!src&&!hs.some(h=>h.querySelector(".sl-cinfo")))return;const m=Math.max(0,...hs.map(h=>h.offsetHeight));if(m)hs.forEach(h=>{if(h.offsetHeight<m)h.style.minHeight=m+"px"})});
   if(headRO){headRO.disconnect();document.querySelectorAll("#v-sales .sl-board").forEach(b=>headRO.observe(b))}}
 /* v5.6: a window remembers what opened it (a card's chip, name or button on the page) and gives focus back to it on close.
    The page is redrawn when a window opens, so the opener is found again by its card and its place on that card */
-const OPENERS=new Set(["open","openc","opensp","offers","opent","openg"]);
+/* closing a window (✕, backdrop, Esc) first leaves the field being edited, so its change saves on the record that was open */
+function flushEdit(){const a=document.activeElement;const m=el("slModal");if(a&&m&&m.contains(a)&&(a.tagName==="TEXTAREA"||a.tagName==="INPUT")&&a.blur)a.blur()}
+/* the window is about to show another offer: leave the field being edited (it saves on the offer that is still open), close a list or menu */
+function leaveOffer(){flushEdit();pkClose(false);menuClose(false)}
+const OPENERS=new Set(["open","openc","opensp","opent","openg"]);
 function keepOpener(a){if(!a||a.closest("#slModal")||!a.closest("#v-sales"))return;const c=a.parentElement&&a.parentElement.closest("#v-sales [data-id]");
-  S.opener={el:a,act:a.dataset.act,aid:a.dataset.id||"",card:c?c.dataset.id:"",idx:c?[...c.querySelectorAll(`[data-act="${a.dataset.act}"]`)].indexOf(a):-1}}
+  const col=a.closest(".sl-col,.sl-groups>[data-due]");
+  S.opener={el:a,act:a.dataset.act,aid:a.dataset.id||"",card:c?c.dataset.id:"",idx:c?[...c.querySelectorAll(`[data-act="${a.dataset.act}"]`)].indexOf(a):-1,colB:col?col.dataset.board||"":"",colS:col?(col.dataset.stage??col.dataset.due??""):null,q:!!a.closest("#slQr")}}
 function backToOpener(){const o=S.opener;S.opener=null;if(!o||el("slModal").querySelector(".sl-dlg"))return;let t=o.el&&o.el.isConnected?o.el:null;
   if(!t&&o.card){const c=document.querySelector(`#v-sales [data-id="${CSS.escape(o.card)}"]`);if(c)t=c.querySelectorAll(`[data-act="${o.act}"]`)[o.idx]||c.querySelector("button[data-act],input[data-act]")}
+  if(!t&&o.q)t=el("slQ"); /* a search result: back to the search box */
   if(!t&&o.aid)t=document.querySelector(`#v-sales [data-act="${o.act}"][data-id="${CSS.escape(o.aid)}"]`);
+  /* v6.1: the opener is gone (e.g. its only offer was deleted): the column it was in (its fold button), else the page heading */
+  if(!t&&o.colS!=null){const c=o.colB?document.querySelector(`#v-sales .sl-col[data-board="${CSS.escape(o.colB)}"][data-stage="${CSS.escape(o.colS)}"]`):document.querySelector(`#v-sales .sl-groups>[data-due="${CSS.escape(o.colS)}"]`);
+    t=c&&(c.querySelector('[data-act="fold"]')||c.querySelector("button[data-act],input[data-act]"))}
+  if(!t||!t.getClientRects().length){const h=document.querySelector("#v-sales .sl-main h2");if(h){h.tabIndex=-1;t=h}}
   if(t&&t.getClientRects().length)t.focus({preventScroll:true})}
-/* deal window opened from an offers chip or list: scroll to the offers and put focus on their title */
-function focusOffers(){const sec=el("slOffers"),h=el("slOfH");if(!sec||!h)return;const db=sec.closest(".sl-db");
-  if(db)db.scrollTop+=sec.getBoundingClientRect().top-db.getBoundingClientRect().top-16;h.focus({preventScroll:true});
-  sec.classList.remove("flash");void sec.offsetWidth;sec.classList.add("flash")}
 function grow(t){if(!t.offsetParent||t.id==="slDt")return;t.style.height="auto";t.style.height=(t.scrollHeight+2)+"px"}
 document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;if(t.matches("#v-sales textarea,#slModal textarea"))grow(t);if(t.id==="slQ")renderSearch();
+  /* a section's count follows what is typed in it (1 with text, 0 when empty) */
+  if(t.matches("#slModal .sl-secbox textarea")){const c=t.closest(".sl-sec")&&t.closest(".sl-sec").querySelector("[data-cnt]");if(c){const n=t.value.trim()?1:0;c.textContent=n;c.classList.toggle("zero",!n)}}
   if(t.id==="slDt"&&S.drop)S.drop.text=t.value;
   if(t.dataset&&t.dataset.ct&&S.ctDraft)S.ctDraft[t.dataset.ct]=t.value;
   if(t.id==="slCq"){S.cq=t.value;const pl=el("slPl");if(pl)pl.innerHTML=peopleRowsH(peopleOf(derive()))}});
@@ -877,6 +1134,10 @@ const KF={cl:{base:RB,tbl:T.cl,arr:"cl",next:CL.next,want:CL.want,notes:CL.notes
 const recOf=(kind,id)=>(S[KF[kind].arr]||[]).find(r=>r._id===id);
 /* a failed save puts the record back, but keeps what the person typed in the window so they can try again */
 const typedIn=()=>{const m=el("slModal");return m?[...m.querySelectorAll("textarea[id],input[id]:not([type=checkbox]):not([type=date]):not([type=radio])")].map(x=>[x.id,x.value]):[]};
+/* a logged conversation's box empties (also when Enter logged it and the box still has focus) */
+const clearIn=id=>{const x=el(id);if(x){x.value="";x.defaultValue="";delete x.dataset.dirty}};
+/* a value that isn't an amount: nothing is saved, the field goes back to the saved value, and the toast says why */
+function badAmt(a,prev){const t=String(a.value).trim();a.value=a.defaultValue=full(prev);toast(`Not saved: "${t.length>24?t.slice(0,24)+"…":t}" isn't an amount. ${AMT_MSG}`)}
 const putTyped=v=>v.forEach(([id,val])=>{const x=el(id);if(x&&x.value!==val){x.value=val;if(x.tagName==="TEXTAREA")grow(x)}});
 async function saveLead(id,fields,typecast,quiet){const r=lead(id);const prev={};Object.keys(fields).forEach(k=>{prev[k]=r[k]});Object.assign(r,fields);if(!quiet)render();
   try{await upd(CB,T.leads,id,fields,typecast);toast("Saved")}catch(e){const keep=typedIn();Object.assign(r,prev);render();putTyped(keep);toast("Couldn't save. Try again.")}}
@@ -963,7 +1224,7 @@ async function logConv(summary,ch,leadId,contactId){
 }
 /* a new deal on Kash's pipeline; links back to the team record when there is one */
 async function newDeal(it,link){
-  const st0=spStage(it.stage);const stage=it.stage&&SP_STAGES.includes(st0)?st0:SP_NEW;const val=digits(it.monthly_value);const conv=it.conversation&&it.conversation.summary?it.conversation:null;
+  const st0=spStage(it.stage);const stage=it.stage&&SP_STAGES.includes(st0)?st0:SP_NEW;const val=amtOK(it.monthly_value);const conv=it.conversation&&it.conversation.summary?it.conversation:null;
   const f={[SP.deal]:it.name,[SP.stage]:stage,[SP.origin]:stdO(it.origin)||"Other",[SP.owner]:"Kash",[SP.leadin]:TODAY,[SP.from]:link&&link.from||"Kash direct",[SP.offer]:OFFERS.includes(it.likely_offer)?it.likely_offer:"Not sure yet"};
   if(it.company)f[SP.co]=it.company;if(it.needed)f[SP.needed]=it.needed;if(it.chase_date)f[SP.chase]=it.chase_date;if(val)f[SP.value]=val;if(conv){f[SP.lastc]=TODAY;f[SP.notes]=TODAY+" · "+conv.channel+": "+conv.summary}
   let cids=link&&link.contactIds||[];
@@ -974,7 +1235,7 @@ async function newDeal(it,link){
   return id;
 }
 async function saveProposal(it){
-  const bk=it.board||"sp";const conv=it.conversation&&it.conversation.summary?it.conversation:null;const val=digits(it.monthly_value);
+  const bk=it.board||"sp";const conv=it.conversation&&it.conversation.summary?it.conversation:null;const val=amtOK(it.monthly_value);
   const D=derive();const m=it.match?D.all.find(x=>x.id===it.match.id):null;
   if(m&&m.kind==="sp"){ /* update a deal already on his pipeline */
     const r=recOf("sp",m.id);const f={};if(it.needed)f[SP.needed]=it.needed;if(it.chase_date)f[SP.chase]=it.chase_date;if(it.stage&&SP_STAGES.includes(spStage(it.stage))&&spStage(it.stage)!==m.stage)f[SP.stage]=spStage(it.stage);if(val){f[SP.value]=val;f[SP.est]=false}
@@ -1064,6 +1325,8 @@ function toggleMic(){
 }
 
 document.addEventListener("click",async e=>{
+  const pk=e.target.closest&&e.target.closest(".sl-pk");
+  if(pk&&(pk.closest("#v-sales")||pk.closest("#slModal"))){e.preventDefault();if(PK&&PK.t===pk)pkClose(true);else pkOpen(pk);return}
   const a=e.target.closest("[data-act]");
   if(!a){const qr=el("slQr");if(qr&&!qr.hidden&&!e.target.closest(".sl-srch")){qr.hidden=true}return}
   const inSales=a.closest("#v-sales")||a.closest("#slModal")||a.id==="slFab";if(!inSales)return;
@@ -1072,7 +1335,16 @@ document.addEventListener("click",async e=>{
   if(S.ro&&RO_BLOCK.has(act)){toast(VIEW_ONLY);return}
   if(a.closest("#slQr")&&el("slQ")){el("slQ").value=""} /* picking a search result clears the search */
   const hideQ=()=>{if(el("slQr"))el("slQr").hidden=true};
-  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false};
+  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;S.del=null;menuClose(false)};
+  /* v6 deal window: the delete warning, the ⋯ menu, Won / Lost, the offer tabs, the folding sections */
+  if(act==="delbg"){if(e.target===a)delClose();return}
+  if(act==="delcancel"){delClose();return}
+  if(act==="delgo"){delOffer();return}
+  if(act==="spmore"){if(menuIsOpen())menuClose(true);else menuOpen();return}
+  if(act==="spwon"||act==="splost"){if(a.getAttribute("aria-pressed")!=="true")setWonLost(act==="spwon");return}
+  if(act==="sectog"){const k=a.dataset.sec;S.sec[k]=!S.sec[k];a.setAttribute("aria-expanded",String(S.sec[k]));const b=el("slSec-"+k);if(b){b.hidden=!S.sec[k];b.querySelectorAll("textarea").forEach(grow)}return}
+  if(act==="sptab"){const id2=a.dataset.id;if(PK&&PK.t===a){pkClose(true);return}if(S.openSp!==id2){S.openSp=id2;render()}const t=el("slTab-"+id2);if(t){t.focus({preventScroll:true});if(t.dataset.o&&!S.ro)pkOpen(t)}return}
+  if(act==="addoffer"){if(PK&&PK.t===a){pkClose(true);return}pkOpen(a);return}
   if(act==="view"){S.view=OLD_VIEW[a.dataset.v]||a.dataset.v;S.inAdd=null;render();window.scrollTo({top:0});return}
   if(act==="pqgroup"){S.pqGroup=a.dataset.v==="origin"?"origin":"stage";try{localStorage.setItem("slPqGroup",S.pqGroup)}catch(x){}S.inAdd=null;render();return}
   if(act==="gall"){S.gAll[a.dataset.stage||""]=true;render();return}
@@ -1081,16 +1353,13 @@ document.addEventListener("click",async e=>{
   if(act==="openg"){closeAll();S.openG=id;hideQ();render();return}
   if(act==="fold"){toggleFold(a.dataset.board,a.dataset.stage);S.inAdd=null;render();const f=document.querySelector(`#v-sales .sl-col[data-board="${a.dataset.board}"][data-stage="${CSS.escape(a.dataset.stage)}"] [data-act="fold"]`);if(f)f.focus();return}
   if(act==="boxtog"){S.boxOpen=!(S.boxOpen!==false);try{localStorage.setItem("slBox",S.boxOpen?"1":"0")}catch(x){}render();return}
-  if(act==="spview"){S.spView=a.dataset.v;S.inAdd=null;render();return}
   if(act==="open"){closeAll();S.openId=id;S.cOpen=false;hideQ();render();openComments(id);return}
   if(act==="openc"){closeAll();S.openCl=id;S.openClB=BK[S.view]?S.view:null;hideQ();render();return}
-  /* the "N offers" chip, or another offer in a deal's offers list: open that deal at its offers */
-  if(act==="offers"||(act==="opensp"&&a.closest(".sl-offs"))){closeAll();S.openSp=id;hideQ();render();focusOffers();return}
   if(act==="opensp"){closeAll();S.openSp=id;hideQ();render();return}
-  if(act==="spgroup"){const k=a.dataset.k;if(!GRP_KEY[k])return;S.grp[k]=a.dataset.v==="source"?"source":"stage";try{localStorage.setItem(GRP_KEY[k],S.grp[k])}catch(x){}S.inAdd=null;render();
+  if(act==="spgroup"){const k=a.dataset.k;if(!GRP_KEY[k])return;S.grp[k]=GRPS.includes(a.dataset.v)?a.dataset.v:"stage";try{localStorage.setItem(GRP_KEY[k],S.grp[k])}catch(x){}S.inAdd=null;render();
     const b=document.querySelector(`#v-sales [data-act="spgroup"][data-k="${k}"][data-v="${S.grp[k]}"]`);if(b)b.focus();return}
   if(act==="opent"){closeAll();S.openCt=id;hideQ();render();return}
-  if(act==="close"||act==="closebg"){closeAll();S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener();return}
+  if(act==="close"||act==="closebg"){flushEdit();closeAll();S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener();return}
   if(act==="refresh"){load(true);return}
   if(act==="inadd"){S.inAdd=a.dataset.ikey;render();return}
   if(act==="incancel"){S.inAdd=null;render();return}
@@ -1121,6 +1390,7 @@ document.addEventListener("click",async e=>{
     }catch(err){S.drop.busy=false;S.drop.err=err&&err.code==="not_granted"?"Allow this dashboard to use Claude to read notes, or add by hand.":err&&err.code==="rate_limited"?"Claude is busy right now. Try again in a minute.":"I couldn't read that note. Try again, or add by hand.";render()}
     return}
   if(act==="dropsave"){const d=S.drop;if(!d||!d.items)return;
+    const badV=d.items.findIndex((it,i)=>{const x=el("slP-m-"+i);return !!x&&Number.isNaN(amt(x.value))});if(badV>=0){toast("Value / month: "+AMT_MSG);el("slP-m-"+badV).focus();return}
     d.items.forEach((it,i)=>{const v=k=>{const x=el("slP-"+k+"-"+i);return x?x.value.trim():""};
       it.name=v("n")||it.name;const co=v("c");if(co)it.company=co;if(!(it.match&&it.match.kind==="sp"))it.board=v("b")||it.board;it.stage=v("s")||it.stage;it.origin=v("g")||it.origin;it.needed=v("x");it.chase_date=v("d");it.likely_offer=v("o");it.monthly_value=v("m");
       const cs=v("v");it.conversation=cs?{channel:v("h")||"Other",summary:cs}:null});
@@ -1137,41 +1407,69 @@ document.addEventListener("click",async e=>{
   if(act==="postc"){const inp=el("slCm");const t=(inp&&inp.value||"").trim();if(!t)return;const id2=S.openId;inp.value="";
     try{await call("create_record_comment",{baseId:CB,tableId:T.leads,recordId:id2,text:t});S.cOpen=true;toast("Comment posted");openComments(id2)}catch(err){toast("Couldn't post the comment.")}return}
   if(act==="addconv"){const t=(el("slCt").value||"").trim();if(!t)return;const ch=el("slCc").value;const id2=S.openId;const r=lead(id2);const cid=r?ids(r[L.contacts])[0]:"";const f={[C.sum]:t,[C.lead]:[id2],[C.date]:TODAY,[C.ch]:ch};if(cid)f[C.contact]=[cid];const w=viewer();if(w)f[C.who]=w;
-    try{const nid=await mk(CB,T.conv,f);S.conv.push(Object.assign({_id:nid},f,{[C.lead]:[{id:id2}],[C.ch]:{name:ch},[C.who]:w?{name:w}:null}));await saveLead(id2,{[L.lastC]:TODAY})}catch(err){toast("Couldn't log the conversation.")}return}
+    try{const nid=await mk(CB,T.conv,f);S.conv.push(Object.assign({_id:nid},f,{[C.lead]:[{id:id2}],[C.ch]:{name:ch},[C.who]:w?{name:w}:null}));clearIn("slCt");await saveLead(id2,{[L.lastC]:TODAY})}catch(err){toast("Couldn't log the conversation.")}return}
   if(act==="logsp"){const t=(el("slSx").value||"").trim();if(!t){el("slSx").focus();return}const ch=el("slSc").value;const p=derive().P.find(x=>x.id===a.dataset.id);if(!p)return;
-    a.disabled=true;try{await logConv(t,ch,p.jadeId||"",p.contactIds[0]||"");await saveRec("sp",p.id,{[SP.lastc]:TODAY},true);toast("Conversation logged");render()}catch(err){a.disabled=false;toast("Couldn't log the conversation.")}return}
+    /* a conversation needs a person to hang on (as in the contact window): no contact and no Podcast Leads record = nothing to link */
+    if(!p.contactIds.length&&!p.jadeId){toast("Add this person to Contacts first.");return}
+    a.disabled=true;try{await logConv(t,ch,p.jadeId||"",p.contactIds[0]||"");clearIn("slSx");await saveRec("sp",p.id,{[SP.lastc]:TODAY},true);toast("Conversation logged");render()}catch(err){a.disabled=false;toast("Couldn't log the conversation.")}return}
   if(act==="logct"){const t=(el("slTt").value||"").trim();if(!t){el("slTt").focus();return}const ch=el("slTc").value;const p=peopleOf(derive()).find(x=>x.id===a.dataset.id);if(!p)return;
     const jl=p.items.find(i=>i.kind==="jade");const f={[C.sum]:t,[C.date]:TODAY,[C.ch]:ch};if(p.ct)f[C.contact]=[p.ct._id];if(jl)f[C.lead]=[jl.id];const w=viewer();if(w)f[C.who]=w;
     if(!p.ct&&!jl){toast("Add this person to Contacts first.");return}
     a.disabled=true;
-    try{const nid=await mk(CB,T.conv,f);S.conv.push(Object.assign({_id:nid},f));
+    try{const nid=await mk(CB,T.conv,f);S.conv.push(Object.assign({_id:nid},f));clearIn("slTt");
       if(jl)await upd(CB,T.leads,jl.id,{[L.lastC]:TODAY}).then(()=>{lead(jl.id)[L.lastC]=TODAY}).catch(()=>{});
       for(const i of p.items.filter(i=>i.kind!=="jade")){await upd(KF[i.kind].base,KF[i.kind].tbl,i.id,{[KF[i.kind].lastc]:TODAY}).then(()=>{recOf(i.kind,i.id)[KF[i.kind].lastc]=TODAY}).catch(()=>{})}
       toast("Conversation logged");render()}catch(err){a.disabled=false;toast("Couldn't log the conversation.")}return}
   if(act==="savelead"){const name=(el("slFn").value||"").trim();if(!name){el("slFn").focus();return}
+    if(Number.isNaN(amt(el("slFv").value))){toast("Value / month: "+AMT_MSG);el("slFv").focus();return}
     const it={name,company:el("slFw").value||"",board:el("slFf").value,stage:el("slFs").value,origin:el("slFg").value,likely_offer:el("slFo").value,needed:el("slFx").value||"",chase_date:el("slFd").value||"",monthly_value:el("slFv").value,conversation:null};
     a.disabled=true;
     try{await saveProposal(it);S.adding=false;toast("Lead added");await load(true)}catch(err){a.disabled=false;toast("Couldn't add the lead.")}return}
 });
 document.addEventListener("keydown",e=>{
+  /* v6: the delete warning keeps focus inside itself; Esc closes it (only it) */
+  if(S.del&&el("slModal").querySelector(".sl-cfm")){const box=el("slModal").querySelector(".sl-cfm");
+    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();delClose();return}
+    if(e.key==="Tab"){const f=[...box.querySelectorAll("button:not([disabled])")];if(!f.length){e.preventDefault();return}const i=f.indexOf(document.activeElement);e.preventDefault();f[(i<0?0:i+(e.shiftKey?-1:1)+f.length)%f.length].focus();return}
+    if(!box.contains(e.target)){e.preventDefault();const c=el("slDelC");if(c)c.focus();return}}
+  if(e.key==="Escape"&&menuIsOpen()){e.preventDefault();menuClose(true);return}
+  /* ⋯ opens from the keyboard with ArrowDown too */
+  if(e.key==="ArrowDown"&&e.target&&e.target.id==="slMore"){e.preventDefault();menuOpen();return}
+  /* offer tabs: arrows / Home / End move to the next tab and show it */
+  const tb=e.target&&e.target.closest&&e.target.closest('#slModal [role="tab"]');
+  if(tb&&["ArrowLeft","ArrowRight","Home","End"].includes(e.key)){e.preventDefault();const ts=[...tb.parentElement.querySelectorAll('[role="tab"]')];let i=ts.indexOf(tb);
+    i=e.key==="Home"?0:e.key==="End"?ts.length-1:(i+(e.key==="ArrowRight"?1:-1)+ts.length)%ts.length;const nid=ts[i].dataset.id;pkClose(false);if(S.openSp!==nid){S.openSp=nid;render()}const n=el("slTab-"+nid);if(n)n.focus();return}
+  if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.matches&&e.target.matches("#slModal .sl-dpi:not([readonly])")&&typeof e.target.showPicker==="function"){e.preventDefault();try{e.target.showPicker()}catch(x){}return}
+  /* v6.1: Enter in a "Log a conversation" box logs it (like the board's "Add a lead" name box) */
+  if(e.key==="Enter"&&!e.isComposing&&e.target&&["slSx","slTt","slCt"].includes(e.target.id)){e.preventDefault();const b=e.target.closest(".sl-addc")&&e.target.closest(".sl-addc").querySelector("button[data-act]");if(b&&!b.disabled)b.click();return}
+  /* v6.1: the header search: ArrowDown moves into the results, arrows move between them, Enter opens the first, Esc closes the list */
+  if(e.target&&(e.target.id==="slQ"||(e.target.closest&&e.target.closest("#slQr")))){const qr=el("slQr"),q=el("slQ");const its=qr&&!qr.hidden?[...qr.querySelectorAll("button")]:[];
+    if((e.key==="ArrowDown"||e.key==="ArrowUp")&&its.length){e.preventDefault();const i=its.indexOf(document.activeElement);const j=e.key==="ArrowDown"?(i<0?0:Math.min(its.length-1,i+1)):(i<0?-1:i-1);if(j<0)q.focus();else its[j].focus();return}
+    if(e.key==="Enter"&&e.target.id==="slQ"&&its.length){e.preventDefault();its[0].click();return}
+    if(e.key==="Escape"&&qr&&!qr.hidden){e.preventDefault();qr.hidden=true;q.focus();return}}
+  /* a picker opens from the keyboard with ArrowDown / ArrowUp too (Enter and Space press the button) */
+  if((e.key==="ArrowDown"||e.key==="ArrowUp")&&e.target&&e.target.matches&&e.target.matches(".sl-pk")&&!e.target.disabled&&(e.target.closest("#v-sales")||e.target.closest("#slModal"))){e.preventDefault();pkOpen(e.target);return}
   if(S.ctEdit&&e.target&&e.target.closest&&e.target.closest("#slModal")){
     if(e.key==="Enter"&&e.target.tagName==="INPUT"&&e.target.dataset.ct){e.preventDefault();saveContact();return}
     if(e.key==="Escape"){e.preventDefault();S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;render();const b=document.querySelector('#slModal [data-act="ctedit"]');if(b)b.focus();return}}
   if(e.target&&e.target.id==="slIn"){if(e.key==="Enter"){e.preventDefault();const b=document.querySelector('#v-sales [data-act="insave"]');if(b)b.click();return}if(e.key==="Escape"){S.inAdd=null;render();return}}
-  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.openG||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener()}
+  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.openG||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){flushEdit();S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener()}
 });
 document.addEventListener("change",e=>{
   if(e.target&&e.target.dataset&&e.target.dataset.ct&&e.target.closest("#slModal")){if(S.ctDraft)S.ctDraft[e.target.dataset.ct]=e.target.value;return}
   const a=e.target.closest("[data-act]")||e.target;if(!(a.closest("#v-sales")||a.closest("#slModal")))return;
+  if(a.classList&&a.classList.contains("sl-dpi"))dpSync(a);
   if(a.id==="slCo"){S.co=a.value;const pl=el("slPl");if(pl)pl.innerHTML=peopleRowsH(peopleOf(derive()));return}
   if(!a.dataset||!a.dataset.act)return;
   const card=a.closest("[data-id]");const act=a.dataset.act;
-  if(act==="pboard"){const i=a.dataset.i;const s=el("slP-s-"+i);if(s)s.innerHTML=stOpts(a.value,a.value==="sp"?SP_NEW:a.value==="prequal"?"New":"");return}
-  if(act==="fboard"){const s=el("slFs");if(s)s.innerHTML=stOpts(a.value,a.value==="sp"?SP_NEW:a.value==="prequal"?"New":"");return}
+  if(act==="pboard"){const i=a.dataset.i;const s=el("slP-s-"+i);if(s)pkReplace(s,stList(a.value),stDef(a.value),stKind(a.value));return}
+  if(act==="fboard"){const s=el("slFs");if(s)pkReplace(s,stList(a.value),stDef(a.value),stKind(a.value));return}
   if(S.ro){if(a.type==="checkbox")a.checked=!a.checked;toast(VIEW_ONLY);render();return}
+  if(act==="sptab"){setOffer(a.dataset.id,a.value);return}
+  if(act==="addoffer"){addOffer(a.value);return}
   if(act==="plhealth"){const id2=a.dataset.id;saveRec("pl",id2,{[PL.health]:a.value||null});return}
   const kind=card?card.dataset.kind:S.openSp?"sp":S.openCl?"cl":"jade";
-  const id=(card&&card.dataset.id)||S.openSp||S.openCl||S.openId;
+  const id=(card&&card.dataset.id)||S.openSp||S.openCl||S.openId;if(!id)return;
   if(kind==="cl"||kind==="sp"){const k=KF[kind];const r=recOf(kind,id);if(!r)return;
     if(act==="done"){if(a.checked){S.prevLastC[id]=r[k.lastc]||null;saveRec(kind,id,{[k.lastc]:TODAY})}else saveRec(kind,id,{[k.lastc]:S.prevLastC[id]||null});return}
     if(act==="rstage"){const it=derive().K.find(x=>x.id===id);const b=it&&clBoardOf(it);if(b)setClStage(id,b,a.value);return}
@@ -1182,10 +1480,14 @@ document.addEventListener("change",e=>{
     if(act==="spstage")return saveRec("sp",id,{[SP.stage]:a.value},false,true); /* typecast: the new stage names may be new options */
     if(act==="spoffer")return saveRec("sp",id,{[SP.offer]:a.value});
     if(act==="sporigin")return saveRec("sp",id,{[SP.origin]:stdO(a.value)||"Other"},false,true); /* standard name; typecast adds the option */
+    /* v6: Origin and Owner in the deal window belong to the person: every offer in the group, one update (typecast as origin writes) */
+    if(act==="porigin"||act==="powner"){if(a.value===MIXED)return;const D=derive();const p=D.P.find(x=>x.id===id);if(!p)return;return savePerson(personGroup(p,D.P).map(x=>x.id),act==="porigin"?{[SP.origin]:stdO(a.value)||"Other"}:{[SP.owner]:a.value||null},true)}
     if(act==="spchase")return saveRec("sp",id,{[SP.chase]:a.value||null});
     if(act==="spnotes")return saveRec("sp",id,{[SP.notes]:a.value||null},true);
     if(act==="needed"&&kind==="sp")return saveRec("sp",id,{[SP.needed]:a.value||null},true);
-    if(act==="value")return saveRec(kind,id,{[k.value]:digits(a.value),[k.est]:false},true);
+    /* v6.1: "12k" = 12,000, a range keeps its low end, anything else is not saved; the saved value shows formatted, and the window,
+       the card and the KPIs redraw at once (the field already holds the new text, so the redraw keeps focus without re-saving) */
+    if(act==="value"){const n=amt(a.value);if(Number.isNaN(n)){badAmt(a,r[k.value]);return}a.value=a.defaultValue=full(n);return saveRec(kind,id,{[k.value]:n,[k.est]:false})}
     const map={next:k.next,rwant:k.want,rnotes:k.notes,rowner:k.owner,rchase:k.chase};
     if(map[act]){saveRec(kind,id,{[map[act]]:a.value||null},act==="next"||act==="rwant"||act==="rnotes");return}
     return}
@@ -1196,38 +1498,116 @@ document.addEventListener("change",e=>{
   if(act==="latest")return saveLead(id,{[L.latest]:a.value},false,true);
   if(act==="owner")return saveLead(id,{[L.owner]:a.value||null});
   if(act==="likely")return saveLead(id,{[L.likely]:a.value});
-  if(act==="value")return saveLead(id,{[L.value]:digits(a.value),[L.est]:false},false,true);
+  if(act==="value"){const n=amt(a.value);if(Number.isNaN(n)){badAmt(a,(lead(id)||{})[L.value]);return}a.value=a.defaultValue=full(n);return saveLead(id,{[L.value]:n,[L.est]:false})}
   if(act==="last"){const l=deriveJ().find(x=>x.id===id);if(!l||!l.lastConv)return;const c=l.lastConv;const prev=c[C.sum];c[C.sum]=a.value;
     upd(CB,T.conv,c._id,{[C.sum]:a.value}).then(()=>toast("Saved")).catch(()=>{const keep=typedIn();c[C.sum]=prev;render();putTyped(keep);toast("Couldn't save.")});return}
 });
 /* drag a card between columns */
-let slDrag=false,slNoDrag=false;
-/* the "N offers" chip is a button on a draggable card: pressing it never starts a drag */
-document.addEventListener("pointerdown",e=>{slNoDrag=!!(e.target.closest&&e.target.closest(".sl-offb"))},true);
-document.addEventListener("dragend",()=>{slDrag=false});
-document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest("#v-sales .sl-kc");if(!c)return;if(slNoDrag){e.preventDefault();return}slDrag=true;e.dataTransfer.setData("text/plain",c.dataset.kind+":"+c.dataset.id);e.dataTransfer.effectAllowed="move"});
+let slDrag=false;
+const clearOver=()=>document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x.classList.remove("over"));
+document.addEventListener("dragend",()=>{slDrag=false;clearOver()});
+/* v6.1: the column under the pointer. Below a short column (the board scrolls inside itself on desktop, and short columns are only
+   as tall as its visible part) the pointer is over the board itself: the column is the one whose left-right range holds the pointer */
+function dropCol(e){const t=e.target;if(!t||!t.closest)return null;const c=t.closest("#v-sales .sl-col");if(c)return c;const bd=t.closest("#v-sales .sl-board");if(!bd)return null;
+  return [...bd.children].find(x=>{if(!x.classList.contains("sl-col"))return false;const r=x.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right})||null}
+document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest("#v-sales .sl-kc");if(!c)return;if(c.closest('.sl-board[data-group="date"]')){e.preventDefault();return}slDrag=true;e.dataTransfer.setData("text/plain",c.dataset.kind+":"+c.dataset.id);e.dataTransfer.effectAllowed="move"});
 document.addEventListener("dragover",e=>{
   if(slDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
     const bd=document.querySelector("#v-sales .sl-board");if(bd){const r=bd.getBoundingClientRect();if(y>r.top&&y<r.bottom){if(e.clientX<r.left+70)bd.scrollLeft-=16;else if(e.clientX>r.right-70)bd.scrollLeft+=16;
       /* desktop: the board scrolls inside itself, so near its top or bottom edge it scrolls up or down to reach the other columns */
       if(bd.scrollHeight>bd.clientHeight){if(y<r.top+70)bd.scrollTop-=Math.ceil((r.top+70-y)/2);else if(y>r.bottom-70)bd.scrollTop+=Math.ceil((y-(r.bottom-70))/2)}}}}
-  const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;const cb=col.dataset.board;
-  /* grouped by source: only the source columns take a drop (not the Pre-qual tile, not "No source") */
+  const col=dropCol(e);if(!col||col.closest('.sl-board[data-group="date"]'))return;const cb=col.dataset.board;
+  /* grouped by source: only the source columns take a drop (not the Pre-qual tile, not "No source").
+     v6.1: grouped by stage, the Pre-qual tile takes no drop either (Pre-qual is set by the teams, not by Kash) */
   const bySrc=!!col.closest('.sl-board[data-group="source"]');
-  if(bySrc?!(cb==="sp-src"&&col.dataset.stage):!(cb==="sp"||(BK[cb]&&!(cb==="prequal"&&S.pqGroup==="origin"))))return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
-document.addEventListener("dragleave",e=>{const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
-document.addEventListener("drop",e=>{slDrag=false;const col=e.target.closest&&e.target.closest("#v-sales .sl-col");if(!col)return;e.preventDefault();col.classList.remove("over");
+  if(bySrc?!(cb==="sp-src"&&col.dataset.stage):!((cb==="sp"&&col.dataset.stage!=="Pre-qual")||(BK[cb]&&!(cb==="prequal"&&S.pqGroup==="origin"))))return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
+document.addEventListener("dragleave",e=>{const t=e.target;if(!t||!t.closest)return;const col=t.closest("#v-sales .sl-col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over");
+  if(t.matches("#v-sales .sl-board")&&!t.contains(e.relatedTarget))clearOver()});
+document.addEventListener("drop",e=>{slDrag=false;const col=dropCol(e);if(!col||col.closest('.sl-board[data-group="date"]'))return;e.preventDefault();clearOver();
   const [kind,id]=(e.dataTransfer.getData("text/plain")||"").split(":");if(!id)return;if(S.ro){toast(VIEW_ONLY);return}
   const bk=col.dataset.board;const st=col.dataset.stage;
   if(col.closest('.sl-board[data-group="source"]')){if(bk==="sp-src"&&kind==="sp"&&ORIGINS.includes(st))setTimeout(()=>setOrigin(id,st),0);return}
-  if(!bk||!st)return;
-  /* save after the drag has fully ended, so the card being dragged isn't redrawn mid-drag */
-  setTimeout(()=>{if(bk==="sp"&&kind==="sp")saveRec("sp",id,{[SP.stage]:st},false,true);else if(bk==="jade"&&kind==="jade")saveLead(id,{[L.stage]:st});else{const b=BK[bk];if(b&&b.kind==="cl"&&kind==="cl"&&derive().K.some(x=>x.id===id&&x.boards.includes(b)))setClStage(id,b,st)}},0)});
+  if(!bk||!st||(bk==="sp"&&st==="Pre-qual"))return;
+  /* save after the drag has fully ended, so the card being dragged isn't redrawn mid-drag; a card dropped back on its own column saves nothing */
+  setTimeout(()=>{
+    if(bk==="sp"&&kind==="sp"){const r=recOf("sp",id);if(r&&spStage(r[SP.stage])!==st)saveRec("sp",id,{[SP.stage]:st},false,true)}
+    else if(bk==="jade"&&kind==="jade"){const r=lead(id);if(r&&(sv(r[L.stage])||JADE_STAGES[0])!==st)saveLead(id,{[L.stage]:st})}
+    else{const b=BK[bk];const r=recOf("cl",id);if(b&&b.kind==="cl"&&kind==="cl"&&r&&sv(r[b.field])!==st&&derive().K.some(x=>x.id===id&&x.boards.includes(b)))setClStage(id,b,st)}},0)});
 
-/* a deal dropped on another source column: its Origin becomes that standard origin (typecast adds the option if needed) */
-async function setOrigin(id,o){const r=recOf("sp",id);if(!r||stdO(r[SP.origin])===o)return;if(await saveRec("sp",id,{[SP.origin]:o},false,true))toast("Origin set to "+o)}
+/* a deal dropped on another source column: its Origin becomes that standard origin (typecast adds the option if needed).
+   v6.1: Origin belongs to the person (as in the deal window), so every offer of the person moves with it, in one update */
+async function setOrigin(id,o){const D=derive();const p=D.P.find(x=>x.id===id);if(!p)return;const g=personGroup(p,D.P);if(g.every(x=>stdO(x.r[SP.origin])===o))return;
+  await savePerson(g.map(x=>x.id),{[SP.origin]:o},true,g.length>1?"Origin set to "+o+" on all "+g.length+" offers":"Origin set to "+o)}
+
+/* ---------- v6 (Karen, 6 Nov): deal window quick actions (Sales Pipeline deals only) ---------- */
+/* Origin / Owner are the person's: one update for every offer in the group (Airtable takes 10 records per call) */
+/* v6.1: a batch that fails is put back on its own; batches already saved stay saved, so the window matches Airtable */
+async function savePerson(idL,fields,typecast,msg){
+  const rs=idL.map(id=>recOf("sp",id)).filter(Boolean);if(!rs.length)return false;
+  const prev=new Map(rs.map(r=>{const o={};Object.keys(fields).forEach(k=>{o[k]=r[k]});return [r,o]}));rs.forEach(r=>Object.assign(r,fields));render();
+  let bad=[];
+  for(let i=0;i<rs.length;i+=10){const b=rs.slice(i,i+10);try{await call("update_records_for_table",{baseId:CB,tableId:T.sp,records:b.map(r=>({id:r._id,fields})),typecast:!!typecast})}catch(e){bad=bad.concat(b)}}
+  if(!bad.length){toast(msg||(rs.length>1?"Saved on all "+rs.length+" offers":"Saved"));return true}
+  const keep=typedIn();bad.forEach(r=>Object.assign(r,prev.get(r)));render();putTyped(keep);
+  toast(bad.length===rs.length?"Couldn't save. Try again.":`Saved on ${rs.length-bad.length} of ${rs.length} offers. Try again.`);return false
+}
+/* Won / Lost: the stage of the SELECTED offer only */
+async function setWonLost(won){
+  const id=S.openSp;const r=recOf("sp",id);if(!r)return;const st=won?SP_WON:SP_LOST;if(spStage(r[SP.stage])===st)return;
+  const pr=saveRec("sp",id,{[SP.stage]:st},false,true);const b=el(won?"slWon":"slLost");if(b)b.focus({preventScroll:true});
+  if(await pr)toast(won?"Marked as won":"Marked as lost")}
+/* ＋ Add offer: a new Sales Pipeline deal for the same person at Lead in, with the current deal's owner, origin, company, From and contacts */
+async function addOffer(svc){
+  const D=derive();const p=D.P.find(x=>x.id===S.openSp);if(!p||p.pre||S.ro||!SERVICES.includes(svc))return;
+  const g=personGroup(p,D.P);const who=offWho(g)||p.name;const r=p.r;
+  const f={[SP.deal]:who+" · "+svc,[SP.services]:[svc],[SP.stage]:SP_NEW};
+  const ow=sv(r[SP.owner]),og=stdO(r[SP.origin]),co=String(sv(r[SP.co])||"").trim(),fr=sv(r[SP.from]);
+  if(ow)f[SP.owner]=ow;if(og)f[SP.origin]=og;if(co)f[SP.co]=co;if(fr)f[SP.from]=fr;if(p.contactIds.length)f[SP.contacts]=p.contactIds.slice();
+  const b=el("slAddOff");if(b)b.disabled=true;
+  try{const id=await mk(CB,T.sp,f,true);if(!id)throw new Error("no id");S.sp.push(Object.assign({_id:id},f));
+    /* v6.1: before the window moves to the new tab, a field still being typed in saves on the offer it belongs to, and an open list closes */
+    if(S.openSp===p.id){leaveOffer();S.openSp=id}render();const t=el("slTab-"+id);if(t)t.focus({preventScroll:true});toast("Offer added")}
+  catch(e){render();const a=el("slAddOff");if(a)a.focus({preventScroll:true});toast("Couldn't add the offer. Try again.")}
+}
+/* "Select offer" on a deal with no offer yet: its Services and its name ("<Person> · <Offer>") */
+async function setOffer(id,svc){
+  const D=derive();const p=D.P.find(x=>x.id===id);if(!p||S.ro||!SERVICES.includes(svc))return;
+  const who=offWho(personGroup(p,D.P))||offPerson(p.name)||p.name;
+  await saveRec("sp",id,{[SP.services]:[svc],[SP.deal]:who+" · "+svc});const t=el("slTab-"+id);if(t)t.focus({preventScroll:true})}
+/* Delete this offer: only from the warning dialog's "Delete offer" */
+async function delOffer(){
+  const d=S.del;if(!d||d.busy)return;d.busy=true;render();
+  try{await call("delete_records_for_table",{baseId:CB,tableId:T.sp,recordIds:[d.id]})}
+  catch(e){if(S.del)S.del.busy=false;render();const g=el("slDelGo");if(g)g.focus({preventScroll:true});toast("Couldn't delete");return}
+  const D=derive();const p=D.P.find(x=>x.id===d.id);const g=p?personGroup(p,D.P):[];const i=g.findIndex(x=>x.id===d.id);const nx=g[i+1]||g[i-1]||null;
+  S.sp=S.sp.filter(r=>r._id!==d.id);S.del=null;
+  leaveOffer();
+  if(nx){S.openSp=nx.id;render();const t=el("slTab-"+nx.id);if(t)t.focus({preventScroll:true})}
+  else{S.openSp=null;render();backToOpener()}
+  toast("Offer deleted")}
+function delClose(){if(!S.del)return;S.del=null;render();const m=el("slMore");if(m)m.focus({preventScroll:true})}
+/* the ⋯ menu next to ✕: one item, "Delete this offer" (a small menu on top of the window, like the pickers) */
+function menuEl(){let m=el("slMenu");if(m)return m;m=document.createElement("div");m.id="slMenu";m.className="sl-menu";m.setAttribute("role","menu");m.hidden=true;document.body.appendChild(m);
+  m.addEventListener("click",e=>{const it=e.target.closest("[data-mi]");if(!it)return;menuClose(false);if(it.dataset.mi==="del"&&S.openSp&&!S.ro){S.del={id:S.openSp,busy:false};render();const c=el("slDelC");if(c)c.focus({preventScroll:true})}});
+  m.addEventListener("keydown",e=>{const its=[...m.querySelectorAll('[role="menuitem"]')];const i=its.indexOf(document.activeElement);
+    if(e.key==="Escape"||e.key==="Tab"){e.preventDefault();menuClose(true)}
+    else if(e.key==="ArrowDown"||e.key==="ArrowUp"||e.key==="Home"||e.key==="End"){e.preventDefault();const j=e.key==="Home"?0:e.key==="End"?its.length-1:(i+(e.key==="ArrowDown"?1:-1)+its.length)%its.length;its[j].focus()}
+    else return;e.stopPropagation()});
+  return m}
+function menuPlace(){const m=el("slMenu"),b=el("slMore");if(!m||m.hidden||!b)return;const r=b.getBoundingClientRect(),vw=document.documentElement.clientWidth,w=m.offsetWidth;
+  m.style.left=Math.round(Math.max(8,Math.min(r.right-w,vw-w-8)))+"px";m.style.top=Math.round(r.bottom+6)+"px"}
+function menuOpen(){const b=el("slMore");if(!b)return;pkClose(false);const m=menuEl();
+  m.setAttribute("aria-labelledby","slMore");m.innerHTML=`<button type="button" role="menuitem" class="sl-mi dang" data-mi="del" tabindex="-1">${svg(TRASH_I,16)}Delete this offer</button>`;
+  m.hidden=false;b.setAttribute("aria-expanded","true");b.setAttribute("aria-controls","slMenu");menuPlace();m.querySelector('[role="menuitem"]').focus({preventScroll:true})}
+function menuClose(back){const m=el("slMenu");if(!m||m.hidden)return;m.hidden=true;m.innerHTML="";const b=el("slMore");if(b){b.setAttribute("aria-expanded","false");if(back)b.focus({preventScroll:true})}}
+const menuIsOpen=()=>{const m=el("slMenu");return !!m&&!m.hidden};
+/* after a redraw: keep the menu on the new ⋯ button, or close it when the button is gone */
+function menuSync(){if(!menuIsOpen())return;const b=el("slMore");if(!b){menuClose(false);return}b.setAttribute("aria-expanded","true");menuPlace()}
+document.addEventListener("pointerdown",e=>{if(!menuIsOpen())return;const m=el("slMenu"),b=el("slMore");if(m.contains(e.target)||(b&&b.contains(e.target)))return;menuClose(false)},true);
+document.addEventListener("scroll",()=>{if(menuIsOpen())menuPlace()},true);
+window.addEventListener("resize",()=>{if(menuIsOpen())menuPlace()});
 /* hook into the page's tabs */
-if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;S.drop=null;S.inAdd=null;S.ctEdit=null;S.ctDraft=null;if(el("slModal"))el("slModal").innerHTML=""}}}
+if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;S.drop=null;S.inAdd=null;S.ctEdit=null;S.ctDraft=null;S.del=null;if(el("slModal"))el("slModal").innerHTML="";pkClose(false);menuClose(false)}}}
 {const hb=el("refreshBtn");if(hb)hb.addEventListener("click",()=>{if(S.loaded&&!S.loading)load(true)})}
 if(location.hash==="#sales")showTab("sales");
 })();
