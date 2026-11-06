@@ -681,4 +681,24 @@ html:has(#slModal .sl-ov) body{overflow:hidden}
 @media (max-width:820px){.sl-dlg-kb .sl-facts.sl-kfacts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 /* Kash's board (6 Nov): the title stands alone above the numbers */
 .sl-ftop.sl-ftop1{margin-bottom:14px}
+/* Karen, 6 Nov (2): Kash's deal window is wider; on a laptop or desktop its facts sit on ONE row and its offers on ONE row, a size smaller */
+.sl-dlg.sl-dlg-kb{max-width:1180px}
+.sl-svcrow{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.sl-svcrow>.sl-sub{margin:0;flex:none}
+@media (min-width:1180px){.sl-dlg-kb .sl-facts.sl-kfacts{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}}
+@media (min-width:1180px) and (pointer:fine){
+.sl-dlg-kb .sl-kfacts .sl-fact{padding:8px 10px;gap:2px;border-radius:9px}
+.sl-dlg-kb .sl-kfacts .sl-fact>label,.sl-dlg-kb .sl-kfacts .sl-fact>.l{font-size:10.5px;margin-bottom:1px}
+.sl-dlg-kb .sl-kfacts .sl-fact input{height:24px;font-size:13px}
+.sl-dlg-kb .sl-kfacts .sl-fact .sl-fv{font-size:13px;line-height:18px;min-height:24px;padding:0}
+.sl-dlg-kb .sl-kfacts .sl-pk{min-height:24px;gap:2px}
+.sl-dlg-kb .sl-kfacts .sl-pill{font-size:12px;padding:2px 8px;gap:5px}
+.sl-dlg-kb .sl-kfacts .sl-fact>.sl-pk>.sl-pill{white-space:nowrap;border-radius:999px}
+.sl-dlg-kb .sl-kfacts .sl-fact>.sl-pk>.sl-pill>.t{overflow:hidden;text-overflow:ellipsis;overflow-wrap:normal}
+.sl-dlg-kb .sl-svcrow .sl-chips{gap:6px}
+.sl-dlg-kb .sl-svcrow .sl-chip{min-height:26px;padding:2px 9px;font-size:12px;border-width:1px;white-space:nowrap}
+}
+/* the board is one screen tall on a laptop or desktop: a grid, so every column is as tall as the longest one and the grey runs to the
+   bottom; it scrolls inside (sales.js moves the page first). Column widths come from sales.js (folded columns are 46px). */
+@media (pointer:fine){#v-sales .sl-board.sl-full{height:calc(100vh - 32px);max-height:none;display:grid;grid-template-rows:minmax(max-content,1fr);align-items:stretch}#v-sales .sl-board.sl-full>.sl-col:not(.sl-colc){padding-bottom:84px}}
 </style>

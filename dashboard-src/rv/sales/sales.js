@@ -155,7 +155,11 @@ function oIconH(o,sz,cls){const k=OI[o]?o:"Other";const i=OI[k];const c=cls?` cl
 function otagH(o){o=stdO(o)||"Other";return `<span class="sl-otag">${oIconH(o)}${esc(o||"Other")}</span>`}
 /* the offer = services in play: tags on cards, clickable chips in the windows */
 const svcTagsH=list=>(list||[]).map(x=>`<span class="sl-svc">${esc(x)}</span>`).join("");
-function svcPickH(act,list,gid){const ro=S.ro;return `<div role="group" aria-labelledby="${gid}"><p class="sl-sub" id="${gid}">Offers in play${ro?"":` <span style="text-transform:none;letter-spacing:0;font-weight:400">· click to add or remove</span>`}</p><div class="sl-chips">${ro?((list||[]).length?list.map(x=>`<span class="sl-chip" aria-pressed="true">${esc(x)}</span>`).join(""):'<span class="pm">None yet</span>'):SERVICES.map(x=>`<button type="button" class="sl-chip" data-act="${act}" data-v="${esc(x)}" aria-pressed="${(list||[]).includes(x)}">${esc(x)}</button>`).join("")}</div></div>`}
+function svcPickH(act,list,gid,row){const ro=S.ro;
+  const chips=`<div class="sl-chips">${ro?((list||[]).length?list.map(x=>`<span class="sl-chip" aria-pressed="true">${esc(x)}</span>`).join(""):'<span class="pm">None yet</span>'):SERVICES.map(x=>`<button type="button" class="sl-chip" data-act="${act}" data-v="${esc(x)}" aria-pressed="${(list||[]).includes(x)}">${esc(x)}</button>`).join("")}</div>`;
+  /* row (Kash's window, 6 Nov): the label and the offers on one line */
+  if(row)return `<div class="sl-svcrow" role="group" aria-labelledby="${gid}"><span class="sl-sub" id="${gid}">Offers in play</span>${chips}</div>`;
+  return `<div role="group" aria-labelledby="${gid}"><p class="sl-sub" id="${gid}">Offers in play${ro?"":` <span style="text-transform:none;letter-spacing:0;font-weight:400">· click to add or remove</span>`}</p>${chips}</div>`}
 function tagH(o){return `<span class="sl-tag${o==="High ticket"?" hi":""}">${svg(ICON[o]||ICON["Not sure yet"],13)}${esc(o)}</span>`}
 
 /* ---------- v6 (Karen, 6 Nov): ONE branded picker for every dropdown in the Sales tab ----------
@@ -677,7 +681,7 @@ function salesH(D){
     const nt=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
     /* Karen, 6 Nov: one title only ("Sales" above it is hidden), no status pill, owner line or explanations */
     return `<div class="sl-ftop sl-ftop1"><div class="sl-tt"><h2>Sales Pipeline</h2></div></div>${nt}${kpis}${toolsH()}
-    <div class="sl-board sl-spb">${spColsH(D,SALES_STAGES,true)}</div>`;
+    <div class="sl-board sl-spb sl-full" style="grid-template-columns:${SALES_STAGES.map(st=>isFolded("sp",st)?"46px":"minmax(212px,340px)").join(" ")}">${spColsH(D,SALES_STAGES,true)}</div>`;
   }
   const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Still with the teams",D.P.filter(p=>p.pre).length)}${kpiH("Audits booked",D.P.filter(p=>p.stage==="Audit booked").length)}${kpiH("Won",D.P.filter(p=>p.stage===SP_WON).length)}</div>`;
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
@@ -963,7 +967,7 @@ function kbModalH(p,D,people){
       ${own?`<div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:p.owner||"",opts:owners,name:"Owner",act:"powner",dis:S.ro})}</div>`:roFact("Owner",p.owner?`<b>${esc(ownerN(p.owner))}</b>`:"")}
       ${src!=="cl"?`<div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:p.offer||"Not sure yet",opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>`:""}
     </div>
-    ${svcPickH("spsvc",p.services,"slSsv")}
+    ${svcPickH("spsvc",p.services,"slSsv",true)}
     <div class="sl-secs">
     ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:String(p.needed||"").trim()?1:0,body:secTextH("slSn","needed",p.needed,"What do you need to do?","What's needed from you","need")})}
     ${secH({key:"notes",icon:"notes",title:"Notes",count:String(p.notes||"").trim()?1:0,body:secTextH("slSt","spnotes",p.notes,"","Notes")})}
@@ -1620,6 +1624,19 @@ document.addEventListener("dragend",()=>{slDrag=false;clearOver()});
    as tall as its visible part) the pointer is over the board itself: the column is the one whose left-right range holds the pointer */
 function dropCol(e){const t=e.target;if(!t||!t.closest)return null;const c=t.closest("#v-sales .sl-col");if(c)return c;const bd=t.closest("#v-sales .sl-board");if(!bd)return null;
   return [...bd.children].find(x=>{if(!x.classList.contains("sl-col"))return false;const r=x.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right})||null}
+/* Karen, 6 Nov: the board is one screen tall. With a mouse or trackpad, scrolling down over it first moves the page until the
+   board reaches the top of the window, then scrolls the cards; sideways swipes always move the board. Phones keep the plain page scroll. */
+const FULL_GAP=16;
+document.addEventListener("wheel",e=>{
+  if(e.ctrlKey||e.deltaY<=0||Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
+  const b=e.target.closest&&e.target.closest("#v-sales .sl-board.sl-full");if(!b||!matchMedia("(pointer:fine)").matches)return;
+  const top=b.getBoundingClientRect().top,room=document.documentElement.scrollHeight-innerHeight-scrollY;
+  /* board in place: its cards scroll; at their end the page stays put, so the column titles stay in view */
+  if(top<=FULL_GAP+1){if(b.scrollTop+b.clientHeight>=b.scrollHeight-1)e.preventDefault();return}
+  if(room<1)return;
+  e.preventDefault();const dy=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?innerHeight:1);
+  window.scrollBy(0,Math.min(dy,top-FULL_GAP,room));
+},{passive:false});
 document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest("#v-sales .sl-kc");if(!c)return;if(c.closest('.sl-board[data-group="date"]')){e.preventDefault();return}slDrag=true;e.dataTransfer.setData("text/plain",c.dataset.kind+":"+c.dataset.id);e.dataTransfer.effectAllowed="move"});
 document.addEventListener("dragover",e=>{
   if(slDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
