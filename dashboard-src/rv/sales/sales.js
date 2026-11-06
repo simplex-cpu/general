@@ -374,18 +374,21 @@ const clFrom=r=>{const src=sv(r[CL.src]);return src==="Upwork"?"Upwork (Danica)"
 /* one row per person, in the Sales pipeline field ids the board already reads; _src says which table it saves back to */
 function kbRows(){
   const out=[];
-  (S.leads||[]).forEach(r=>{const st=sv(r[L.stage]);out.push({_id:r._id,_src:"jade",
+  /* Karen, 6 Nov: different offers stay separate. When a team lead has its own offer deals (Sales pipeline rows linked to it that
+     carry a "Kash board" status), the board shows those deals, one card per offer, instead of the lead's single card. */
+  const offers=new Set();(S.spRaw||[]).forEach(r=>{if(!sv(r[KBF.sp]))return;const j=ids(r[SP.jade])[0],v=idFromUrl(r[SP.rv]);if(j)offers.add(j);if(v)offers.add(v)});
+  (S.leads||[]).forEach(r=>{if(offers.has(r._id))return;const st=sv(r[L.stage]);out.push({_id:r._id,_src:"jade",
     [SP.deal]:r[L.name]||"",[SP.co]:r[L.co]||"",[SP.what]:r[L.what]||"",[SP.stage]:kbNorm(r[KBF.jade])||KB_JADE[st]||"",
     [SP.origin]:JADE_SRC[sv(r[L.source])]||stdO(sv(r[L.source]))||"Other",[SP.owner]:sv(r[L.owner]),[SP.needed]:r[L.needed]||"",[SP.notes]:r[L.latest]||"",
     [SP.value]:r[L.value]||0,[SP.est]:!!r[L.est],[SP.chase]:r[L.chase]||"",[SP.lastc]:r[L.lastC]||"",[SP.leadin]:r[L.leadIn]||"",
     [SP.services]:(r[L.services]||[]).map(sv),[SP.offer]:sv(r[L.likely])||"Not sure yet",[SP.contacts]:ids(r[L.contacts]),[SP.jade]:[r._id],[SP.from]:"Podcast Leads (Jade)"})});
-  (S.cl||[]).forEach(r=>{const ct=idFromUrl(r[CL.contact]);out.push({_id:r._id,_src:"cl",
+  (S.cl||[]).forEach(r=>{if(offers.has(r._id))return;const ct=idFromUrl(r[CL.contact]);out.push({_id:r._id,_src:"cl",
     [SP.deal]:String(r[CL.name]||"").trim(),[SP.co]:r[CL.co]||"",[SP.what]:r[CL.want]||"",[SP.stage]:kbNorm(r[KBF.cl])||kbCl(r),
     [SP.origin]:stdO(sv(r[CL.pqo]))||stdO(sv(r[CL.src]))||"Other",[SP.owner]:ownerN(sv(r[CL.owner])),[SP.needed]:r[CL_NEED]||"",[SP.notes]:r[CL.notes]||"",
     [SP.value]:r[CL.val]||0,[SP.est]:!!r[CL.est],[SP.chase]:r[CL.chase]||"",[SP.lastc]:r[CL.lastc]||"",[SP.leadin]:r[CL.leadin]||"",
     [SP.services]:(r[CL.services]||[]).map(sv),[SP.offer]:"",[SP.contacts]:ct?[ct]:[],[SP.from]:clFrom(r)})});
-  /* Kash's own leads: Sales pipeline rows that did not come from a team board */
-  (S.spRaw||[]).forEach(r=>{if(ids(r[SP.jade]).length||String(r[SP.rv]||"").trim())return;
+  /* Kash's own leads (Sales pipeline rows that did not come from a team board), plus the offer deals above */
+  (S.spRaw||[]).forEach(r=>{if((ids(r[SP.jade]).length||String(r[SP.rv]||"").trim())&&!sv(r[KBF.sp]))return;
     out.push(Object.assign({},r,{_src:"sp",[SP.stage]:kbNorm(r[KBF.sp])||KB_OLD[sv(r[SP.stage])]||""}))});
   return out;
 }
