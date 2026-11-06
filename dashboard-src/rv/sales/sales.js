@@ -466,7 +466,7 @@ S.cols=Object.assign({sp:["Pre-qual"]},(()=>{try{const v=JSON.parse(localStorage
 const isFolded=(bk,st)=>(S.cols[bk]||[]).includes(st);
 function toggleFold(bk,st){const a=S.cols[bk]||[];S.cols[bk]=a.includes(st)?a.filter(x=>x!==st):a.concat([st]);try{localStorage.setItem(COLS_KEY,JSON.stringify(S.cols))}catch(e){}}
 function colH(bk,stages,st,n,inner,add,extra,label,ic){
-  const tm=TONE_MAP[bk];const tone=tm?(tm[st]||"s1"):stageTone(stages,st),lab=label||stL(st)||"No stage yet",tip=stageInfo(bk,st),info=bk==="prequal-o"||bk==="guests"||bk==="sp-src"?"":tip,d=`data-board="${esc(bk)}" data-stage="${esc(st)}"`;
+  const tm=TONE_MAP[bk];const tone=tm?(tm[st]||"s1"):stageTone(stages,st),lab=label||stL(st)||"No stage yet",tip=stageInfo(bk,st),info=bk==="prequal-o"||bk==="guests"||bk==="sp-src"||(SALES_ONLY&&bk==="sp")?"":tip,d=`data-board="${esc(bk)}" data-stage="${esc(st)}"`;
   const mark=ic||'<i class="sl-dot"></i>';
   if(isFolded(bk,st))return `<div class="sl-col sl-colc stx st-${tone}" ${d}><button type="button" class="sl-cexp" data-act="fold" ${d} aria-expanded="false" aria-label="Show ${esc(lab)}, ${n} ${n===1?"card":"cards"}" title="${esc(tip)}">${mark}<small>${n}</small><span class="v">${esc(lab)}</span></button></div>`;
   return `<div class="sl-col" ${d}><div class="sl-colh stx st-${tone}"><div class="t"><span${tip&&!info?` title="${esc(tip)}"`:""}>${mark}${esc(lab)}</span><span class="r"><small>${n}</small><button type="button" class="sl-ccol" data-act="fold" ${d} aria-expanded="true" aria-label="Fold ${esc(lab)}" title="Fold this column">${svg(CHEV,15)}</button></span></div>${info?`<p class="sl-cinfo">${esc(info)}</p>`:""}${extra||""}</div>${inner}${add}</div>`;
@@ -960,12 +960,12 @@ function kbModalH(p,D,people){
       <div class="sl-dhb"><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div></div>
     <div class="sl-facts sl-kfacts">
       <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:p.stage,opts:stOpts,name:"Stage",act:"spstage",dis:S.ro})}</div>
-      <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
       <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",p.chase)}</div>
-      ${roFact("Last contact",p.lastC?`${esc(short(p.lastC))} <small>· ${esc(agoL(p.lastC))}</small>`:"<small>No contact logged</small>")}
       ${own?`<div class="sl-fact"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:p.origin,opts:ORIGINS,name:"Origin",act:"porigin",dis:S.ro})}</div>`:roFact("Origin",otagH(p.origin))}
-      ${own?`<div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:p.owner||"",opts:owners,name:"Owner",act:"powner",dis:S.ro})}</div>`:roFact("Owner",p.owner?`<b>${esc(ownerN(p.owner))}</b>`:"")}
       ${src!=="cl"?`<div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:p.offer||"Not sure yet",opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>`:""}
+      ${roFact("Last contact",p.lastC?`${esc(short(p.lastC))} <small>· ${esc(agoL(p.lastC))}</small>`:"<small>No contact logged</small>")}
+      ${own?`<div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:p.owner||"",opts:owners,name:"Owner",act:"powner",dis:S.ro})}</div>`:roFact("Owner",p.owner?`<b>${esc(ownerN(p.owner))}</b>`:"")}
+      <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
     </div>
     ${svcPickH("spsvc",p.services,"slSsv",true)}
     <div class="sl-secs">

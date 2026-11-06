@@ -701,4 +701,8 @@ html:has(#slModal .sl-ov) body{overflow:hidden}
 /* the board is one screen tall on a laptop or desktop: a grid, so every column is as tall as the longest one and the grey runs to the
    bottom; it scrolls inside (sales.js moves the page first). Column widths come from sales.js (folded columns are 46px). */
 @media (pointer:fine){#v-sales .sl-board.sl-full{height:calc(100vh - 32px);max-height:none;display:grid;grid-template-rows:minmax(max-content,1fr);align-items:stretch}#v-sales .sl-board.sl-full>.sl-col:not(.sl-colc){padding-bottom:84px}}
+/* Karen, 6 Nov (3): more room under the offers before the sections, and under the last section before the footer */
+.sl-dlg-kb .sl-svcrow{margin-bottom:12px}
+.sl-dlg-kb .sl-dmeta{margin-top:6px}
+.sl-dlg-kb .sl-db{padding-bottom:28px}
 </style>
