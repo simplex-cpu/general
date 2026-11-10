@@ -435,7 +435,9 @@ const KB_DACT={spstage:SP.stage,spchase:SP.chase,porigin:SP.origin,spoffer:SP.of
 function kbDraftSet(act,a,id){
   const p=derive().P.find(x=>x.id===id);if(!p)return;const f=KB_DACT[act];
   /* Jade, Sarah or Gretta as the owner: the card goes back to the team, after a confirm (handH) */
-  if(act==="kbowner"&&a.value&&a.value!=="Kash"){S.hand={id,to:a.value,busy:false};render();const c=el("slHandC");if(c)c.focus({preventScroll:true});return}
+  if(act==="kbowner"&&a.value&&a.value!=="Kash"){S.hand={id,to:a.value,busy:false};render();
+    /* after the picker has put focus back on itself: focus goes to the question's Cancel */
+    setTimeout(()=>{const c=el("slHandC");if(c)c.focus({preventScroll:true})},0);return}
   if(act==="value"){const n=amt(a.value);if(Number.isNaN(n)){badAmt(a,kbView(p).value);kbDirtyUI();return}kbDraft()[f]=n;a.value=a.defaultValue=full(n);kbDirtyUI();return}
   if(act==="needed"||act==="spnotes"){kbDraft()[f]=a.value;kbDirtyUI();return}
   kbDraft()[f]=act==="porigin"?(stdO(a.value)||"Other"):a.value;render()}
@@ -1066,10 +1068,11 @@ function kbModalH(p,D,people){
     </div>
     <p class="sl-dmeta">${meta}</p>
   </div>
-  ${S.ro?"":`<div class="sl-dfoot sl-kfoot">${own?"":`<button type="button" class="sl-backbtn" id="slBack" data-act="spback" title="The lead leaves your board and goes back to the team">${svg(BACK_I,16)}<span>Send back<span class="sl-bkx"> to team</span></span></button>`}<span class="sl-dfh${own?"":" r"}">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span><span class="sl-dsv"><span class="sl-dirty" id="slDirty"${dirty?"":" hidden"}><i aria-hidden="true"></i>Unsaved changes</span><button type="button" class="sl-solid sl-save${dirty?" on":""}" id="slSave" data-act="kbsave"${!dirty||S.kbBusy?" disabled":""}>${svg(CHECK_I,15)}${S.kbBusy?"Saving…":"Save"}</button></span></div>`}
+  ${S.ro?"":`<div class="sl-dfoot sl-kfoot"><span class="sl-dfh">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span><span class="sl-dsv"><span class="sl-dirty" id="slDirty"${dirty?"":" hidden"}><i aria-hidden="true"></i>Unsaved changes</span><button type="button" class="sl-solid sl-save${dirty?" on":""}" id="slSave" data-act="kbsave"${!dirty||S.kbBusy?" disabled":""}>${svg(CHECK_I,15)}${S.kbBusy?"Saving…":"Save"}</button></span></div>`}
   </div></div>`;
 }
-/* Karen, 10 Nov: picking Jade, Sarah or Gretta as the owner gives the card back to the team: the owner changes and its Kash board
+/* Karen, 10 Nov: the footer's "Send back to team" button is gone: changing the owner does that job (backH / sendBack stay unused).
+   Picking Jade, Sarah or Gretta as the owner gives the card back to the team: the owner changes and its Kash board
    status becomes Review, as "Send back to team" does. A confirm first, as for Send back. */
 function handH(D){
   const h=S.hand;if(!h)return "";const p=D.P.find(x=>x.id===h.id);if(!p){S.hand=null;return ""}
