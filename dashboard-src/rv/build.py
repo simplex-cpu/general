@@ -66,5 +66,7 @@ s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
 s=s.rstrip()+'\n'+open('rv/sales/sales.css').read().strip()+'\n'+open('rv/sales/sales.js').read().strip()+'\n'
+# Karen, 10 Nov: reopen the tab Kash was last on (after Sales, so every part's showTab runs)
+s=s.rstrip()+'\n'+open('rv/lasttab.js').read().strip()+'\n'
 open('podcast-ceo/index.html','w').write(s)
 print('built',len(s))

@@ -717,4 +717,40 @@ html:has(#slModal .sl-ov) body{overflow:hidden}
 :root[data-theme="dark"] .sl-cfmi.back{background:#1F2A47;color:#C7D2FE}
 @media (pointer:coarse){.sl-backbtn{min-height:44px}}
 @media (max-width:560px){.sl-dlg-kb .sl-dfh.r{display:none}.sl-backbtn .sl-bkx{display:none}}
+/* Karen, 10 Nov: Save in Kash's window (nothing saves by itself), with "Unsaved changes" beside it; the confirm boxes for giving a card away and for unsaved changes */
+.sl-kfoot .sl-dfb{margin-left:0}
+.sl-kfoot .sl-dfh:not(.r){margin-left:auto}
+.sl-dsv{display:flex;align-items:center;gap:10px;flex:none;padding-left:14px;margin-left:2px;border-left:1px solid var(--line)}
+.sl-dirty{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#B45309;white-space:nowrap}
+.sl-dirty i{width:7px;height:7px;border-radius:50%;background:#F59E0B}
+.sl-solid.sl-save{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 18px}
+.sl-solid[disabled]{background:var(--soft);border-color:var(--line);color:var(--muted);cursor:default}
+.sl-cfmi.save{background:#EEF0FF;color:#4338CA}
+.sl-ghost.sl-dghost{color:var(--act);border-color:var(--act)}
+.sl-ghost.sl-dghost:hover{background:var(--act-soft)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-cfmi.save{background:#1F2A47;color:#C7D2FE}:root:not([data-theme="light"]) .sl-dirty{color:#FBBF24}}
+:root[data-theme="dark"] .sl-cfmi.save{background:#1F2A47;color:#C7D2FE}:root[data-theme="dark"] .sl-dirty{color:#FBBF24}
+@media (pointer:coarse){.sl-solid.sl-save{min-height:44px}}
+@media (max-width:820px){.sl-dirty{display:none!important}}
+@media (max-width:560px){.sl-kfoot{flex-wrap:wrap;row-gap:10px}.sl-kfoot .sl-dsv{flex-basis:100%;padding-left:0;margin-left:0;border-left:0}.sl-kfoot .sl-save{flex:1}}
+/* Karen, 10 Nov: the + at the end of Kash's board adds a column; an empty column he added can be removed */
+.sl-col.sl-xadd{background:transparent;padding:0;min-height:0}
+.sl-xplus{all:unset;box-sizing:border-box;cursor:pointer;display:grid;place-items:center;width:100%;min-height:120px;height:100%;max-height:420px;border:1.5px dashed var(--grey-line);border-radius:12px;color:var(--muted)}
+.sl-xplus:hover{color:#4338CA;border-color:#4338CA;background:var(--soft)}
+.sl-xplus:focus-visible{outline:2px solid #4338CA;outline-offset:2px}
+.sl-col.sl-xadd.open{background:var(--soft);padding:12px}
+.sl-xform{display:flex;flex-direction:column;gap:8px}
+.sl-xform label{font-size:12.5px;font-weight:700;color:var(--ink)}
+.sl-xform input{box-sizing:border-box;width:100%;min-height:40px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font:inherit;font-size:14px;background:var(--panel);color:var(--ink)}
+.sl-xform input:focus{outline:2px solid #4338CA;outline-offset:1px;border-color:#4338CA}
+.sl-xhint,.sl-xerr{margin:0;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.sl-xerr{color:var(--act);font-weight:600}
+.sl-xbtns{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.sl-xbtns .sl-solid{padding:0 14px;min-height:36px;font-size:13px}
+.sl-xbtns .sl-ghost{min-height:36px}
+.sl-xrm{all:unset;cursor:pointer;display:block;margin:8px auto 0;font-size:12.5px;font-weight:600;color:var(--act);padding:4px 6px;border-radius:6px}
+.sl-xrm:hover{background:var(--act-soft)}
+.sl-xrm:focus-visible{outline:2px solid #4338CA;outline-offset:2px}
+@media (pointer:fine){#v-sales .sl-board.sl-full>.sl-col.sl-xadd{padding-bottom:0}#v-sales .sl-board.sl-full>.sl-col.sl-xadd.open{padding-bottom:12px;align-self:start}}
+@media (pointer:coarse){.sl-xrm{padding:10px 8px}}
 </style>

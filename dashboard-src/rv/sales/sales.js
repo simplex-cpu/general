@@ -38,7 +38,11 @@ const SALES_ONLY=true;
    translates a team stage itself when "Kash board" is empty (safety net), with the same map as the automations. */
 /* Karen, 6 Nov (evening): "In Conversation" (Kash talking to them, no audit yet) and "Send Proposal" (proposal to write and send) are his stages too.
    The team's pre-sales status is "Follow-up Team" (it was "In Conversation"). */
-const KB_STAGES=["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up","Won","Onboarded","Lost"];
+/* Karen, 10 Nov (Kash): two more columns, "Follow-up Call" (after Proposal Sent) and "Not worthy" (closed, after Lost) */
+const KB_STAGES=["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up Call","Follow-up","Won","Onboarded","Lost","Not worthy"];
+/* the team's own statuses: a lead with one of these is with the team, not on Kash's board. Anything else is one of his columns
+   (the same list as the n8n feed's Company Leads filter and the Airtable automations' lock: keep the three in step) */
+const KB_TEAM=new Set(["New","Contacted","Follow-up Team","No Reply","Not a Fit","Nurture Sequence","Sent to Podcast","Review"]);
 /* Jade's Leads spells it "In Conversations": read as the same stage */
 const kbNorm=v=>{const s=sv(v)||"";return s==="In Conversations"?"In Conversation":s};
 const KBF={jade:"fldzKqgC2SQOyGndm",cl:"fld5YT1cAYB56QePD",sp:"fldG9pzFmtKIGXCx1"},CL_NEED="fldb5I0h67Oqpp6QZ";
@@ -50,7 +54,7 @@ const spStage=v=>{const s=String(sv(v)||"").trim();return s?(SP_OLD[s]||s):"Pre-
 const SP_WON=SALES_ONLY?"Won":"Won – Handover to Ops",SP_LOST=SALES_ONLY?"Lost":"Lost / No reply",SP_NEW=SALES_ONLY?"Audit Booked":"Lead in";
 const SALES_STAGES=SALES_ONLY?KB_STAGES:["Audit booked","Audit held","Proposal sent","Follow-up call",SP_WON,SP_LOST];
 const SALES_SET=new Set(SALES_STAGES);
-const PLATE=new Set(SALES_ONLY?["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up"]:["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
+const PLATE=new Set(SALES_ONLY?["In Conversation","Audit Booked","Audit Held","Send Proposal","Proposal Sent","Follow-up Call","Follow-up"]:["Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call"]); /* on his plate = open deals */
 /* v5.2 (Karen, 5 Nov): the only origin / source names shown anywhere (Kash's funnel list from the 4 Nov ops meeting + the Pre-qual origins).
    Old values still in Airtable are shown (and written) as their standard name. */
 const ORIGINS=["Podcast guest","Kash brand community","ReLearn community leads","Events","Referrals","Episode keyword","Network","IG organic","Upwork","Upsells","Old funnels / GHL","Other"];
@@ -117,7 +121,7 @@ const OI={
 OI["Podcast guest"]=OI.Podcast;OI.Referrals=OI.Referral;OI.Events=OI.Event;OI["IG organic"]=OI.Instagram;OI.Upsells=OI.Upsell;
 OI["Kash brand community"]={c:"#4338CA",p:OI["Rise Voice"].p};OI["ReLearn community leads"]={c:"#DB2777",p:OI.Referral.p};OI["Episode keyword"]=OI["Episode request"];
 const DUE_ORDER={overdue:0,today:1,week:2,later:3};
-const RO_BLOCK=new Set(["addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
+const RO_BLOCK=new Set(["kbsave","handgo","xcolnew","xcoladd","xcolrm","addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
 const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
@@ -311,7 +315,8 @@ async function load(force){
       const j=await res.json();const n=a=>(a||[]).map(r=>Object.assign({_id:r.id},r.fields||{}));
       Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),pipelines:n(j.pipelines),guests:n(j.guests),guestTeam:n(j.guestTeam),noSp:!j.salesPipeline,noPl:!j.pipelines,noG:!j.guests,fetchedAt:j.fetchedAt||"",loaded:true});
       /* v5.1: the 1,181 podcast guests come in a second, background request (header X-Sales-Part: guests), so the tab opens without waiting for them */
-      if(!j.guests){S.gLoading=true;S.noG=false;S.gP=fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store",headers:{"X-Sales-Part":"guests"}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+      /* Kash's board (SALES_ONLY) never shows the guests, so it does not ask for them (10 Nov: that request kept n8n busy for 15 s) */
+      if(!j.guests&&!SALES_ONLY){S.gLoading=true;S.noG=false;S.gP=fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store",headers:{"X-Sales-Part":"guests"}}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
         .then(g=>{S.guests=n(g.guests);S.guestTeam=n(g.guestTeam);S.noG=!g.guests;S.gLoading=false;render()}).catch(()=>{S.gLoading=false;S.noG=true;render()})}
       else S.gP=null;
       if(SALES_ONLY){S.spRaw=S.sp;S.sp=kbRows()}
@@ -346,9 +351,10 @@ function deriveCL(){
   });
 }
 function deriveSP(){
+  const xs=SALES_ONLY?new Set(kbCols().slice(KB_STAGES.length)):new Set();
   return S.sp.filter(r=>String(r[SP.deal]||"").trim()).map(r=>{
     const stage=spStage(r[SP.stage]);const lastC=r[SP.lastc]||"";const rv=r[SP.rv]||"";
-    return Object.assign({kind:"sp",id:r._id,r,name:String(r[SP.deal]).trim(),co:r[SP.co]||"",origin:stdO(r[SP.origin])||"Other",stage,pre:stage==="Pre-qual",plate:PLATE.has(stage),closed:stage===SP_WON||stage===SP_LOST,chase:r[SP.chase]||"",owner:sv(r[SP.owner]),needed:r[SP.needed]||"",notes:r[SP.notes]||"",lastC,value:r[SP.value]||0,est:!!r[SP.est],offer:sv(r[SP.offer])||"Not sure yet",services:(r[SP.services]||[]).map(sv),from:fromL(sv(r[SP.from])),jadeId:ids(r[SP.jade])[0]||"",rvId:idFromUrl(rv),rvUl:/tbl8xDFVwfdMS7v3v/.test(rv),contactIds:ids(r[SP.contacts]),done:lastC===TODAY,board:SPB,boards:[SPB]},dueOf(r[SP.chase]||""));
+    return Object.assign({kind:"sp",id:r._id,r,name:String(r[SP.deal]).trim(),co:r[SP.co]||"",origin:stdO(r[SP.origin])||"Other",stage,pre:stage==="Pre-qual",plate:PLATE.has(stage)||xs.has(stage),closed:stage===SP_WON||stage===SP_LOST,chase:r[SP.chase]||"",owner:sv(r[SP.owner]),needed:r[SP.needed]||"",notes:r[SP.notes]||"",lastC,value:r[SP.value]||0,est:!!r[SP.est],offer:sv(r[SP.offer])||"Not sure yet",services:(r[SP.services]||[]).map(sv),from:fromL(sv(r[SP.from])),jadeId:ids(r[SP.jade])[0]||"",rvId:idFromUrl(rv),rvUl:/tbl8xDFVwfdMS7v3v/.test(rv),contactIds:ids(r[SP.contacts]),done:lastC===TODAY,board:SPB,boards:[SPB]},dueOf(r[SP.chase]||""));
   });
 }
 /* the team stage -> Kash board translation, only used when "Kash board" is empty (the automations normally fill it) */
@@ -360,8 +366,8 @@ const KB_UW={"New":"New","Proposal Sent":"Contacted","Sales Pipeline":"Audit Boo
 const KB_US={"New":"New","Build Proposal":"Follow-up Team","Send Proposal":"Follow-up Team","Proposal Sent":"Follow-up Team","Sales Pipeline":"Audit Booked","Won":"Audit Booked","Lost":"Not a Fit","Archive":"Not a Fit"};
 const KB_REF={"Contact info provided by client":"New","First outreach":"Contacted","Following up":"Follow-up Team","Call booked":"Audit Booked","Post call follow-up":"Audit Booked","Offer accepted (Closed)":"Audit Booked","Offer declined (Rejected)":"Not a Fit","No response (Rejected)":"No Reply","Sales Pipeline":"Audit Booked"};
 const KB_SIMPLE={"New":"New","Sales Pipeline":"Audit Booked","Won":"Audit Booked","No Reply":"No Reply","Lost":"Not a Fit","Not Applicable":"Not a Fit","Growth Plan Booking":"Sent to Podcast"};
-const KB_OLD={"Audit booked":"Audit Booked","Audit held":"Audit Held","Proposal sent":"Proposal Sent","Follow-up call":"Follow-up","Won – Handover to Ops":"Won","Lost / No reply":"Lost","Lead in":"New","Potential":"New","To contact":"New","In conversation":"In Conversation","Follow-up":"Follow-up","Discovery call":"Audit Booked"};
-const KB_TO_OLD={"In Conversation":"In conversation","Send Proposal":"Audit held","Audit Booked":"Audit booked","Audit Held":"Audit held","Proposal Sent":"Proposal sent","Follow-up":"Follow-up call","Won":"Won – Handover to Ops","Onboarded":"Won – Handover to Ops","Lost":"Lost / No reply"};
+const KB_OLD={"Audit booked":"Audit Booked","Audit held":"Audit Held","Proposal sent":"Proposal Sent","Follow-up call":"Follow-up Call","Won – Handover to Ops":"Won","Lost / No reply":"Lost","Lead in":"New","Potential":"New","To contact":"New","In conversation":"In Conversation","Follow-up":"Follow-up","Discovery call":"Audit Booked"};
+const KB_TO_OLD={"In Conversation":"In conversation","Send Proposal":"Audit held","Audit Booked":"Audit booked","Audit Held":"Audit held","Proposal Sent":"Proposal sent","Follow-up Call":"Follow-up call","Follow-up":"Follow-up call","Won":"Won – Handover to Ops","Onboarded":"Won – Handover to Ops","Lost":"Lost / No reply","Not worthy":"Lost / No reply"};
 const JADE_SRC={"🎙️ Podcast":"Podcast guest","🤝 Referral / direct":"Referrals","🎪 Events":"Events"};
 function kbCl(r){const s=f=>sv(r[f]),src=s(CL.src);
   if(src==="Upwork"&&s(CL.uw))return KB_UW[s(CL.uw)]||"";
@@ -393,16 +399,55 @@ function kbRows(){
   return out;
 }
 /* a save on Kash's board goes to the person's own record: the board's field ids are swapped for that table's */
-const KB_WRITE={jade:{base:CB,tbl:T.leads,f:{[SP.stage]:KBF.jade,[SP.needed]:L.needed,[SP.notes]:L.latest,[SP.value]:L.value,[SP.est]:L.est,[SP.chase]:L.chase,[SP.lastc]:L.lastC,[SP.services]:L.services,[SP.offer]:L.likely}},
-  cl:{base:RB,tbl:T.cl,f:{[SP.stage]:KBF.cl,[SP.needed]:CL_NEED,[SP.notes]:CL.notes,[SP.value]:CL.val,[SP.est]:CL.est,[SP.chase]:CL.chase,[SP.lastc]:CL.lastc,[SP.services]:CL.services}}};
+const KB_WRITE={jade:{base:CB,tbl:T.leads,f:{[SP.stage]:KBF.jade,[SP.needed]:L.needed,[SP.notes]:L.latest,[SP.value]:L.value,[SP.est]:L.est,[SP.chase]:L.chase,[SP.lastc]:L.lastC,[SP.services]:L.services,[SP.offer]:L.likely,[SP.owner]:L.owner}},
+  cl:{base:RB,tbl:T.cl,f:{[SP.stage]:KBF.cl,[SP.needed]:CL_NEED,[SP.notes]:CL.notes,[SP.value]:CL.val,[SP.est]:CL.est,[SP.chase]:CL.chase,[SP.lastc]:CL.lastc,[SP.services]:CL.services,[SP.owner]:CL.owner}}};
 function kbWrite(r,fields){
   const src=r._src||"sp";
-  if(src==="sp"){const f=Object.assign({},fields);if(SP.stage in f){f[KBF.sp]=f[SP.stage]||null;f[SP.stage]=KB_TO_OLD[f[SP.stage]]||null}return {base:CB,tbl:T.sp,fields:f}}
+  /* Kash's own rows keep the old Sales pipeline stage in step; a column without an old equivalent (Review, his own columns) leaves it as it is */
+  if(src==="sp"){const f=Object.assign({},fields);if(SP.stage in f){const st=f[SP.stage];f[KBF.sp]=st||null;if(KB_TO_OLD[st])f[SP.stage]=KB_TO_OLD[st];else delete f[SP.stage]}return {base:CB,tbl:T.sp,fields:f}}
   const m=KB_WRITE[src];if(!m)return null;const f={};Object.keys(fields).forEach(k=>{if(m.f[k])f[m.f[k]]=fields[k]});
   return Object.keys(f).length?{base:m.base,tbl:m.tbl,fields:f}:null;
 }
+/* Karen, 10 Nov: Kash adds his own columns with the + at the end of the board. A column is a "Kash board" status: it is saved in
+   Airtable (as a new option, in whichever table the card lives in) the moment a card moves into it, and from then on it shows on
+   every device. A new column with no card in it yet is kept in this browser only. His own columns count as open deals. */
+const XCOL_KEY="slKbCols";
+S.xloc=(()=>{try{const v=JSON.parse(localStorage.getItem(XCOL_KEY)||"[]");return Array.isArray(v)?v.filter(x=>typeof x==="string"&&x.trim()).map(x=>x.trim()):[]}catch(e){return []}})();
+function xSave(){try{localStorage.setItem(XCOL_KEY,JSON.stringify(S.xloc))}catch(e){}}
+/* the board's columns: his fixed stages, then his own (the ones kept here first, in the order he added them, then any other status a card has) */
+function kbCols(){
+  const seen=new Set(KB_STAGES),out=KB_STAGES.slice();
+  const add=st=>{st=String(st||"").trim();if(st&&!seen.has(st)&&!KB_TEAM.has(st)&&st!=="Pre-qual"&&st!=="In Conversations"){seen.add(st);out.push(st)}};
+  (S.xloc||[]).forEach(add);if(SALES_ONLY)(S.sp||[]).forEach(r=>add(sv(r[SP.stage])));return out}
+const isXCol=st=>!KB_STAGES.includes(st)&&kbCols().includes(st);
+/* a name Kash types for a new column: "" if it can be used, else why not */
+function xColErr(name){
+  const t=name.trim(),lc=t.toLowerCase();if(!t)return "Type a name for the column.";if(t.length>30)return "Keep the name under 30 characters.";
+  if(kbCols().some(c=>c.toLowerCase()===lc))return "There is already a "+t+" column.";
+  if([...KB_TEAM,"Pre-qual","In Conversations"].some(c=>c.toLowerCase()===lc))return t+" is one of the team's statuses. Pick another name.";
+  return ""}
+/* Karen, 10 Nov: Kash can give a card to Jade, Sarah or Gretta; that sends it back to the team, as "Send back to team" does.
+   Jade's Leads table only has Kash and Jade (and Sales hire) as owners, so a podcast lead can only go back to Jade.
+   Gretta is spelled "Greta" in Airtable (shown as Gretta). */
+const KB_OWNERS=src=>src==="jade"?["Kash","Jade"]:["Kash","Jade","Sarah","Greta"];
+/* the deal window's fields that wait for Save, and the board field each one fills */
+const KB_DACT={spstage:SP.stage,spchase:SP.chase,porigin:SP.origin,spoffer:SP.offer,kbowner:SP.owner,value:SP.value,needed:SP.needed,spnotes:SP.notes};
+function kbDraftSet(act,a,id){
+  const p=derive().P.find(x=>x.id===id);if(!p)return;const f=KB_DACT[act];
+  /* Jade, Sarah or Gretta as the owner: the card goes back to the team, after a confirm (handH) */
+  if(act==="kbowner"&&a.value&&a.value!=="Kash"){S.hand={id,to:a.value,busy:false};render();const c=el("slHandC");if(c)c.focus({preventScroll:true});return}
+  if(act==="value"){const n=amt(a.value);if(Number.isNaN(n)){badAmt(a,kbView(p).value);kbDirtyUI();return}kbDraft()[f]=n;a.value=a.defaultValue=full(n);kbDirtyUI();return}
+  if(act==="needed"||act==="spnotes"){kbDraft()[f]=a.value;kbDirtyUI();return}
+  kbDraft()[f]=act==="porigin"?(stdO(a.value)||"Other"):a.value;render()}
+/* the + column: a new name is checked, kept in this browser, and the board scrolls to show it */
+const xScrollEnd=()=>{const bd=document.querySelector("#v-sales .sl-board.sl-full");if(bd)bd.scrollLeft=bd.scrollWidth};
+function xAdd(){const i=el("slXName");const name=(i?i.value:"").trim();const err=xColErr(name);
+  if(err){S.xadd={name,err};render();const n=el("slXName");if(n){n.focus({preventScroll:true});n.select()}return}
+  S.xloc=S.xloc.concat([name]);xSave();S.xadd=null;render();xScrollEnd();
+  const b=el("slXPlus");if(b)b.focus({preventScroll:true});toast(name+" added. Drag a card into it to save it in Airtable.")}
 function derive(){
-  const J=SALES_ONLY?[]:deriveJ(),K=SALES_ONLY?[]:deriveCL(),P=SALES_ONLY?deriveSP().filter(p=>SALES_SET.has(p.stage)):deriveSP();
+  const J=SALES_ONLY?[]:deriveJ(),K=SALES_ONLY?[]:deriveCL();let P=deriveSP();
+  if(SALES_ONLY){const cols=new Set(kbCols());P=P.filter(p=>cols.has(p.stage))}
   const spOf={};P.forEach(p=>{if(p.jadeId)spOf[p.jadeId]=spOf[p.jadeId]||p;if(p.rvId&&!p.rvUl)spOf[p.rvId]=spOf[p.rvId]||p});
   return {J,K,P,spOf,all:J.concat(K,P)};
 }
@@ -442,7 +487,7 @@ const RULE_NOTE="Each person is worked on one board. When a team hands someone o
 /* columns: colour follows the stage sequence (dark grey → amber → green; won green, lost red, parked pale grey) */
 const LOST_ST=new Set(["79 – Lost","Lost","Lost / No reply","Offer declined (Rejected)","No response (Rejected)"]);
 const WON_ST=new Set(["70 – Won","Won","Onboarded","Won – Handover to Ops","Closed","Handover to Ops","Offer accepted (Closed)","Sales Pipeline","Growth Plan Booking","Email sequence","Podcast Pipeline"]);
-const OUT_ST=new Set(["No reply","No Reply","Not Applicable","Archive","80 – Re-approach (60–90 days)"]);
+const OUT_ST=new Set(["No reply","No Reply","Not Applicable","Archive","80 – Re-approach (60–90 days)","Not worthy"]);
 /* boards whose colours are set by hand rather than by position */
 const TONE_MAP={
   "jade-sent":{"Sent to Sales":"won"},
@@ -459,7 +504,7 @@ function stageTone(stages,st){
 }
 /* what each column means, in two short lines (board-specific first) */
 const STAGE_INFO={
-  "sp|In Conversation":"Kash is talking to them; no audit booked yet.","sp|Audit Booked":"Call with Kash booked.","sp|Send Proposal":"Proposal to write and send.","sp|Audit Held":"Audit done, proposal to write.","sp|Proposal Sent":"Proposal with the client.","sp|Follow-up":"Following up on the proposal: a call or a message.","sp|Won":"Signed.","sp|Onboarded":"Handed over to Ops and started.","sp|Lost":"Said no or went quiet.",
+  "sp|In Conversation":"Kash is talking to them; no audit booked yet.","sp|Audit Booked":"Call with Kash booked.","sp|Send Proposal":"Proposal to write and send.","sp|Audit Held":"Audit done, proposal to write.","sp|Proposal Sent":"Proposal with the client.","sp|Follow-up Call":"Call booked to go through the proposal.","sp|Follow-up":"Following up on the proposal: a call or a message.","sp|Won":"Signed.","sp|Onboarded":"Handed over to Ops and started.","sp|Lost":"Said no or went quiet.","sp|Not worthy":"Not worth pursuing.",
   "sp|Pre-qual":"With the teams. Nothing needed from you yet.","sp|Lead in":"New, not contacted yet.","sp|In conversation":"Talking, before an audit is booked.","sp|Audit booked":"Growth audit / discovery call in the diary.","sp|Audit held":"Audit done, proposal to write.","sp|Proposal sent":"Proposal with the client.","sp|Follow-up call":"Call booked to go through the proposal.","sp|Won – Handover to Ops":"Signed. Ops takes over.","sp|Lost / No reply":"Said no or went quiet.",
   "10 – Lead in":"New guest or lead. Jade qualifies them for a growth audit.","20 – Audit booked":"Growth audit booked with Kash.","30 – Audit held":"Audit done. Growth plan to write.","40 – Growth plan sent":"Plan sent. Waiting for their response.","50 – Follow-up call":"Call to go through the plan and next steps.","60 – Proposal":"Proposal sent. Chase for a decision.","70 – Won":"Signed. Hand over to production.","79 – Lost":"Said no, or not a fit.","80 – Re-approach (60–90 days)":"Not now. Try again in 60–90 days.",
   "prequal|New":"Just came in. Not contacted yet.","prequal|First Outreach":"First message sent. Waiting for a reply.","prequal|Pre-qual":"Replied. Checking fit and route.","prequal|In Conversation":"Qualified and talking.","prequal|Follow-up":"Not replying. Chasing.","prequal|Email sequence":"Moved to an email sequence.","prequal|Podcast Pipeline":"Handed to Jade as a potential podcast guest.","prequal|Sales Pipeline":"Handed to Kash's Sales Pipeline.","upwork|Sales Pipeline":"Handed to the Sales Pipeline.","upsell|Sales Pipeline":"Handed to the Sales Pipeline.","jade-sent|Sent to Sales":"Has a deal on the Sales Pipeline. Kash has it from here.","prequal|No Reply":"No answer after follow-ups.","prequal|Archive":"Closed or not a fit.",
@@ -609,9 +654,19 @@ function spColsH(D,stages,all){
   return stages.map(st=>{
     if(st==="Pre-qual"){const pq=D.P.filter(p=>p.pre);return colH("sp",SP_STAGES,st,pq.length,pqTileH(pq,D),"","")}
     const cs=D.P.filter(p=>p.stage===st).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
-    const inner=cs.map(p=>spKcardH(p,D,all)).join("")||'<div class="sl-empty">Nobody here</div>';
-    /* "Add a lead" only on open stages (a new lead never starts as won or lost) */
-    return colH("sp",SP_STAGES,st,cs.length,inner,PLATE.has(st)?inlineAdd({ctx:"p",board:"sp",stage:st}):"","")}).join("");
+    /* Karen, 10 Nov: one of Kash's own columns that is still empty (kept in this browser) can be removed */
+    const mine=SALES_ONLY&&!KB_STAGES.includes(st),rm=mine&&!cs.length&&(S.xloc||[]).includes(st)&&!S.ro;
+    const inner=cs.map(p=>spKcardH(p,D,all)).join("")||`<div class="sl-empty">Nobody here${rm?`<button type="button" class="sl-xrm" data-act="xcolrm" data-stage="${esc(st)}">Remove column</button>`:""}</div>`;
+    /* "Add a lead" only on open stages (a new lead never starts as won or lost); his own columns are open */
+    return colH("sp",SP_STAGES,st,cs.length,inner,PLATE.has(st)||mine?inlineAdd({ctx:"p",board:"sp",stage:st}):"","")}).join("");
+}
+/* Karen, 10 Nov: the + at the end of the board adds a column (Enter or Add saves the name, Esc or Cancel closes) */
+function xAddH(){
+  if(S.ro)return "";
+  if(!S.xadd)return `<div class="sl-col sl-xadd"><button type="button" class="sl-xplus" id="slXPlus" data-act="xcolnew" aria-label="Add a column" title="Add a column">${svg(PLUS,20)}</button></div>`;
+  return `<div class="sl-col sl-xadd open"><div class="sl-xform"><label for="slXName">New column</label><input id="slXName" maxlength="30" autocomplete="off" placeholder="e.g. Negotiation" value="${esc(S.xadd.name||"")}">
+    ${S.xadd.err?`<p class="sl-xerr" role="alert">${esc(S.xadd.err)}</p>`:`<p class="sl-xhint">Drag a card into it to save it in Airtable.</p>`}
+    <div class="sl-xbtns"><button type="button" class="sl-ghost" data-act="xcolcancel">Cancel</button><button type="button" class="sl-solid" data-act="xcoladd">Add column</button></div></div></div>`;
 }
 /* v6 (Karen, 6 Nov): My Board and the Sales Pipeline each have ONE "Group by: Date | Stage | Source" (it replaces My Board's
    "Pipeline / By date" and the separate "Stage / Source"); each view remembers its own choice. Default Stage on both (what Kash sees today). */
@@ -686,11 +741,12 @@ function salesH(D){
   const open=spOpen(D);
   if(SALES_ONLY){
     const n=st=>D.P.filter(p=>p.stage===st).length;
-    const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Audits booked",n("Audit Booked"))}${kpiH("Proposals out",n("Proposal Sent")+n("Follow-up"))}${kpiH("Won",n(SP_WON)+n("Onboarded"))}</div>`;
+    const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Audits booked",n("Audit Booked"))}${kpiH("Proposals out",n("Proposal Sent")+n("Follow-up Call")+n("Follow-up"))}${kpiH("Won",n(SP_WON)+n("Onboarded"))}</div>`;
     const nt=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
-    /* Karen, 6 Nov: one title only ("Sales" above it is hidden), no status pill, owner line or explanations */
+    const cols=kbCols();
+    /* Karen, 6 Nov: one title only ("Sales" above it is hidden), no status pill, owner line or explanations. 10 Nov: + column at the end */
     return `<div class="sl-ftop sl-ftop1"><div class="sl-tt"><h2>Sales Pipeline</h2></div></div>${nt}${kpis}${toolsH()}
-    <div class="sl-board sl-spb sl-full" style="grid-template-columns:${SALES_STAGES.map(st=>isFolded("sp",st)?"46px":"minmax(212px,340px)").join(" ")}">${spColsH(D,SALES_STAGES,true)}</div>`;
+    <div class="sl-board sl-spb sl-full" style="grid-template-columns:${cols.map(st=>isFolded("sp",st)?"46px":"minmax(212px,340px)").join(" ")}${S.ro?"":S.xadd?" minmax(232px,280px)":" 64px"}">${spColsH(D,cols,true)}${xAddH()}</div>`;
   }
   const kpis=`<div class="sl-kpis">${kpiH("Open deals",open.length)}${kpiH("Still with the teams",D.P.filter(p=>p.pre).length)}${kpiH("Audits booked",D.P.filter(p=>p.stage==="Audit booked").length)}${kpiH("Won",D.P.filter(p=>p.stage===SP_WON).length)}</div>`;
   const note=S.noSp?`<div class="sl-msg" style="margin-bottom:12px">The sales pipeline isn't in this link's data feed yet.</div>`:"";
@@ -893,6 +949,7 @@ function recModalH(it,people,D){
    not in view-only mode, and in no other window. */
 const PERSON_I="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0",ARROW_I="M5 12h14M13 6l6 6-6 6";
 const DOTS_H='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
+const PEN_I="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z";
 const TRASH_I="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",CHECK_I="M20 6 9 17l-5-5",BACK_I="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11";
 const quickOK=p=>!!p&&!S.ro&&!p.pre;
 /* the offers picker (Add offer, Select offer): the 8 offers; ones the person already has say "already in play" (still allowed) */
@@ -952,39 +1009,84 @@ function spModalH(p,D,people){
 }
 /* v8 (Karen, 6 Nov): one card per person. Stage, value, chase, origin, owner and ticket on top; the offers as chips;
    What's needed, Notes and Conversations folded with counts; Won / Lost in the footer. No delete (the record is the team's). */
+/* Karen, 10 Nov (Kash): nothing in this window saves by itself any more. Changes wait in a draft until Save; Won, Lost, Send back
+   and giving the card to someone save them with that action; closing with changes not saved asks first. Logging a conversation
+   still saves at once (it is its own Add). The board behind shows what is saved. */
+const kbHas=(d,k)=>Object.prototype.hasOwnProperty.call(d,k);
+const kbDraftOf=id=>S.draft&&S.draft.id===id?S.draft.f:{};
+function kbDraft(){if(!S.draft||S.draft.id!==S.openSp)S.draft={id:S.openSp,f:{}};return S.draft.f}
+/* what the window shows: the draft where there is one, else what is saved */
+function kbView(p){const d=kbDraftOf(p.id),h=k=>kbHas(d,k);
+  return {stage:h(SP.stage)?d[SP.stage]:p.stage,chase:h(SP.chase)?d[SP.chase]||"":p.chase,origin:h(SP.origin)?stdO(d[SP.origin])||"Other":p.origin,
+    offer:h(SP.offer)?d[SP.offer]||"Not sure yet":p.offer,owner:h(SP.owner)?d[SP.owner]||"":p.owner,value:h(SP.value)?d[SP.value]:p.value,est:h(SP.value)?false:p.est,
+    services:h(SP.services)?d[SP.services]:p.services,needed:h(SP.needed)?d[SP.needed]||"":p.needed,notes:h(SP.notes)?d[SP.notes]||"":p.notes}}
+/* a draft value counts as a change only when it differs from what is saved (typing a word and deleting it again is no change) */
+const KB_CMP={[SP.services]:v=>(Array.isArray(v)?v.map(sv):[]).slice().sort().join("|"),[SP.value]:v=>Number(v)||0,[SP.origin]:v=>stdO(v)||"Other",[SP.offer]:v=>sv(v)||"Not sure yet",[SP.needed]:v=>String(v||"").trim(),[SP.notes]:v=>String(v||"").trim()};
+const kbCmp=(k,v)=>(KB_CMP[k]||(x=>String(sv(x)||"")))(v);
+function kbChanges(id){id=id||S.openSp;const d=kbDraftOf(id);const r=recOf("sp",id);if(!r)return {};const out={};
+  Object.keys(d).forEach(k=>{if(kbCmp(k,d[k])!==kbCmp(k,r[k]))out[k]=d[k]});if(kbHas(out,SP.value))out[SP.est]=false;return out}
+const KB_LAB={[SP.stage]:"the stage",[SP.chase]:"the chase date",[SP.origin]:"the origin",[SP.offer]:"the ticket",[SP.owner]:"the owner",[SP.value]:"the value",[SP.services]:"the offers",[SP.needed]:"what's needed",[SP.notes]:"the notes"};
+function kbChangedL(){const l=Object.keys(kbChanges()).map(k=>KB_LAB[k]).filter(Boolean);if(!l.length&&kbLive())l.push("the value");return l.length<2?(l[0]||"something"):l.slice(0,-1).join(", ")+" and "+l[l.length-1]}
+/* the value box can hold typed text that has not reached the draft yet (it does when the box is left) */
+const kbLive=()=>{const v=el("slSv");return !!(v&&v.closest("#slModal")&&v.value.trim()!==v.defaultValue.trim())};
+const kbDirty=()=>!!S.openSp&&(Object.keys(kbChanges()).length>0||kbLive());
+/* the footer's Save button follows the draft without redrawing the window (so typing is never interrupted) */
+function kbDirtyUI(){const b=el("slSave");if(!b)return;const d=kbDirty();b.disabled=!d||!!S.kbBusy;b.classList.toggle("on",d);const h=el("slDirty");if(h)h.hidden=!d}
 function kbModalH(p,D,people){
-  const ro=S.ro?" readonly":"";const src=p.r._src||"sp",own=src==="sp";
+  const ro=S.ro?" readonly":"";const src=p.r._src||"sp",own=src==="sp";const v=kbView(p);
   const pers=people.filter(x=>x.items.some(i=>i.id===p.id));const per=pers.find(x=>x.id===p.contactIds[0])||pers.find(x=>x.ct)||pers[0];
   const who=p.name||(per&&per.name)||"";const first=who.split(/\s+/)[0]||who;
   const convs=[...new Set(pers.flatMap(x=>x.convs))].sort((x,y)=>String(y[C.date]||"").localeCompare(String(x[C.date]||"")));
   const ttl=per?`<button type="button" class="sl-ttl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">${svg(PERSON_I,18)}<span>${esc(who)}</span><span class="ar">${svg(ARROW_I,16)}</span></button>`:esc(who);
-  const xOwn=p.owner&&!OWNERS.includes(p.owner)?[p.owner]:[];const owners=[["","–"]].concat(OWNERS.concat(xOwn).map(o=>[o,ownerN(o)]));
-  const stOpts=((L2=>L2.includes(p.stage)?L2:L2.concat([p.stage]))(SALES_STAGES)).map(s=>[s,stL(s)]);
-  const roFact=(lab,v)=>`<div class="sl-fact"><span class="l">${lab}</span><div class="sl-fv">${v||'<small>–</small>'}</div></div>`;
+  /* Karen, 10 Nov: the owner can be changed on every card; Jade, Sarah or Gretta gives it back to the team (see handH) */
+  const ow=KB_OWNERS(src);const owners=(v.owner?[]:[["","–"]]).concat(ow.concat(v.owner&&!ow.includes(v.owner)?[v.owner]:[]).map(o=>[o,ownerN(o)]));
+  const stOpts=((L2=>L2.includes(v.stage)?L2:L2.concat([v.stage]))(kbCols())).map(s=>[s,stL(s)]);
+  const roFact=(lab,x)=>`<div class="sl-fact"><span class="l">${lab}</span><div class="sl-fv">${x||'<small>–</small>'}</div></div>`;
   const meta=[p.from?`<span>From ${esc(p.from)}</span>`:"",
     pers.length?`<span>${pers.length>1?"Contacts":"Contact"}: ${pers.map(x=>`<button type="button" class="sl-plink" data-act="opent" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join(", ")}</span>`:'<span class="pm">No linked contact yet</span>'].filter(Boolean).join("");
   const log=S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label>${pkH({id:"slSc",k:"ch",v:CHANNELS[0],opts:CHANNELS,name:"Channel",field:true})}<label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`;
+  const dirty=kbDirty();
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg sl-dlg-sp sl-dlg-kb" role="dialog" aria-modal="true" aria-labelledby="slSh"><div class="sl-db">
     <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${ttl}</h2>${p.co?`<div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>`:""}</div>
       <div class="sl-dhb"><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div></div>
     <div class="sl-facts sl-kfacts">
-      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:p.stage,opts:stOpts,name:"Stage",act:"spstage",dis:S.ro})}</div>
-      <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",p.chase)}</div>
-      ${own?`<div class="sl-fact"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:p.origin,opts:ORIGINS,name:"Origin",act:"porigin",dis:S.ro})}</div>`:roFact("Origin",otagH(p.origin))}
-      ${src!=="cl"?`<div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:p.offer||"Not sure yet",opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>`:""}
+      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:v.stage,opts:stOpts,name:"Stage",act:"spstage",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",v.chase)}</div>
+      ${own?`<div class="sl-fact"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:v.origin,opts:ORIGINS,name:"Origin",act:"porigin",dis:S.ro})}</div>`:roFact("Origin",otagH(p.origin))}
+      ${src!=="cl"?`<div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:v.offer||"Not sure yet",opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>`:""}
       ${roFact("Last contact",p.lastC?`${esc(short(p.lastC))} <small>· ${esc(agoL(p.lastC))}</small>`:"<small>No contact logged</small>")}
-      ${own?`<div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:p.owner||"",opts:owners,name:"Owner",act:"powner",dis:S.ro})}</div>`:roFact("Owner",p.owner?`<b>${esc(ownerN(p.owner))}</b>`:"")}
-      <div class="sl-fact"><label for="slSv">Value / month${p.est&&p.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(p.value))}"${ro}></div>
+      <div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:v.owner||"",opts:owners,name:"Owner",act:"kbowner",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSv">Value / month${v.est&&v.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" autocomplete="off" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(v.value))}"${ro}></div>
     </div>
-    ${svcPickH("spsvc",p.services,"slSsv",true)}
+    ${svcPickH("spsvc",v.services,"slSsv",true)}
     <div class="sl-secs">
-    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:String(p.needed||"").trim()?1:0,body:secTextH("slSn","needed",p.needed,"What do you need to do?","What's needed from you","need")})}
-    ${secH({key:"notes",icon:"notes",title:"Notes",count:String(p.notes||"").trim()?1:0,body:secTextH("slSt","spnotes",p.notes,"","Notes")})}
+    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:String(v.needed||"").trim()?1:0,body:secTextH("slSn","needed",v.needed,"What do you need to do?","What's needed from you","need")})}
+    ${secH({key:"notes",icon:"notes",title:"Notes",count:String(v.notes||"").trim()?1:0,body:secTextH("slSt","spnotes",v.notes,"","Notes")})}
     ${secH({key:"conv",icon:"conv",title:"Conversations",count:convs.length,meta:"For "+first,body:cvRowsH(convs)+log})}
     </div>
     <p class="sl-dmeta">${meta}</p>
   </div>
-  ${S.ro?"":`<div class="sl-dfoot">${own?"":`<button type="button" class="sl-backbtn" id="slBack" data-act="spback" title="The lead leaves your board and goes back to the team">${svg(BACK_I,16)}<span>Send back<span class="sl-bkx"> to team</span></span></button>`}<span class="sl-dfh${own?"":" r"}">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span></div>`}
+  ${S.ro?"":`<div class="sl-dfoot sl-kfoot">${own?"":`<button type="button" class="sl-backbtn" id="slBack" data-act="spback" title="The lead leaves your board and goes back to the team">${svg(BACK_I,16)}<span>Send back<span class="sl-bkx"> to team</span></span></button>`}<span class="sl-dfh${own?"":" r"}">Outcome for <b>${esc(first)}</b></span><span class="sl-dfb"><button type="button" class="sl-lost" id="slLost" data-act="splost" aria-pressed="${p.stage===SP_LOST}">${p.stage===SP_LOST?svg(CHECK_I,15):""}Lost</button><button type="button" class="sl-won" id="slWon" data-act="spwon" aria-pressed="${p.stage===SP_WON}">${p.stage===SP_WON?svg(CHECK_I,15):""}Won</button></span><span class="sl-dsv"><span class="sl-dirty" id="slDirty"${dirty?"":" hidden"}><i aria-hidden="true"></i>Unsaved changes</span><button type="button" class="sl-solid sl-save${dirty?" on":""}" id="slSave" data-act="kbsave"${!dirty||S.kbBusy?" disabled":""}>${svg(CHECK_I,15)}${S.kbBusy?"Saving…":"Save"}</button></span></div>`}
+  </div></div>`;
+}
+/* Karen, 10 Nov: picking Jade, Sarah or Gretta as the owner gives the card back to the team: the owner changes and its Kash board
+   status becomes Review, as "Send back to team" does. A confirm first, as for Send back. */
+function handH(D){
+  const h=S.hand;if(!h)return "";const p=D.P.find(x=>x.id===h.id);if(!p){S.hand=null;return ""}
+  const to=ownerN(h.to),more=Object.keys(kbChanges(h.id)).filter(k=>k!==SP.owner).length>0;
+  return `<div class="sl-ov sl-ov2" data-act="handbg"><div class="sl-dlg sl-cfm" role="alertdialog" aria-modal="true" aria-labelledby="slHandH" aria-describedby="slHandT">
+    <div class="sl-cfmb"><span class="sl-cfmi back">${svg(BACK_I,22)}</span><div style="min-width:0"><h2 id="slHandH">Give ${esc(p.name)} to ${esc(to)}?</h2>
+      <p id="slHandT"><b>${esc(p.name)}</b> leaves your board and goes back to the team, with <b>${esc(to)}</b> as the owner.${more?" Your other changes in this window are saved too.":""}</p></div></div>
+    <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slHandC" data-act="handcancel">Cancel</button><button type="button" class="sl-solid" id="slHandGo" data-act="handgo"${h.busy?" disabled":""}>${svg(BACK_I,15)}${h.busy?"Sending…":"Give to "+esc(to)}</button></div>
+  </div></div>`;
+}
+/* closing the window (✕, the backdrop, Esc, or opening the contact) with changes not saved */
+function unsavedH(D){
+  const u=S.unsaved;if(!u)return "";const p=D.P.find(x=>x.id===S.openSp);if(!p){S.unsaved=null;return ""}
+  return `<div class="sl-ov sl-ov2" data-act="unsbg"><div class="sl-dlg sl-cfm" role="alertdialog" aria-modal="true" aria-labelledby="slUnsH" aria-describedby="slUnsT">
+    <div class="sl-cfmb"><span class="sl-cfmi save">${svg(PEN_I,21)}</span><div style="min-width:0"><h2 id="slUnsH">Save your changes?</h2>
+      <p id="slUnsT">You changed ${esc(kbChangedL())} for <b>${esc(p.name)}</b> and haven't saved yet.</p></div></div>
+    <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slUnsC" data-act="unscancel">Keep editing</button><button type="button" class="sl-ghost sl-dghost" id="slUnsD" data-act="unsdiscard">Discard</button><button type="button" class="sl-solid" id="slUnsGo" data-act="unssave"${u.busy?" disabled":""}>${svg(CHECK_I,15)}${u.busy?"Saving…":"Save"}</button></div>
   </div></div>`;
 }
 /* the warning before an offer is deleted: a small dialog over the deal window (focus stays inside; Esc / Cancel close it) */
@@ -1004,7 +1106,7 @@ function backH(D){
   const team=(String(p.from||"").match(/\(([^)]+)\)/)||[])[1]||"the team";
   return `<div class="sl-ov sl-ov2" data-act="backbg"><div class="sl-dlg sl-cfm" role="alertdialog" aria-modal="true" aria-labelledby="slBackH" aria-describedby="slBackT">
     <div class="sl-cfmb"><span class="sl-cfmi back">${svg(BACK_I,22)}</span><div style="min-width:0"><h2 id="slBackH">Send back to the team?</h2>
-      <p id="slBackT"><b>${esc(p.name)}</b> leaves your board and goes back to ${esc(team)}. They pick it up from there and can hand it to you again.</p></div></div>
+      <p id="slBackT"><b>${esc(p.name)}</b> leaves your board and goes back to ${esc(team)}. They pick it up from there and can hand it to you again.${Object.keys(kbChanges(b.id)).length?" Your changes in this window are saved too.":""}</p></div></div>
     <div class="sl-fbtns"><button type="button" class="sl-ghost sl-cfmc" id="slBackC" data-act="backcancel">Cancel</button><button type="button" class="sl-solid" id="slBackGo" data-act="backgo"${b.busy?" disabled":""}>${svg(BACK_I,15)}${b.busy?"Sending…":"Send back"}</button></div>
   </div></div>`;
 }
@@ -1133,7 +1235,7 @@ function dropH(){
     ${body}</div></div></div>`;
 }
 const boardList=()=>SALES_ONLY?[["sp","Sales Pipeline"]]:[["sp","My sales pipeline"]].concat(BOARDS.map(x=>[x.key,"Team: "+x.title]));
-const stagesFor=k=>k==="sp"?(SALES_ONLY?SALES_STAGES.filter(x=>PLATE.has(x)):SP_STAGES):(BK[k]||BK.jade).stages;
+const stagesFor=k=>k==="sp"?(SALES_ONLY?kbCols().filter(x=>PLATE.has(x)||!KB_STAGES.includes(x)):SP_STAGES):(BK[k]||BK.jade).stages;
 /* stage options: the value is the Airtable stage, the text is how it is shown; coloured like the board they go to */
 const stList=k=>stagesFor(k).map(s=>[s,stL(s)]);
 const stKind=k=>k==="sp"?"sp":"st:"+(BK[k]?k:"jade");
@@ -1199,10 +1301,10 @@ function render(){
   /* v6.1: only on the same deal: a field of another offer (same id, new tab) never takes over text typed for the last one */
   const same=S.mSp===S.openSp;S.mSp=S.openSp;
   const fa=document.activeElement;const ftx=same&&fid&&(fa.tagName==="TEXTAREA"||(fa.tagName==="INPUT"&&!/^(checkbox|radio|date)$/.test(fa.type)))?{v:fa.value,s:fa.selectionStart,e:fa.selectionEnd,d:fa.dataset.dirty==="1"||fa.value!==fa.defaultValue}:null;
-  if(!spr){S.del=null;S.back=null}
+  if(!spr){S.del=null;S.back=null;S.hand=null;S.unsaved=null;S.draft=null}
   /* the offer tab strip keeps its sideways scroll on a redraw of the same window (it only moves when the selected tab is out of view) */
   const otl=S.mKey===mkey&&mo.querySelector(".sl-tabs"),tsl=otl?otl.scrollLeft:0;
-  mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D)+backH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
+  mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D)+backH(D)+handH(D)+unsavedH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
   S.mKey=mkey;const ndb=mo.querySelector(".sl-dlg:not(.sl-cfm) .sl-db");
   document.querySelectorAll("#v-sales textarea,#slModal textarea").forEach(grow);
   if(ndb&&mst)ndb.scrollTop=mst;
@@ -1214,7 +1316,7 @@ function render(){
     /* a field being typed in keeps its text; it still saves when the person leaves it */
     if(ftx&&ftx.d&&(f.tagName==="TEXTAREA"||f.tagName==="INPUT")&&f.value!==ftx.v){f.value=ftx.v;f.dataset.dirty="1";f.addEventListener("change",()=>{f.dataset.dirty=""},{once:true});f.addEventListener("blur",()=>{if(f.dataset.dirty==="1"){f.dataset.dirty="";f.dispatchEvent(new Event("change",{bubbles:true}))}},{once:true});if(f.tagName==="TEXTAREA")grow(f)}
     f.focus({preventScroll:true});if(ftx)try{f.setSelectionRange(ftx.s,ftx.e)}catch(x){}}}
-  if((S.del||S.back)&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".sl-cfm"))){const c=el("slDelC")||el("slBackC");if(c)c.focus({preventScroll:true})}
+  if(cfmOpen()&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest(".sl-cfm"))){const c=cfmCancel();if(c)c.focus({preventScroll:true})}
   menuSync();
   renderSearch();
   if(S.inAdd&&el("slIn")&&!PK)el("slIn").focus();
@@ -1255,6 +1357,9 @@ document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;
   /* a section's count follows what is typed in it (1 with text, 0 when empty) */
   if(t.matches("#slModal .sl-secbox textarea")){const c=t.closest(".sl-sec")&&t.closest(".sl-sec").querySelector("[data-cnt]");if(c){const n=t.value.trim()?1:0;c.textContent=n;c.classList.toggle("zero",!n)}}
   if(t.id==="slDt"&&S.drop)S.drop.text=t.value;
+  if(t.id==="slXName"&&S.xadd)S.xadd.name=t.value;
+  /* Karen, 10 Nov: Kash's deal window keeps what is typed in its draft, and Save lights up */
+  if(SALES_ONLY&&S.openSp&&t.closest&&t.closest("#slModal")){const ac=t.dataset&&t.dataset.act;if(ac==="needed"||ac==="spnotes"){kbDraft()[ac==="needed"?SP.needed:SP.notes]=t.value;kbDirtyUI()}else if(ac==="value")kbDirtyUI()}
   if(t.dataset&&t.dataset.ct&&S.ctDraft)S.ctDraft[t.dataset.ct]=t.value;
   if(t.id==="slCq"){S.cq=t.value;const pl=el("slPl");if(pl)pl.innerHTML=peopleRowsH(peopleOf(derive()))}});
 
@@ -1358,7 +1463,7 @@ async function logConv(summary,ch,leadId,contactId){
 }
 /* a new deal on Kash's pipeline; links back to the team record when there is one */
 async function newDeal(it,link){
-  const st0=spStage(it.stage);const stage=it.stage&&SP_STAGES.includes(st0)?st0:SP_NEW;const val=amtOK(it.monthly_value);const conv=it.conversation&&it.conversation.summary?it.conversation:null;
+  const st0=spStage(it.stage);const stage=it.stage&&(SALES_ONLY?kbCols():SP_STAGES).includes(st0)?st0:SP_NEW; /* 10 Nov: Kash's own columns too */const val=amtOK(it.monthly_value);const conv=it.conversation&&it.conversation.summary?it.conversation:null;
   const f={[SP.deal]:it.name,[SP.stage]:stage,[SP.origin]:stdO(it.origin)||"Other",[SP.owner]:"Kash",[SP.leadin]:TODAY,[SP.from]:link&&link.from||"Kash direct",[SP.offer]:OFFERS.includes(it.likely_offer)?it.likely_offer:"Not sure yet"};
   if(it.company)f[SP.co]=it.company;if(it.needed)f[SP.needed]=it.needed;if(it.chase_date)f[SP.chase]=it.chase_date;if(val)f[SP.value]=val;if(conv){f[SP.lastc]=TODAY;f[SP.notes]=TODAY+" · "+conv.channel+": "+conv.summary}
   let cids=link&&link.contactIds||[];
@@ -1469,7 +1574,9 @@ document.addEventListener("click",async e=>{
   if(S.ro&&RO_BLOCK.has(act)){toast(VIEW_ONLY);return}
   if(a.closest("#slQr")&&el("slQ")){el("slQ").value=""} /* picking a search result clears the search */
   const hideQ=()=>{if(el("slQr"))el("slQr").hidden=true};
-  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;S.del=null;S.back=null;menuClose(false)};
+  const closeAll=()=>{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;S.del=null;S.back=null;S.hand=null;S.unsaved=null;S.draft=null;menuClose(false)};
+  /* Karen, 10 Nov: leaving Kash's deal window with changes not saved asks first (Keep editing / Discard / Save) */
+  const kbLeave=then=>{if(!SALES_ONLY||!S.openSp||S.ro||S.unsaved)return false;flushEdit();if(!kbDirty())return false;pkClose(false);S.unsaved={then,busy:false};render();const c=el("slUnsC");if(c)c.focus({preventScroll:true});return true};
   /* v6 deal window: the delete warning, the ⋯ menu, Won / Lost, the offer tabs, the folding sections */
   if(act==="delbg"){if(e.target===a)delClose();return}
   if(act==="delcancel"){delClose();return}
@@ -1478,6 +1585,19 @@ document.addEventListener("click",async e=>{
   if(act==="backbg"){if(e.target===a)backClose();return}
   if(act==="backcancel"){backClose();return}
   if(act==="backgo"){sendBack();return}
+  if(act==="handbg"){if(e.target===a)handClose();return}
+  if(act==="handcancel"){handClose();return}
+  if(act==="handgo"){handGo();return}
+  if(act==="unsbg"){if(e.target===a)unsClose();return}
+  if(act==="unscancel"){unsClose();return}
+  if(act==="unsdiscard"){kbThen(S.unsaved&&S.unsaved.then);return}
+  if(act==="unssave"){unsSave();return}
+  if(act==="kbsave"){kbSave();return}
+  /* Karen, 10 Nov: the + column at the end of the board */
+  if(act==="xcolnew"){S.xadd={name:"",err:""};render();xScrollEnd();const i=el("slXName");if(i)i.focus({preventScroll:true});return}
+  if(act==="xcolcancel"){S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}
+  if(act==="xcoladd"){xAdd();return}
+  if(act==="xcolrm"){const st=a.dataset.stage;S.xloc=S.xloc.filter(x=>x!==st);xSave();render();toast("Column removed");const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}
   if(act==="spmore"){if(menuIsOpen())menuClose(true);else menuOpen();return}
   if(act==="spwon"||act==="splost"){if(a.getAttribute("aria-pressed")!=="true")setWonLost(act==="spwon");return}
   if(act==="sectog"){const k=a.dataset.sec;S.sec[k]=!S.sec[k];a.setAttribute("aria-expanded",String(S.sec[k]));const b=el("slSec-"+k);if(b){b.hidden=!S.sec[k];b.querySelectorAll("textarea").forEach(grow)}return}
@@ -1496,8 +1616,8 @@ document.addEventListener("click",async e=>{
   if(act==="opensp"){closeAll();S.openSp=id;hideQ();render();return}
   if(act==="spgroup"){const k=a.dataset.k;if(!GRP_KEY[k])return;S.grp[k]=GRPS.includes(a.dataset.v)?a.dataset.v:"stage";try{localStorage.setItem(GRP_KEY[k],S.grp[k])}catch(x){}S.inAdd=null;render();
     const b=document.querySelector(`#v-sales [data-act="spgroup"][data-k="${k}"][data-v="${S.grp[k]}"]`);if(b)b.focus();return}
-  if(act==="opent"){closeAll();S.openCt=id;hideQ();render();return}
-  if(act==="close"||act==="closebg"){flushEdit();closeAll();S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener();return}
+  if(act==="opent"){if(kbLeave({act:"opent",id}))return;closeAll();S.openCt=id;hideQ();render();return}
+  if(act==="close"||act==="closebg"){if(kbLeave({act:"close"}))return;flushEdit();closeAll();S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener();return}
   if(act==="refresh"){load(true);return}
   if(act==="inadd"){S.inAdd=a.dataset.ikey;render();return}
   if(act==="incancel"){S.inAdd=null;render();return}
@@ -1540,6 +1660,8 @@ document.addEventListener("click",async e=>{
   if(act==="ctedit"){if(!recOf("ct",S.openCt))return;S.ctEdit=S.openCt;S.ctDraft={};S.ctBusy=false;render();const f=el("slTe-name");if(f)f.focus();return}
   if(act==="ctcancel"){S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;render();const b=document.querySelector('#slModal [data-act="ctedit"]');if(b)b.focus();return}
   if(act==="ctsave"){await saveContact();return}
+  if(act==="spsvc"&&SALES_ONLY&&S.openSp){const p=derive().P.find(x=>x.id===S.openSp);if(!p)return;const cur=kbView(p).services,v2=a.dataset.v;
+    kbDraft()[SP.services]=cur.includes(v2)?cur.filter(x=>x!==v2):cur.concat([v2]);render();const c=document.querySelector(`#slModal [data-act="spsvc"][data-v="${CSS.escape(v2)}"]`);if(c)c.focus({preventScroll:true});return}
   if(act==="spsvc"||act==="clsvc"){const kind=act==="spsvc"?"sp":"cl";const rid=kind==="sp"?S.openSp:S.openCl;const r=recOf(kind,rid);if(!r)return;const f=kind==="sp"?SP.services:CL.services;const cur=(r[f]||[]).map(sv);const v=a.dataset.v;saveRec(kind,rid,{[f]:cur.includes(v)?cur.filter(x=>x!==v):cur.concat([v])});return}
   if(act==="svc"){const r=lead(S.openId);const cur=(r[L.services]||[]).map(sv);const v=a.dataset.v;const nx=cur.includes(v)?cur.filter(x=>x!==v):cur.concat([v]);saveLead(S.openId,{[L.services]:nx});return}
   if(act==="postc"){const inp=el("slCm");const t=(inp&&inp.value||"").trim();if(!t)return;const id2=S.openId;inp.value="";
@@ -1566,10 +1688,11 @@ document.addEventListener("click",async e=>{
 });
 document.addEventListener("keydown",e=>{
   /* v6: the delete warning keeps focus inside itself; Esc closes it (only it) */
-  if((S.del||S.back)&&el("slModal").querySelector(".sl-cfm")){const box=el("slModal").querySelector(".sl-cfm");
-    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();if(S.del)delClose();else backClose();return}
+  if(cfmOpen()&&el("slModal").querySelector(".sl-cfm")){const box=el("slModal").querySelector(".sl-cfm");
+    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cfmClose();return}
     if(e.key==="Tab"){const f=[...box.querySelectorAll("button:not([disabled])")];if(!f.length){e.preventDefault();return}const i=f.indexOf(document.activeElement);e.preventDefault();f[(i<0?0:i+(e.shiftKey?-1:1)+f.length)%f.length].focus();return}
-    if(!box.contains(e.target)){e.preventDefault();const c=el("slDelC")||el("slBackC");if(c)c.focus();return}}
+    if(!box.contains(e.target)){e.preventDefault();const c=cfmCancel();if(c)c.focus();return}}
+  if(e.target&&e.target.id==="slXName"){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();xAdd();return}if(e.key==="Escape"){e.preventDefault();S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}}
   if(e.key==="Escape"&&menuIsOpen()){e.preventDefault();menuClose(true);return}
   /* ⋯ opens from the keyboard with ArrowDown too */
   if(e.key==="ArrowDown"&&e.target&&e.target.id==="slMore"){e.preventDefault();menuOpen();return}
@@ -1591,7 +1714,9 @@ document.addEventListener("keydown",e=>{
     if(e.key==="Enter"&&e.target.tagName==="INPUT"&&e.target.dataset.ct){e.preventDefault();saveContact();return}
     if(e.key==="Escape"){e.preventDefault();S.ctEdit=null;S.ctDraft=null;S.ctBusy=false;render();const b=document.querySelector('#slModal [data-act="ctedit"]');if(b)b.focus();return}}
   if(e.target&&e.target.id==="slIn"){if(e.key==="Enter"){e.preventDefault();const b=document.querySelector('#v-sales [data-act="insave"]');if(b)b.click();return}if(e.key==="Escape"){S.inAdd=null;render();return}}
-  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.openG||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){flushEdit();S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener()}
+  if(e.key==="Escape"&&(S.openId||S.openCl||S.openSp||S.openCt||S.openG||S.adding||S.drop)&&el("slModal")&&el("slModal").innerHTML){
+    if(SALES_ONLY&&S.openSp&&!S.ro&&!S.unsaved){flushEdit();if(kbDirty()){e.preventDefault();pkClose(false);S.unsaved={then:{act:"close"},busy:false};render();const c=el("slUnsC");if(c)c.focus({preventScroll:true});return}}
+    S.draft=null;S.hand=null;S.unsaved=null;flushEdit();S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.ctEdit=null;S.ctDraft=null;S.adding=false;if(rec){try{rec.stop()}catch(x){}}S.drop=null;render();backToOpener()}
 });
 document.addEventListener("change",e=>{
   if(e.target&&e.target.dataset&&e.target.dataset.ct&&e.target.closest("#slModal")){if(S.ctDraft)S.ctDraft[e.target.dataset.ct]=e.target.value;return}
@@ -1609,6 +1734,8 @@ document.addEventListener("change",e=>{
   const kind=card?card.dataset.kind:S.openSp?"sp":S.openCl?"cl":"jade";
   const id=(card&&card.dataset.id)||S.openSp||S.openCl||S.openId;if(!id)return;
   if(kind==="cl"||kind==="sp"){const k=KF[kind];const r=recOf(kind,id);if(!r)return;
+    /* Karen, 10 Nov: in Kash's deal window a change waits for Save (see kbModalH) */
+    if(SALES_ONLY&&kind==="sp"&&S.openSp===id&&a.closest("#slModal")&&KB_DACT[act]){kbDraftSet(act,a,id);return}
     if(act==="done"){if(a.checked){S.prevLastC[id]=r[k.lastc]||null;saveRec(kind,id,{[k.lastc]:TODAY})}else saveRec(kind,id,{[k.lastc]:S.prevLastC[id]||null});return}
     if(act==="rstage"){const it=derive().K.find(x=>x.id===id);const b=it&&clBoardOf(it);if(b)setClStage(id,b,a.value);return}
     if(act==="rorigin"){const v=a.value||null;saveRec("cl",id,{[CL.pqo]:v}).then(ok=>{
@@ -1705,7 +1832,9 @@ async function savePerson(idL,fields,typecast,msg){
 }
 /* Won / Lost: the stage of the SELECTED offer only */
 async function setWonLost(won){
-  const id=S.openSp;const r=recOf("sp",id);if(!r)return;const st=won?SP_WON:SP_LOST;if(spStage(r[SP.stage])===st)return;
+  const id=S.openSp;const r=recOf("sp",id);if(!r)return;const st=won?SP_WON:SP_LOST;
+  if(SALES_ONLY){const ok=await kbSave({[SP.stage]:st});const b=el(won?"slWon":"slLost");if(b)b.focus({preventScroll:true});if(ok)toast(won?"Marked as won":"Marked as lost");return}
+  if(spStage(r[SP.stage])===st)return;
   const pr=saveRec("sp",id,{[SP.stage]:st},false,true);const b=el(won?"slWon":"slLost");if(b)b.focus({preventScroll:true});
   if(await pr)toast(won?"Marked as won":"Marked as lost")}
 /* ＋ Add offer: a new Sales Pipeline deal for the same person at SP_NEW (Audit booked in sales-only mode), with the current deal's owner, origin, company, From and contacts */
@@ -1741,9 +1870,37 @@ function delClose(){if(!S.del)return;S.del=null;render();const m=el("slMore");if
 /* Send back to team: only from the dialog's "Send back"; the card leaves Kash's board when the save succeeds */
 async function sendBack(){
   const b=S.back;if(!b||b.busy)return;b.busy=true;render();
-  const ok=await saveRec("sp",b.id,{[SP.stage]:"Review"},true,true);
+  const ok=await saveRec("sp",b.id,kbNulls(Object.assign(SALES_ONLY?kbChanges(b.id):{},{[SP.stage]:"Review"})),true,true);
   if(!ok){if(S.back)S.back.busy=false;render();const g=el("slBackGo");if(g)g.focus({preventScroll:true});return}
-  S.back=null;S.openSp=null;leaveOffer();render();backToOpener();toast("Sent back to the team")}
+  S.back=null;S.draft=null;S.openSp=null;leaveOffer();render();backToOpener();toast("Sent back to the team")}
+/* Karen, 10 Nov: the deal window's Save (and Won / Lost, Send back and giving the card away, which save the draft with them) */
+const kbNulls=f=>{Object.keys(f).forEach(k=>{if(f[k]==="")f[k]=null});return f};
+async function kbSave(extra){
+  const id=S.openSp;if(!id||S.kbBusy||!recOf("sp",id))return false;
+  flushEdit(); /* a value still being typed reaches the draft first */
+  const f=kbNulls(Object.assign(kbChanges(id),extra||{}));if(!Object.keys(f).length){kbDirtyUI();return true}
+  S.kbBusy=true;kbDirtyUI();
+  const ok=await saveRec("sp",id,f,false,kbHas(f,SP.stage)||kbHas(f,SP.origin)||kbHas(f,SP.owner));
+  S.kbBusy=false;if(ok&&S.draft&&S.draft.id===id)S.draft=null;render();return ok}
+/* giving the card to Jade, Sarah or Gretta (from the owner picker) */
+async function handGo(){
+  const h=S.hand;if(!h||h.busy)return;h.busy=true;render();
+  const ok=await saveRec("sp",h.id,kbNulls(Object.assign(kbChanges(h.id),{[SP.owner]:h.to,[SP.stage]:"Review"})),true,true);
+  if(!ok){if(S.hand)S.hand.busy=false;render();const g=el("slHandGo");if(g)g.focus({preventScroll:true});return}
+  const to=ownerN(h.to);S.hand=null;S.draft=null;S.openSp=null;leaveOffer();render();backToOpener();toast("Given to "+to)}
+function handClose(){if(!S.hand)return;S.hand=null;render();const o=el("slSw");if(o)o.focus({preventScroll:true})}
+/* the "Save your changes?" box: Keep editing, Discard, or Save; then what was asked for (close the window, or open the contact) */
+function unsClose(){if(!S.unsaved)return;S.unsaved=null;render();const b=el("slSave");if(b&&!b.disabled)b.focus({preventScroll:true})}
+function kbThen(t){S.unsaved=null;S.draft=null;S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.del=null;S.back=null;S.hand=null;menuClose(false);pkClose(false);
+  if(t&&t.act==="opent"&&t.id){S.openCt=t.id;render();return}
+  S.adding=false;render();backToOpener()}
+async function unsSave(){const u=S.unsaved;if(!u||u.busy)return;u.busy=true;render();const ok=await kbSave();
+  if(!ok){if(S.unsaved){S.unsaved=null;render()}const b=el("slSave");if(b)b.focus({preventScroll:true});return}
+  kbThen(u.then)}
+/* any confirm box open over the deal window, and its Cancel button */
+const cfmOpen=()=>!!(S.del||S.back||S.hand||S.unsaved);
+const cfmCancel=()=>el("slDelC")||el("slBackC")||el("slHandC")||el("slUnsC");
+function cfmClose(){if(S.del)delClose();else if(S.back)backClose();else if(S.hand)handClose();else if(S.unsaved)unsClose()}
 function backClose(){if(!S.back)return;S.back=null;render();const m=el("slBack");if(m)m.focus({preventScroll:true})}
 /* the ⋯ menu next to ✕: one item, "Delete this offer" (a small menu on top of the window, like the pickers) */
 function menuEl(){let m=el("slMenu");if(m)return m;m=document.createElement("div");m.id="slMenu";m.className="sl-menu";m.setAttribute("role","menu");m.hidden=true;document.body.appendChild(m);
@@ -1766,7 +1923,9 @@ document.addEventListener("pointerdown",e=>{if(!menuIsOpen())return;const m=el("
 document.addEventListener("scroll",()=>{if(menuIsOpen())menuPlace()},true);
 window.addEventListener("resize",()=>{if(menuIsOpen())menuPlace()});
 /* hook into the page's tabs */
-if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;S.drop=null;S.inAdd=null;S.ctEdit=null;S.ctDraft=null;S.del=null;if(el("slModal"))el("slModal").innerHTML="";pkClose(false);menuClose(false)}}}
+if(typeof showTab==="function"){const prevShow=showTab;showTab=function(t){prevShow(t);const v=el("v-sales");if(v)v.hidden=t!=="sales";const fab=el("slFab");if(fab)fab.hidden=t!=="sales"||S.ro;if(t==="sales"){if(el("asof"))el("asof").hidden=true;if(el("rvAsof"))el("rvAsof").hidden=true;load()}else{S.openId=S.openCl=S.openSp=S.openCt=S.openG=null;S.adding=false;S.drop=null;S.inAdd=null;S.ctEdit=null;S.ctDraft=null;S.del=null;S.back=null;S.hand=null;S.unsaved=null;S.draft=null;S.xadd=null;if(el("slModal"))el("slModal").innerHTML="";pkClose(false);menuClose(false)}}}
+/* Karen, 10 Nov: leaving or refreshing the page with changes not saved in Kash's deal window asks first (the browser's own question) */
+window.addEventListener("beforeunload",e=>{if(SALES_ONLY&&S.openSp&&!S.ro&&kbDirty()){e.preventDefault();e.returnValue=""}});
 {const hb=el("refreshBtn");if(hb)hb.addEventListener("click",()=>{if(S.loaded&&!S.loading)load(true)})}
 if(location.hash==="#sales")showTab("sales");
 })();
