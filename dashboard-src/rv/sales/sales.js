@@ -46,6 +46,8 @@ const KB_TEAM=new Set(["New","Contacted","Follow-up Team","No Reply","Not a Fit"
 /* Jade's Leads spells it "In Conversations": read as the same stage */
 const kbNorm=v=>{const s=sv(v)||"";return s==="In Conversations"?"In Conversation":s};
 const KBF={jade:"fldzKqgC2SQOyGndm",cl:"fld5YT1cAYB56QePD",sp:"fldG9pzFmtKIGXCx1"},CL_NEED="fldb5I0h67Oqpp6QZ";
+/* Karen, 11 Nov (Kash's 10 Nov call): "Next call" is its own date in each table (he was using Chase on for everything) */
+SP.call="fldWYzaiFxcifGFpx";L.call="fldRs0Ya9g9HfLqeb";CL.call="fldnkNwQFHwWHm0uq";
 const SP_STAGES=SALES_ONLY?KB_STAGES:["Pre-qual","Lead in","In conversation","Audit booked","Audit held","Proposal sent","Follow-up call","Won – Handover to Ops","Lost / No reply"];
 /* old Sales pipeline names -> current ones; not used on Kash's board, where "Follow-up" and "Lost" are real stages (kbRows translates) */
 const SP_OLD=SALES_ONLY?{}:{"Potential":"Lead in","To contact":"Lead in","Follow-up":"In conversation","Discovery call":"Audit booked","Handover to Ops":"Won – Handover to Ops","Closed":"Won – Handover to Ops","Lost":"Lost / No reply","No reply":"Lost / No reply"};
@@ -121,7 +123,7 @@ const OI={
 OI["Podcast guest"]=OI.Podcast;OI.Referrals=OI.Referral;OI.Events=OI.Event;OI["IG organic"]=OI.Instagram;OI.Upsells=OI.Upsell;
 OI["Kash brand community"]={c:"#4338CA",p:OI["Rise Voice"].p};OI["ReLearn community leads"]={c:"#DB2777",p:OI.Referral.p};OI["Episode keyword"]=OI["Episode request"];
 const DUE_ORDER={overdue:0,today:1,week:2,later:3};
-const RO_BLOCK=new Set(["kbsave","handgo","xcolnew","xcoladd","xcolrm","addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
+const RO_BLOCK=new Set(["tdrm","tdadd","kbsave","handgo","xcolnew","xcoladd","xcolrm","addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
 const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
@@ -209,7 +211,12 @@ function pkH(o){
 const dLab=v=>v?WD[new Date(String(v).slice(0,10)+"T12:00:00").getDay()]+" "+short(v):"Set a date";
 const dState=v=>{if(!v)return "none";const d=dueOf(v).due;return d==="overdue"||d==="today"?d:""};
 const dateH=(id,act,v)=>`<span class="sl-dpw${S.ro?" ro":""}">${pillH("date",dState(v),dLab(v))}${S.ro?"":`<span class="car" aria-hidden="true">${svg(CARET,14)}</span>`}<input id="${id}" type="date" class="sl-dpi" data-act="${act}" value="${esc(v||"")}"${S.ro?" readonly":""}></span>`;
-const dpSync=i=>{const p=i.closest(".sl-dpw")&&i.closest(".sl-dpw").querySelector(".sl-pill");if(p)p.outerHTML=pillH("date",dState(i.value),dLab(i.value))};
+const dpSync=i=>{const p=i.closest(".sl-dpw")&&i.closest(".sl-dpw").querySelector(".sl-pill");if(p)p.outerHTML=i.dataset.act==="spcall"?callPillH(i.value):pillH("date",dState(i.value),dLab(i.value))};
+/* Karen, 11 Nov: the next call. Its own pill over a date input, like Chase on: a phone, indigo when booked, amber today, red once the date has passed */
+const callState=v=>{if(!v)return "none";const n=dd(v,TODAY);return n<0?"past":n===0?"today":"set"};
+const callPillH=v=>{const st=callState(v);return `<span class="sl-pill ${st==="none"?"pc-grey pc-dnone":st==="today"?"pc-td":st==="past"?"pc-od":"pc-ind"}">${st==="none"?'<i class="sl-dot"></i>':svg(PHONE_I,12)}<span class="t">${esc(dLab(v))}</span></span>`};
+const callH=(id,v)=>`<span class="sl-dpw${S.ro?" ro":""}">${callPillH(v)}${S.ro?"":`<span class="car" aria-hidden="true">${svg(CARET,14)}</span>`}<input id="${id}" type="date" class="sl-dpi" data-act="spcall" value="${esc(v||"")}"${S.ro?" readonly":""}></span>`;
+const callChipH=v=>{const st=callState(v);return `<span class="sl-call${st==="today"?" td":st==="past"?" od":""}">${svg(PHONE_I,12)}${st==="today"?"Call today":st==="past"?"Call was "+esc(dLab(v)):"Call "+esc(dLab(v))}</span>`};
 const pkOptsOf=t=>{try{return pkNorm(JSON.parse(t.dataset.o||"[]"))}catch(e){return []}};
 /* set a picker's value (and its pill) without firing anything */
 function pkSet(t,v){const opts=pkOptsOf(t);const c=opts.find(x=>x[0]===String(v==null?"":v))||opts[0]||["",""];t.value=c[0];t.setAttribute("aria-label",t.dataset.n+": "+c[1]);t.title=c[1];const p=t.querySelector(".sl-pill");if(p)p.outerHTML=pillH(t.dataset.k,c[0],c[1])}
@@ -354,7 +361,7 @@ function deriveSP(){
   const xs=SALES_ONLY?new Set(kbCols().slice(KB_STAGES.length)):new Set();
   return S.sp.filter(r=>String(r[SP.deal]||"").trim()).map(r=>{
     const stage=spStage(r[SP.stage]);const lastC=r[SP.lastc]||"";const rv=r[SP.rv]||"";
-    return Object.assign({kind:"sp",id:r._id,r,name:String(r[SP.deal]).trim(),co:r[SP.co]||"",origin:stdO(r[SP.origin])||"Other",stage,pre:stage==="Pre-qual",plate:PLATE.has(stage)||xs.has(stage),closed:stage===SP_WON||stage===SP_LOST,chase:r[SP.chase]||"",owner:sv(r[SP.owner]),needed:r[SP.needed]||"",notes:r[SP.notes]||"",lastC,value:r[SP.value]||0,est:!!r[SP.est],offer:sv(r[SP.offer])||"Not sure yet",services:(r[SP.services]||[]).map(sv),from:fromL(sv(r[SP.from])),jadeId:ids(r[SP.jade])[0]||"",rvId:idFromUrl(rv),rvUl:/tbl8xDFVwfdMS7v3v/.test(rv),contactIds:ids(r[SP.contacts]),done:lastC===TODAY,board:SPB,boards:[SPB]},dueOf(r[SP.chase]||""));
+    return Object.assign({kind:"sp",id:r._id,r,name:String(r[SP.deal]).trim(),co:r[SP.co]||"",origin:stdO(r[SP.origin])||"Other",stage,pre:stage==="Pre-qual",plate:PLATE.has(stage)||xs.has(stage),closed:stage===SP_WON||stage===SP_LOST,chase:r[SP.chase]||"",call:r[SP.call]||"",owner:sv(r[SP.owner]),needed:r[SP.needed]||"",notes:r[SP.notes]||"",lastC,value:r[SP.value]||0,est:!!r[SP.est],offer:sv(r[SP.offer])||"Not sure yet",services:(r[SP.services]||[]).map(sv),from:fromL(sv(r[SP.from])),jadeId:ids(r[SP.jade])[0]||"",rvId:idFromUrl(rv),rvUl:/tbl8xDFVwfdMS7v3v/.test(rv),contactIds:ids(r[SP.contacts]),done:lastC===TODAY,board:SPB,boards:[SPB]},dueOf(r[SP.chase]||""));
   });
 }
 /* the team stage -> Kash board translation, only used when "Kash board" is empty (the automations normally fill it) */
@@ -386,12 +393,12 @@ function kbRows(){
   (S.leads||[]).forEach(r=>{if(offers.has(r._id))return;const st=sv(r[L.stage]);out.push({_id:r._id,_src:"jade",
     [SP.deal]:r[L.name]||"",[SP.co]:r[L.co]||"",[SP.what]:r[L.what]||"",[SP.stage]:kbNorm(r[KBF.jade])||KB_JADE[st]||"",
     [SP.origin]:JADE_SRC[sv(r[L.source])]||stdO(sv(r[L.source]))||"Other",[SP.owner]:sv(r[L.owner]),[SP.needed]:r[L.needed]||"",[SP.notes]:r[L.latest]||"",
-    [SP.value]:r[L.value]||0,[SP.est]:!!r[L.est],[SP.chase]:r[L.chase]||"",[SP.lastc]:r[L.lastC]||"",[SP.leadin]:r[L.leadIn]||"",
+    [SP.value]:r[L.value]||0,[SP.est]:!!r[L.est],[SP.chase]:r[L.chase]||"",[SP.call]:r[L.call]||"",[SP.lastc]:r[L.lastC]||"",[SP.leadin]:r[L.leadIn]||"",
     [SP.services]:(r[L.services]||[]).map(sv),[SP.offer]:sv(r[L.likely])||"Not sure yet",[SP.contacts]:ids(r[L.contacts]),[SP.jade]:[r._id],[SP.from]:"Podcast Leads (Jade)"})});
   (S.cl||[]).forEach(r=>{if(offers.has(r._id))return;const ct=idFromUrl(r[CL.contact]);out.push({_id:r._id,_src:"cl",
     [SP.deal]:String(r[CL.name]||"").trim(),[SP.co]:r[CL.co]||"",[SP.what]:r[CL.want]||"",[SP.stage]:kbNorm(r[KBF.cl])||kbCl(r),
     [SP.origin]:stdO(sv(r[CL.pqo]))||stdO(sv(r[CL.src]))||"Other",[SP.owner]:ownerN(sv(r[CL.owner])),[SP.needed]:r[CL_NEED]||"",[SP.notes]:r[CL.notes]||"",
-    [SP.value]:r[CL.val]||0,[SP.est]:!!r[CL.est],[SP.chase]:r[CL.chase]||"",[SP.lastc]:r[CL.lastc]||"",[SP.leadin]:r[CL.leadin]||"",
+    [SP.value]:r[CL.val]||0,[SP.est]:!!r[CL.est],[SP.chase]:r[CL.chase]||"",[SP.call]:r[CL.call]||"",[SP.lastc]:r[CL.lastc]||"",[SP.leadin]:r[CL.leadin]||"",
     [SP.services]:(r[CL.services]||[]).map(sv),[SP.offer]:"",[SP.contacts]:ct?[ct]:[],[SP.from]:clFrom(r)})});
   /* Kash's own leads (Sales pipeline rows that did not come from a team board), plus the offer deals above */
   (S.spRaw||[]).forEach(r=>{if((ids(r[SP.jade]).length||String(r[SP.rv]||"").trim())&&!sv(r[KBF.sp]))return;
@@ -399,8 +406,8 @@ function kbRows(){
   return out;
 }
 /* a save on Kash's board goes to the person's own record: the board's field ids are swapped for that table's */
-const KB_WRITE={jade:{base:CB,tbl:T.leads,f:{[SP.stage]:KBF.jade,[SP.needed]:L.needed,[SP.notes]:L.latest,[SP.value]:L.value,[SP.est]:L.est,[SP.chase]:L.chase,[SP.lastc]:L.lastC,[SP.services]:L.services,[SP.offer]:L.likely,[SP.owner]:L.owner}},
-  cl:{base:RB,tbl:T.cl,f:{[SP.stage]:KBF.cl,[SP.needed]:CL_NEED,[SP.notes]:CL.notes,[SP.value]:CL.val,[SP.est]:CL.est,[SP.chase]:CL.chase,[SP.lastc]:CL.lastc,[SP.services]:CL.services,[SP.owner]:CL.owner}}};
+const KB_WRITE={jade:{base:CB,tbl:T.leads,f:{[SP.stage]:KBF.jade,[SP.needed]:L.needed,[SP.notes]:L.latest,[SP.value]:L.value,[SP.est]:L.est,[SP.chase]:L.chase,[SP.lastc]:L.lastC,[SP.services]:L.services,[SP.offer]:L.likely,[SP.owner]:L.owner,[SP.call]:L.call,[SP.deal]:L.name}},
+  cl:{base:RB,tbl:T.cl,f:{[SP.stage]:KBF.cl,[SP.needed]:CL_NEED,[SP.notes]:CL.notes,[SP.value]:CL.val,[SP.est]:CL.est,[SP.chase]:CL.chase,[SP.lastc]:CL.lastc,[SP.services]:CL.services,[SP.owner]:CL.owner,[SP.call]:CL.call,[SP.deal]:CL.name}}};
 function kbWrite(r,fields){
   const src=r._src||"sp";
   /* Kash's own rows keep the old Sales pipeline stage in step; a column without an old equivalent (Review, his own columns) leaves it as it is */
@@ -431,7 +438,7 @@ function xColErr(name){
    Gretta is spelled "Greta" in Airtable (shown as Gretta). */
 const KB_OWNERS=src=>src==="jade"?["Kash","Jade"]:["Kash","Jade","Sarah","Greta"];
 /* the deal window's fields that wait for Save, and the board field each one fills */
-const KB_DACT={spstage:SP.stage,spchase:SP.chase,porigin:SP.origin,spoffer:SP.offer,kbowner:SP.owner,value:SP.value,needed:SP.needed,spnotes:SP.notes};
+const KB_DACT={spstage:SP.stage,spchase:SP.chase,spcall:SP.call,spname:SP.deal,porigin:SP.origin,spoffer:SP.offer,kbowner:SP.owner,value:SP.value,needed:SP.needed,spnotes:SP.notes};
 function kbDraftSet(act,a,id){
   const p=derive().P.find(x=>x.id===id);if(!p)return;const f=KB_DACT[act];
   /* Jade, Sarah or Gretta as the owner: the card goes back to the team, after a confirm (handH) */
@@ -440,6 +447,8 @@ function kbDraftSet(act,a,id){
     setTimeout(()=>{const c=el("slHandC");if(c)c.focus({preventScroll:true})},0);return}
   if(act==="value"){const n=amt(a.value);if(Number.isNaN(n)){badAmt(a,kbView(p).value);kbDirtyUI();return}kbDraft()[f]=n;a.value=a.defaultValue=full(n);kbDirtyUI();return}
   if(act==="needed"||act==="spnotes"){kbDraft()[f]=a.value;kbDirtyUI();return}
+  /* the name: never empty (an emptied box goes back to the saved name); no redraw, so a click on Save right after typing is not lost */
+  if(act==="spname"){const t=a.value.trim();if(t)kbDraft()[f]=t;else{delete kbDraft()[f];a.value=p.name;nmSize(a)}kbDirtyUI();return}
   kbDraft()[f]=act==="porigin"?(stdO(a.value)||"Other"):a.value;render()}
 /* the + column: a new name is checked, kept in this browser, and the board scrolls to show it */
 const xScrollEnd=()=>{const bd=document.querySelector("#v-sales .sl-board.sl-full");if(bd)bd.scrollLeft=bd.scrollWidth};
@@ -614,8 +623,8 @@ function spKcardH(p,D,showOwner,bySrc,byDate){
   return `<article class="sl-card sl-kc ${p.done?"done":p.due}${bySrc&&p.closed?" sl-closed":""}" data-id="${p.id}" data-kind="sp" draggable="${S.ro||byDate?"false":"true"}">
   <div class="sl-ch"><label class="sl-cbx"><input type="checkbox" data-act="done" ${p.done?"checked":""}${S.ro?" disabled":""} aria-label="${p.done?"Untick":"Mark"} ${esc(p.name)} as contacted" style="width:18px;height:18px"></label>
     <div class="sl-cn"><button type="button" class="sl-name" data-act="opensp" style="font-size:14px">${esc(p.name)}</button>${(()=>{const sub=[p.co,showOwner&&p.owner?p.owner:""].filter(Boolean).join(" · ");return sub?`<div class="sl-co" style="font-size:12.5px">${esc(sub)}</div>`:""})()}</div></div>
-  <div class="sl-cm"><span class="sl-tags">${bySrc||byDate?stcH(p.stage):otagH(p.origin)}${byDate?otagH(p.origin):""}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>
-  <div class="sl-box"><div><span class="sl-cl"><b class="pm">Needed from you</b> ${esc(p.needed||"–")}</span></div>${p.value?`<div class="sl-kv"><b class="pm">Value</b><b>${esc(full(p.value))}/mo${p.est?' <span class="sl-est">Est.</span>':""}</b></div>`:""}</div>
+  <div class="sl-cm"><span class="sl-tags">${bySrc||byDate?stcH(p.stage):otagH(p.origin)}${byDate?otagH(p.origin):""}${tagH(p.offer)}${svcTagsH(p.services)}</span><span class="sl-due ${p.done?"":p.due}">${p.done?"Contacted today":esc(p.dueL)}</span></div>${SALES_ONLY&&p.call?`<div class="sl-callrow">${callChipH(p.call)}</div>`:""}
+  <div class="sl-box">${SALES_ONLY?tdCardH(p):`<div><span class="sl-cl"><b class="pm">Needed from you</b> ${esc(p.needed||"–")}</span></div>`}${p.value?`<div class="sl-kv"><b class="pm">Value</b><b>${esc(full(p.value))}/mo${p.est?' <span class="sl-est">Est.</span>':""}</b></div>`:""}</div>
   </article>`;
 }
 function kcardH(it,b,D,showStage,sent){
@@ -660,7 +669,9 @@ function spColsH(D,stages,all){
     const mine=SALES_ONLY&&!KB_STAGES.includes(st),rm=mine&&!cs.length&&(S.xloc||[]).includes(st)&&!S.ro;
     const inner=cs.map(p=>spKcardH(p,D,all)).join("")||`<div class="sl-empty">Nobody here${rm?`<button type="button" class="sl-xrm" data-act="xcolrm" data-stage="${esc(st)}">Remove column</button>`:""}</div>`;
     /* "Add a lead" only on open stages (a new lead never starts as won or lost); his own columns are open */
-    return colH("sp",SP_STAGES,st,cs.length,inner,PLATE.has(st)||mine?inlineAdd({ctx:"p",board:"sp",stage:st}):"","")}).join("");
+    /* Karen, 11 Nov (Kash): the value in each column, under its name (a card with no value adds nothing) */
+    const tot=cs.reduce((a,x)=>a+(Number(x.value)||0),0);
+    return colH("sp",SP_STAGES,st,cs.length,inner,PLATE.has(st)||mine?inlineAdd({ctx:"p",board:"sp",stage:st}):"",SALES_ONLY?`<p class="sl-ctot${tot?"":" zero"}" title="Total value of the cards in this column">${tot?esc(full(tot)):"$0"}<small>/mo</small></p>`:"")}).join("");
 }
 /* Karen, 10 Nov: the + at the end of the board adds a column (Enter or Add saves the name, Esc or Cancel closes) */
 function xAddH(){
@@ -952,6 +963,7 @@ function recModalH(it,people,D){
 const PERSON_I="M12 4a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM4 21a8 8 0 0 1 16 0",ARROW_I="M5 12h14M13 6l6 6-6 6";
 const DOTS_H='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>';
 const PEN_I="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z";
+const PHONE_I="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z";
 const TRASH_I="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6",CHECK_I="M20 6 9 17l-5-5",BACK_I="M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11";
 const quickOK=p=>!!p&&!S.ro&&!p.pre;
 /* the offers picker (Add offer, Select offer): the 8 offers; ones the person already has say "already in play" (still allowed) */
@@ -1019,50 +1031,82 @@ const kbDraftOf=id=>S.draft&&S.draft.id===id?S.draft.f:{};
 function kbDraft(){if(!S.draft||S.draft.id!==S.openSp)S.draft={id:S.openSp,f:{}};return S.draft.f}
 /* what the window shows: the draft where there is one, else what is saved */
 function kbView(p){const d=kbDraftOf(p.id),h=k=>kbHas(d,k);
-  return {stage:h(SP.stage)?d[SP.stage]:p.stage,chase:h(SP.chase)?d[SP.chase]||"":p.chase,origin:h(SP.origin)?stdO(d[SP.origin])||"Other":p.origin,
+  return {stage:h(SP.stage)?d[SP.stage]:p.stage,chase:h(SP.chase)?d[SP.chase]||"":p.chase,call:h(SP.call)?d[SP.call]||"":p.call,name:h(SP.deal)&&String(d[SP.deal]||"").trim()?String(d[SP.deal]):p.name,origin:h(SP.origin)?stdO(d[SP.origin])||"Other":p.origin,
     offer:h(SP.offer)?d[SP.offer]||"Not sure yet":p.offer,owner:h(SP.owner)?d[SP.owner]||"":p.owner,value:h(SP.value)?d[SP.value]:p.value,est:h(SP.value)?false:p.est,
     services:h(SP.services)?d[SP.services]:p.services,needed:h(SP.needed)?d[SP.needed]||"":p.needed,notes:h(SP.notes)?d[SP.notes]||"":p.notes}}
 /* a draft value counts as a change only when it differs from what is saved (typing a word and deleting it again is no change) */
-const KB_CMP={[SP.services]:v=>(Array.isArray(v)?v.map(sv):[]).slice().sort().join("|"),[SP.value]:v=>Number(v)||0,[SP.origin]:v=>stdO(v)||"Other",[SP.offer]:v=>sv(v)||"Not sure yet",[SP.needed]:v=>String(v||"").trim(),[SP.notes]:v=>String(v||"").trim()};
+const KB_CMP={[SP.services]:v=>(Array.isArray(v)?v.map(sv):[]).slice().sort().join("|"),[SP.value]:v=>Number(v)||0,[SP.origin]:v=>stdO(v)||"Other",[SP.offer]:v=>sv(v)||"Not sure yet",[SP.needed]:v=>tdSer(tdParse(v)),[SP.notes]:v=>String(v||"").trim(),[SP.deal]:v=>String(v||"").trim()};
 const kbCmp=(k,v)=>(KB_CMP[k]||(x=>String(sv(x)||"")))(v);
 function kbChanges(id){id=id||S.openSp;const d=kbDraftOf(id);const r=recOf("sp",id);if(!r)return {};const out={};
-  Object.keys(d).forEach(k=>{if(kbCmp(k,d[k])!==kbCmp(k,r[k]))out[k]=d[k]});if(kbHas(out,SP.value))out[SP.est]=false;return out}
-const KB_LAB={[SP.stage]:"the stage",[SP.chase]:"the chase date",[SP.origin]:"the origin",[SP.offer]:"the ticket",[SP.owner]:"the owner",[SP.value]:"the value",[SP.services]:"the offers",[SP.needed]:"what's needed",[SP.notes]:"the notes"};
-function kbChangedL(){const l=Object.keys(kbChanges()).map(k=>KB_LAB[k]).filter(Boolean);if(!l.length&&kbLive())l.push("the value");return l.length<2?(l[0]||"something"):l.slice(0,-1).join(", ")+" and "+l[l.length-1]}
+  Object.keys(d).forEach(k=>{if(k===SP.deal&&!String(d[k]||"").trim())return;if(kbCmp(k,d[k])!==kbCmp(k,r[k]))out[k]=k===SP.deal?String(d[k]).trim():d[k]});if(kbHas(out,SP.value))out[SP.est]=false;return out}
+const KB_LAB={[SP.stage]:"the stage",[SP.chase]:"the chase date",[SP.origin]:"the origin",[SP.offer]:"the ticket",[SP.owner]:"the owner",[SP.value]:"the value",[SP.services]:"the offers",[SP.needed]:"what's needed",[SP.notes]:"the notes",[SP.call]:"the next call",[SP.deal]:"the name"};
+function kbChangedL(){const l=Object.keys(kbChanges()).map(k=>KB_LAB[k]).filter(Boolean);if(!l.length&&kbLive())l.push("the value");if(!l.length&&tdPending())l.push("what's needed");return l.length<2?(l[0]||"something"):l.slice(0,-1).join(", ")+" and "+l[l.length-1]}
 /* the value box can hold typed text that has not reached the draft yet (it does when the box is left) */
 const kbLive=()=>{const v=el("slSv");return !!(v&&v.closest("#slModal")&&v.value.trim()!==v.defaultValue.trim())};
-const kbDirty=()=>!!S.openSp&&(Object.keys(kbChanges()).length>0||kbLive());
+const kbDirty=()=>!!S.openSp&&(Object.keys(kbChanges()).length>0||kbLive()||!!tdPending());
 /* the footer's Save button follows the draft without redrawing the window (so typing is never interrupted) */
 function kbDirtyUI(){const b=el("slSave");if(!b)return;const d=kbDirty();b.disabled=!d||!!S.kbBusy;b.classList.toggle("on",d);const h=el("slDirty");if(h)h.hidden=!d}
+/* Karen, 11 Nov (Kash's 10 Nov call): "What's needed from you" is a to-do list. It stays in the same text field in Airtable, one line
+   per to-do; a done one starts with "[x]", an open one with "[ ]". Plain lines the team typed (or "1. …") read as open to-dos. */
+const tdParse=v=>String(v||"").split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(x=>{const m=x.match(/^\[( |x|X)?\]\s*(.*)$/);return m?{t:m[2].trim(),d:/x/i.test(m[1]||"")}:{t:x.replace(/^(?:\d+[.)]|[-•*])\s+/,"").trim(),d:false}}).filter(x=>x.t);
+const tdSer=L=>(L||[]).map(x=>[x.d?"[x] ":"[ ] ",String(x.t||"").replace(/\s*\n\s*/g," ").trim()]).filter(x=>x[1]).map(x=>x[0]+x[1]).join("\n");
+/* the list the window shows and edits: kept beside the draft while the window is open, so a row keeps its place while it is typed in */
+const tdOf=p=>S.draft&&S.draft.id===p.id&&S.draft.td?S.draft.td:tdParse(kbView(p).needed);
+function kbTd(p){kbDraft();if(!S.draft.td)S.draft.td=tdParse(kbView(p).needed);return S.draft.td}
+const tdPending=()=>{const i=el("slTdNew");return i&&i.closest("#slModal")?i.value.trim():""};
+/* a change to the list: into the draft, then the window redraws (focus goes where it makes sense) */
+function tdAct(fn,focus){const p=derive().P.find(x=>x.id===S.openSp);if(!p)return;const L=kbTd(p);fn(L);kbDraft()[SP.needed]=tdSer(L);render();const f=focus&&el(focus);if(f)f.focus({preventScroll:true})}
+function tdAddNew(){const i=el("slTdNew");const t=i?i.value.trim():"";if(!t){if(i)i.focus();return}i.value="";tdAct(L=>L.push({t,d:false}),"slTdNew")}
+/* typing in a to-do: into the draft, no redraw */
+function tdText(a){const p=derive().P.find(x=>x.id===S.openSp);if(!p)return;const L=kbTd(p),x=L[+a.dataset.i];if(!x)return;x.t=a.value.replace(/\s*\n\s*/g," ");kbDraft()[SP.needed]=tdSer(L);kbDirtyUI()}
+/* a to-do typed in the Add box but not entered yet joins the list when the window saves */
+function tdCommit(){const t=tdPending();if(!t)return false;const p=derive().P.find(x=>x.id===S.openSp);if(!p)return false;const L=kbTd(p);L.push({t,d:false});kbDraft()[SP.needed]=tdSer(L);const i=el("slTdNew");if(i)i.value="";return true}
+/* a to-do ticked on a card: saved at once, like the "contacted" tick (the window is where he edits or unticks) */
+async function tdCardDone(id,i){const r=recOf("sp",id);if(!r)return;const L=tdParse(r[SP.needed]);if(!L[i]||L[i].d)return;L[i].d=true;await saveRec("sp",id,{[SP.needed]:tdSer(L)},false)}
+function todoH(p){const L=tdOf(p),ro=S.ro;
+  return `<div class="sl-secbox need sl-td">${L.map((x,i)=>`<div class="sl-tdr${x.d?" done":""}"><input type="checkbox" id="slTd-${i}" data-act="tdtog" data-i="${i}"${x.d?" checked":""}${ro?" disabled":""} aria-label="${x.d?"Done":"Mark as done"}: ${esc(x.t)}"><textarea class="sl-tdt" data-act="tdtext" data-i="${i}" rows="1" aria-label="To-do ${i+1}"${ro?" readonly":""}>${esc(x.t)}</textarea>${ro?"":`<button type="button" class="sl-tdx" data-act="tdrm" data-i="${i}" aria-label="Remove: ${esc(x.t)}" title="Remove">${svg(XI,14)}</button>`}</div>`).join("")}${ro?(L.length?"":'<p class="pm">Nothing needed yet</p>'):`<div class="sl-tda"><span class="pl" aria-hidden="true">${svg(PLUS,15)}</span><input id="slTdNew" data-act="tdnew" maxlength="300" placeholder="${L.length?"Add a to-do and press Enter":"What do you need to do? Type it and press Enter"}" autocomplete="off" aria-label="Add a to-do"><button type="button" class="sl-tdadd" data-act="tdadd">Add</button></div>`}</div>`}
+/* on a card: the open to-dos (two at most), each with its tick */
+function tdCardH(p){const L=tdParse(p.needed);if(!L.length)return `<div><span class="sl-cl"><b class="pm">Needed from you</b> –</span></div>`;
+  const open=L.map((x,i)=>[x,i]).filter(e=>!e[0].d);
+  if(!open.length)return `<div class="sl-ctd"><b class="pm">Needed from you</b><span class="sl-ctdone">${svg(CHECK_I,13)}All done</span></div>`;
+  return `<div class="sl-ctd"><b class="pm">Needed from you</b>${open.slice(0,2).map(([x,i])=>`<div class="sl-ctr"><input type="checkbox" data-act="tdcard" data-i="${i}"${S.ro?" disabled":""} aria-label="Mark as done: ${esc(x.t)}" title="Tick when it's done"><span>${esc(x.t)}</span></div>`).join("")}${open.length>2?`<span class="sl-ctm">+${open.length-2} more</span>`:""}</div>`}
+/* the name box grows with the name; "3d ago" for the facts row */
+const nmLen=v=>Math.max(6,Math.min(44,String(v||"").length+1));
+function nmSize(a){if(a)a.size=nmLen(a.value)}
+const agoS=d=>{const n=dd(TODAY,d);return n<=0?"today":n+"d ago"};
 function kbModalH(p,D,people){
   const ro=S.ro?" readonly":"";const src=p.r._src||"sp",own=src==="sp";const v=kbView(p);
+  if(S.draft&&S.draft.id===p.id&&S.draft.td)S.draft.td=S.draft.td.filter(x=>String(x.t||"").trim()); /* a to-do emptied while typing drops out on the next redraw */
   const pers=people.filter(x=>x.items.some(i=>i.id===p.id));const per=pers.find(x=>x.id===p.contactIds[0])||pers.find(x=>x.ct)||pers[0];
   const who=p.name||(per&&per.name)||"";const first=who.split(/\s+/)[0]||who;
   const convs=[...new Set(pers.flatMap(x=>x.convs))].sort((x,y)=>String(y[C.date]||"").localeCompare(String(x[C.date]||"")));
-  const ttl=per?`<button type="button" class="sl-ttl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">${svg(PERSON_I,18)}<span>${esc(who)}</span><span class="ar">${svg(ARROW_I,16)}</span></button>`:esc(who);
+  /* Karen, 11 Nov: the name can be edited here (it saves with Save, on the person's own record); the contact has its own link beside it */
+  const ttl=S.ro?esc(who):`<span class="sl-nm"><input id="slSnm" class="sl-nin" data-act="spname" value="${esc(v.name)}" size="${nmLen(v.name)}" maxlength="120" autocomplete="off" spellcheck="false" aria-label="Name" title="Edit the name">${svg(PEN_I,15)}</span>`;
+  const ctl=per?`<button type="button" class="sl-octl" data-act="opent" data-id="${esc(per.id)}" title="Open the contact">Open contact${svg(ARROW_I,15)}</button>`:"";
   /* Karen, 10 Nov: the owner can be changed on every card; Jade, Sarah or Gretta gives it back to the team (see handH) */
   const ow=KB_OWNERS(src);const owners=(v.owner?[]:[["","–"]]).concat(ow.concat(v.owner&&!ow.includes(v.owner)?[v.owner]:[]).map(o=>[o,ownerN(o)]));
   const stOpts=((L2=>L2.includes(v.stage)?L2:L2.concat([v.stage]))(kbCols())).map(s=>[s,stL(s)]);
-  const roFact=(lab,x)=>`<div class="sl-fact"><span class="l">${lab}</span><div class="sl-fv">${x||'<small>–</small>'}</div></div>`;
+  const roFact=(lab,x,cls)=>`<div class="sl-fact${cls?" "+cls:""}"><span class="l">${lab}</span><div class="sl-fv">${x||'<small>–</small>'}</div></div>`;
   const meta=[p.from?`<span>From ${esc(p.from)}</span>`:"",
     pers.length?`<span>${pers.length>1?"Contacts":"Contact"}: ${pers.map(x=>`<button type="button" class="sl-plink" data-act="opent" data-id="${esc(x.id)}">${esc(x.name)}</button>`).join(", ")}</span>`:'<span class="pm">No linked contact yet</span>'].filter(Boolean).join("");
   const log=S.ro?"":`<div class="sl-addc"><label class="vh" for="slSc">Channel</label>${pkH({id:"slSc",k:"ch",v:CHANNELS[0],opts:CHANNELS,name:"Channel",field:true})}<label class="vh" for="slSx">What happened</label><input id="slSx" placeholder="Log a conversation"><button type="button" class="sl-ghost" data-act="logsp" data-id="${esc(p.id)}">${svg(PLUS)}Add</button></div>`;
   const dirty=kbDirty();
   return `<div class="sl-ov" data-act="closebg"><div class="sl-dlg sl-dlg-sp sl-dlg-kb" role="dialog" aria-modal="true" aria-labelledby="slSh"><div class="sl-db">
-    <div class="sl-dh"><div style="min-width:0"><h2 id="slSh">${ttl}</h2>${p.co?`<div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>`:""}</div>
+    <div class="sl-dh"><div style="min-width:0"><div class="sl-nrow"><h2 id="slSh">${ttl}</h2>${ctl}</div>${p.co?`<div class="sl-co" style="margin-top:2px">${esc(p.co)}</div>`:""}</div>
       <div class="sl-dhb"><button type="button" class="sl-x" data-act="close" aria-label="Close">${svg(XI,16)}</button></div></div>
     <div class="sl-facts sl-kfacts">
-      <div class="sl-fact"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:v.stage,opts:stOpts,name:"Stage",act:"spstage",dis:S.ro})}</div>
+      <div class="sl-fact f-st"><label for="slSs">Stage</label>${pkH({id:"slSs",k:"sp",v:v.stage,opts:stOpts,name:"Stage",act:"spstage",dis:S.ro})}</div>
+      <div class="sl-fact"><label for="slSnc">Next call</label>${callH("slSnc",v.call)}</div>
       <div class="sl-fact"><label for="slSd">Chase on</label>${dateH("slSd","spchase",v.chase)}</div>
-      ${own?`<div class="sl-fact"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:v.origin,opts:ORIGINS,name:"Origin",act:"porigin",dis:S.ro})}</div>`:roFact("Origin",otagH(p.origin))}
+      ${own?`<div class="sl-fact f-or"><label for="slSo">Origin</label>${pkH({id:"slSo",k:"origin",v:v.origin,opts:ORIGINS,name:"Origin",act:"porigin",dis:S.ro})}</div>`:roFact("Origin",otagH(p.origin),"f-or")}
       ${src!=="cl"?`<div class="sl-fact"><label for="slSk">Ticket</label>${pkH({id:"slSk",k:"ticket",v:v.offer||"Not sure yet",opts:OFFERS,name:"Ticket",act:"spoffer",dis:S.ro})}</div>`:""}
-      ${roFact("Last contact",p.lastC?`${esc(short(p.lastC))} <small>· ${esc(agoL(p.lastC))}</small>`:"<small>No contact logged</small>")}
+      ${roFact("Last contact",p.lastC?`${esc(short(p.lastC))} <small>· ${esc(agoS(p.lastC))}</small>`:"<small>No contact logged</small>")}
       <div class="sl-fact"><label for="slSw">Owner</label>${pkH({id:"slSw",k:"owner",v:v.owner||"",opts:owners,name:"Owner",act:"kbowner",dis:S.ro})}</div>
-      <div class="sl-fact"><label for="slSv">Value / month${v.est&&v.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" inputmode="numeric" autocomplete="off" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(v.value))}"${ro}></div>
+      <div class="sl-fact f-val"><label for="slSv">Value / month${v.est&&v.value?' <span class="sl-est">Est.</span>':""}</label><input id="slSv" data-act="value" size="8" inputmode="numeric" autocomplete="off" placeholder="${S.ro?"–":"Add value"}" value="${esc(full(v.value))}"${ro}></div>
     </div>
     ${svcPickH("spsvc",v.services,"slSsv",true)}
     <div class="sl-secs">
-    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:String(v.needed||"").trim()?1:0,body:secTextH("slSn","needed",v.needed,"What do you need to do?","What's needed from you","need")})}
+    ${secH({key:"need",icon:"need",cls:"need",title:"What's needed from you",count:tdOf(p).filter(x=>!x.d&&String(x.t||"").trim()).length,body:todoH(p)})}
     ${secH({key:"notes",icon:"notes",title:"Notes",count:String(v.notes||"").trim()?1:0,body:secTextH("slSt","spnotes",v.notes,"","Notes")})}
     ${secH({key:"conv",icon:"conv",title:"Conversations",count:convs.length,meta:"For "+first,body:cvRowsH(convs)+log})}
     </div>
@@ -1307,8 +1351,10 @@ function render(){
   if(!spr){S.del=null;S.back=null;S.hand=null;S.unsaved=null;S.draft=null}
   /* the offer tab strip keeps its sideways scroll on a redraw of the same window (it only moves when the selected tab is out of view) */
   const otl=S.mKey===mkey&&mo.querySelector(".sl-tabs"),tsl=otl?otl.scrollLeft:0;
+  const tdp=same?tdPending():""; /* a to-do being typed in the Add box survives a redraw of the same window */
   mo.innerHTML=(S.openId?modalH(D):"")+(rec?recModalH(rec,people,D):"")+(spr?spModalH(spr,D,people)+delH(D)+backH(D)+handH(D)+unsavedH(D):"")+(S.openCt?ctModalH(people):"")+(S.openG?gModalH():"")+addH()+dropH();
   S.mKey=mkey;const ndb=mo.querySelector(".sl-dlg:not(.sl-cfm) .sl-db");
+  if(tdp){const ti=el("slTdNew");if(ti&&!ti.value)ti.value=tdp}
   document.querySelectorAll("#v-sales textarea,#slModal textarea").forEach(grow);
   if(ndb&&mst)ndb.scrollTop=mst;
   const ntl=mo.querySelector(".sl-tabs");if(ntl&&tsl)ntl.scrollLeft=tsl;
@@ -1358,11 +1404,12 @@ function backToOpener(){const o=S.opener;S.opener=null;if(!o||el("slModal").quer
 function grow(t){if(!t.offsetParent||t.id==="slDt")return;t.style.height="auto";t.style.height=(t.scrollHeight+2)+"px"}
 document.addEventListener("input",e=>{const t=e.target;if(!t||!t.matches)return;if(t.matches("#v-sales textarea,#slModal textarea"))grow(t);if(t.id==="slQ")renderSearch();
   /* a section's count follows what is typed in it (1 with text, 0 when empty) */
-  if(t.matches("#slModal .sl-secbox textarea")){const c=t.closest(".sl-sec")&&t.closest(".sl-sec").querySelector("[data-cnt]");if(c){const n=t.value.trim()?1:0;c.textContent=n;c.classList.toggle("zero",!n)}}
+  if(t.matches("#slModal .sl-secbox textarea:not(.sl-tdt)")){const c=t.closest(".sl-sec")&&t.closest(".sl-sec").querySelector("[data-cnt]");if(c){const n=t.value.trim()?1:0;c.textContent=n;c.classList.toggle("zero",!n)}}
   if(t.id==="slDt"&&S.drop)S.drop.text=t.value;
   if(t.id==="slXName"&&S.xadd)S.xadd.name=t.value;
   /* Karen, 10 Nov: Kash's deal window keeps what is typed in its draft, and Save lights up */
-  if(SALES_ONLY&&S.openSp&&t.closest&&t.closest("#slModal")){const ac=t.dataset&&t.dataset.act;if(ac==="needed"||ac==="spnotes"){kbDraft()[ac==="needed"?SP.needed:SP.notes]=t.value;kbDirtyUI()}else if(ac==="value")kbDirtyUI()}
+  if(SALES_ONLY&&S.openSp&&t.closest&&t.closest("#slModal")){const ac=t.dataset&&t.dataset.act;if(ac==="needed"||ac==="spnotes"){kbDraft()[ac==="needed"?SP.needed:SP.notes]=t.value;kbDirtyUI()}else if(ac==="value"||ac==="tdnew")kbDirtyUI();else if(ac==="tdtext")tdText(t);
+    else if(ac==="spname"){const x=t.value.trim();if(x)kbDraft()[SP.deal]=x;else delete kbDraft()[SP.deal];nmSize(t);kbDirtyUI()}}
   if(t.dataset&&t.dataset.ct&&S.ctDraft)S.ctDraft[t.dataset.ct]=t.value;
   if(t.id==="slCq"){S.cq=t.value;const pl=el("slPl");if(pl)pl.innerHTML=peopleRowsH(peopleOf(derive()))}});
 
@@ -1596,6 +1643,8 @@ document.addEventListener("click",async e=>{
   if(act==="unsdiscard"){kbThen(S.unsaved&&S.unsaved.then);return}
   if(act==="unssave"){unsSave();return}
   if(act==="kbsave"){kbSave();return}
+  if(act==="tdrm"){const i=+a.dataset.i;tdAct(L=>L.splice(i,1),"slTdNew");return}
+  if(act==="tdadd"){tdAddNew();return}
   /* Karen, 10 Nov: the + column at the end of the board */
   if(act==="xcolnew"){S.xadd={name:"",err:""};render();xScrollEnd();const i=el("slXName");if(i)i.focus({preventScroll:true});return}
   if(act==="xcolcancel"){S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}
@@ -1695,6 +1744,10 @@ document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){e.preventDefault();e.stopPropagation();cfmClose();return}
     if(e.key==="Tab"){const f=[...box.querySelectorAll("button:not([disabled])")];if(!f.length){e.preventDefault();return}const i=f.indexOf(document.activeElement);e.preventDefault();f[(i<0?0:i+(e.shiftKey?-1:1)+f.length)%f.length].focus();return}
     if(!box.contains(e.target)){e.preventDefault();const c=cfmCancel();if(c)c.focus();return}}
+  /* Karen, 11 Nov: Enter adds the to-do typed in the Add box; Enter in a to-do or in the name leaves it (they are one line) */
+  if(e.key==="Enter"&&!e.isComposing&&e.target&&e.target.id==="slTdNew"){e.preventDefault();tdAddNew();return}
+  if(e.key==="Enter"&&!e.isComposing&&e.target&&e.target.classList&&e.target.classList.contains("sl-tdt")){e.preventDefault();const i=el("slTdNew");if(i)i.focus();return}
+  if(e.key==="Enter"&&!e.isComposing&&e.target&&e.target.id==="slSnm"){e.preventDefault();e.target.blur();return}
   if(e.target&&e.target.id==="slXName"){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();xAdd();return}if(e.key==="Escape"){e.preventDefault();S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}}
   if(e.key==="Escape"&&menuIsOpen()){e.preventDefault();menuClose(true);return}
   /* ⋯ opens from the keyboard with ArrowDown too */
@@ -1738,6 +1791,9 @@ document.addEventListener("change",e=>{
   const id=(card&&card.dataset.id)||S.openSp||S.openCl||S.openId;if(!id)return;
   if(kind==="cl"||kind==="sp"){const k=KF[kind];const r=recOf(kind,id);if(!r)return;
     /* Karen, 10 Nov: in Kash's deal window a change waits for Save (see kbModalH) */
+    /* Karen, 11 Nov: the to-do list in the window (into the draft), and a to-do ticked on a card (saved at once) */
+    if(SALES_ONLY&&kind==="sp"&&S.openSp===id&&a.closest("#slModal")&&(act==="tdtog"||act==="tdtext")){if(act==="tdtog"){const i=+a.dataset.i,on=a.checked;tdAct(L=>{if(L[i])L[i].d=on},a.id)}else tdText(a);return}
+    if(act==="tdcard"){if(SALES_ONLY&&kind==="sp")tdCardDone(id,+a.dataset.i);return}
     if(SALES_ONLY&&kind==="sp"&&S.openSp===id&&a.closest("#slModal")&&KB_DACT[act]){kbDraftSet(act,a,id);return}
     if(act==="done"){if(a.checked){S.prevLastC[id]=r[k.lastc]||null;saveRec(kind,id,{[k.lastc]:TODAY})}else saveRec(kind,id,{[k.lastc]:S.prevLastC[id]||null});return}
     if(act==="rstage"){const it=derive().K.find(x=>x.id===id);const b=it&&clBoardOf(it);if(b)setClStage(id,b,a.value);return}
@@ -1881,6 +1937,7 @@ const kbNulls=f=>{Object.keys(f).forEach(k=>{if(f[k]==="")f[k]=null});return f};
 async function kbSave(extra){
   const id=S.openSp;if(!id||S.kbBusy||!recOf("sp",id))return false;
   flushEdit(); /* a value still being typed reaches the draft first */
+  tdCommit();  /* and so does a to-do typed in the Add box but not entered yet */
   const f=kbNulls(Object.assign(kbChanges(id),extra||{}));if(!Object.keys(f).length){kbDirtyUI();return true}
   S.kbBusy=true;kbDirtyUI();
   const ok=await saveRec("sp",id,f,false,kbHas(f,SP.stage)||kbHas(f,SP.origin)||kbHas(f,SP.owner));
