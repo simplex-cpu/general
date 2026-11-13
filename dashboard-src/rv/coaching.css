@@ -1,0 +1,17 @@
+/* Team coaching (Kash's link; Karen, 13 Nov 2026): a Coach button under every team card, and the coaching form */
+.co-w{position:relative;display:grid}
+.co-w>.pc{padding-bottom:58px}
+.co-btn{all:unset;box-sizing:border-box;position:absolute;left:14px;bottom:12px;display:inline-flex;align-items:center;min-height:34px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer}
+.co-btn:hover{border-color:var(--ink)}
+.co-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.co-form{display:grid;gap:18px;padding:22px 0}
+.co-f{display:grid;gap:6px}
+.co-f label{font-size:13.5px;font-weight:600;color:var(--ink)}
+.co-f textarea{box-sizing:border-box;width:100%;min-height:112px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;line-height:1.5;color:var(--ink);background:var(--panel)}
+.co-f textarea::placeholder{color:var(--muted)}
+.co-f textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.co-note{margin:0;font-size:12.5px}
+.co-fb{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.co-fb .coach:disabled{opacity:.6;cursor:progress}
+.co-msg{font-size:13px;color:var(--muted)}
+.co-ok{margin:0 0 16px;font-size:14.5px;line-height:1.5;color:var(--ink)}

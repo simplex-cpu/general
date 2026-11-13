@@ -39,22 +39,29 @@ if not RV:
     print('built without Rise Voice',len(s))
     raise SystemExit
 open('podcast-ceo/team.html','w').write(team_page(ep_parts(s)))
-css=open('rv/rv.css').read()+open('rv/requests.css').read();html=open('rv/rv.html').read();js=open('rv/rv.js').read()
-# Requests from Team (Karen, 13 Nov): its own tab after Project Management, on Kash's page only (never the team page)
+css=open('rv/rv.css').read()+open('rv/requests.css').read()+open('rv/coaching.css').read()+'.tab .temo{margin-right:6px}\n';html=open('rv/rv.html').read();js=open('rv/rv.js').read()
+# Kash's tabs (Karen, 13 Nov): short names, an emoji each, and the disabled ones (Instagram, LinkedIn, Finance) left out for now.
+# To bring one back, add it to TABS (with its data-tab) once the tab exists.
+TABS=[('home','🏠','Home'),('podcast','🎙️','Podcast'),('risevoice','🚀','Rise Voice'),('leads','🎯','Leads'),('sales','🤝','Sales'),
+      ('team','👥','Team coaching'),('pm','📋','Projects'),('requests','📥','Inbox')]
+NAV0='<nav class="tabs" role="tablist" aria-label="Dashboard tabs">'
+a=s.index(NAV0);b=s.index('</nav>',a)+6;assert s.count(NAV0)==1
+assert all(x in s[a:b] for x in ('data-tab="home"','data-tab="podcast"','data-tab="team"','>Instagram<','>LinkedIn<','>Finance<')),s[a:b]
+s=s[:a]+NAV0+'\n'+''.join(f'    <button class="tab" role="tab" aria-selected="{"true" if t=="podcast" else "false"}" data-tab="{t}"><span class="temo" aria-hidden="true">{e}</span>{n}</button>\n' for t,e,n in TABS)+'  </nav>'+s[b:]
+# Inbox (Karen, 13 Nov; first called "Requests from Team"): its own tab after Projects, on Kash's page only (never the team page)
 REQ=('<div id="v-requests" hidden>\n'
      '    <section id="rq" class="rq">\n'
-     '      <div class="sh"><h2>Requests from Team</h2><span class="r rq-r"><span class="rq-count" id="rqCount"></span>'
+     '      <div class="sh"><h2>Inbox</h2><span class="r rq-r"><span class="rq-count" id="rqCount"></span>'
      '<label class="rq-donelab" id="rqDoneLab" hidden><input type="checkbox" id="rqDone"> Show done</label></span></div>\n'
      '      <div class="rq-msg" id="rqMsg" role="status" aria-live="polite" tabindex="-1"></div>\n'
      '      <div id="rqList"></div>\n'
      '    </section>\n  </div>')
 rep=[
-('<button class="tab" role="tab" aria-selected="false" data-tab="team">Team management</button>','<button class="tab" role="tab" aria-selected="false" data-tab="team">Team management</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>'),
+# Team coaching (Karen, 13 Nov; was Team management): the tab's title
+('<div class="sh"><h2>Team brief</h2>','<div class="sh"><h2>Team coaching</h2>'),
 ('<div class="team" id="teamcols"></div>','<div class="tbsec pod"><div class="tbh"><span class="tbdot" aria-hidden="true"></span><div><h3>Podcast</h3><p>ReLearn podcast team · scores from the Monday review</p></div></div><div class="team" id="teamcols"></div></div><div class="tbsec rvs"><div class="tbh"><span class="tbdot" aria-hidden="true"></span><div><h3>Rise Voice</h3><p>Management team and strategists · grouped by Kash</p></div></div><div id="rvTeamBrief"><p class="pm">Loading Rise Voice…</p></div></div>'),
-('    <button class="tab" role="tab" disabled>Finance</button>\n',''),
 ('</style>',css+'</style>'),
 ('<button class="refresh" id="refreshBtn" type="button">Refresh</button>','<span class="asof" id="rvAsof" hidden></span><button class="refresh" id="refreshBtn" type="button">Refresh</button>'),
-('<button class="tab" role="tab" disabled>Rise Voice</button>','<button class="tab" role="tab" aria-selected="false" data-tab="risevoice">Rise Voice</button>'),
 ('<div class="hubrow ghost"><b>Rise Voice</b><div>Next tab</div><span></span></div>','<div class="hubrow"><b>Rise Voice</b><div id="rvHomeLine">Loading…</div><button class="linkbtn" type="button" data-tab="risevoice">Open →</button></div>'),
 ('  </div>\n</div>\n\n<div class="scrim"','  </div>\n'+html+'</div>\n\n<div class="scrim"'),
 ('$("v-home").hidden=t!=="home";$("v-podcast").hidden=t!=="podcast"}','$("v-home").hidden=t!=="home";$("v-podcast").hidden=t!=="podcast";$("v-risevoice").hidden=t!=="risevoice";$("asof").hidden=t==="risevoice";$("rvAsof").hidden=t!=="risevoice"}'),
@@ -64,16 +71,15 @@ rep=[
 ('peekKind=null;openBrief=null;strip();if(lastFocus)lastFocus.focus()}','peekKind=null;openBrief=null;strip();rvClosed();if(lastFocus)lastFocus.focus()}'),
 ('u.then(f=>{SAMPLE=f;if(peekKind==="works")renderPeek()})','u.then(f=>{SAMPLE=f;if(peekKind==="works"||peekKind==="rvask")renderPeek()})'),
 # Sales tab (Sales chat, v1, 3 Nov): CEO view only, never the team page. Pieces in rv/sales/.
-('<button class="tab" role="tab" disabled>Sales</button>','<button class="tab" role="tab" aria-selected="false" data-tab="leads">Leads</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="sales">Sales</button>'),
 ('<div id="v-pm" hidden>','<div id="v-leads" hidden></div>\n  '+open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
-# Requests from Team tab (Karen, 13 Nov): after Project Management
-('<button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>','<button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="requests">Requests from Team</button>'),
+# Inbox tab (Karen, 13 Nov): after Projects
 ('<div id="v-pm" hidden>',REQ+'\n  <div id="v-pm" hidden>'),
 ]
 for a,b in rep:
     assert s.count(a)==1,a[:80]
     s=s.replace(a,b)
-s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()
+# Team coaching's Coach button and form (Karen, 13 Nov): after the Team coaching cards' own scripts
+s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()+'\n'+open('rv/coaching.js').read()
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
 # Leads tab (Karen, 12 Nov): its script runs inside the Sales script (same data and helpers), just before that script's last line

@@ -50,6 +50,11 @@ const rvClean=s=>String(s??"").replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{
 const rvText=v=>{v=rvS(v);if(typeof v!=="string")return null;const t=v.replace(/\*\*/g,"").replace(/\\-/g,"-").replace(/\n{3,}/g,"\n\n").trim();return t||null};
 const rvNote=s=>{if(typeof s!=="string"||!s.trim()||/#ERROR/.test(s))return null;const m=/Reason[^:*]*:\*{0,2}\s*([\s\S]+)$/i.exec(s);return (m?m[1]:s).replace(/\*\*/g,"").replace(/^•\s*/gm,"").trim()};
 const first=n=>String(n||"").split(" ")[0];
+/* Karen, 13 Nov: Projects and Team coaching show only the podcast team (ReLearn's Team table) plus Sarah, Jennifer and Karen.
+   Matched on first name, since Rise Voice's Task Manager and Team Roster hold full names and ReLearn's Team table mostly first names. */
+const KTEAM={m:null,set:null};
+const kteamKey=n=>String(n||"").trim().split(/[\s(]+/)[0].toLowerCase();
+function kteamOK(n){const M=RVX.M;if(KTEAM.m!==M){KTEAM.m=M;KTEAM.set=new Set(["sarah","jennifer","karen",...((M&&M.rlTeam)||[]).map(x=>kteamKey(x.n))].filter(Boolean))}return KTEAM.set.has(kteamKey(n))}
 const lc1=s=>s.charAt(0).toLowerCase()+s.slice(1);
 const gbp=n=>n==null?"–":(n<0?"−":"")+"£"+k(Math.round(Math.abs(n)));
 const pc1=x=>x==null?"–":f1(x*100)+"%";
@@ -485,7 +490,7 @@ const RVTBP={Good:"Recognise","To Improve":"Coach",Critical:"Watchlist"},RVTBSET
 const rvTbOf=p=>{const v=RVTBSET[p.id]!==undefined?RVTBSET[p.id]:p.tb;return v?{g:v,set:true}:RVTBP[p.perf]?{g:RVTBP[p.perf],set:false}:null};
 function rvStratCard(s){const t=s.acc.length,tb=rvTbOf(s);return `<button class="pc" type="button" data-rvs="${s.id}"><div class="nm"><b>${esc(s.n)}</b><span>${esc(s.role)} · ${t} account${t>1?"s":""}</span></div><div class="score">${s.occ!=null?Math.round(s.occ*100)+"%":`<span class="pend" style="font-size:13px;font-weight:500">–</span>`}<small> load</small></div><div class="split" aria-label="${s.cnt.act} act, ${s.cnt.watch} watch, ${s.cnt.ok} leave alone"><i style="width:${s.cnt.act/t*100}%;background:var(--act)"></i><i style="width:${s.cnt.watch/t*100}%;background:var(--watch)"></i><i style="width:${s.cnt.ok/t*100}%;background:var(--ok)"></i></div><div class="pcfoot"><span>${s.items.length} open item${s.items.length===1?"":"s"}${s.late.length?` · <span class="need-act">${s.late.length} late</span>`:""}</span><span class="pm" style="font-size:11.5px">${tb&&!tb.set?"Suggested":""}</span></div></button>`}
 function rvTeamBrief(M){const el=$("rvTeamBrief");if(!el)return;
-  const ppl=[...M.leads.filter(L=>!M.strats.some(s=>s.id===L.id)).map(L=>({p:L,card:rvLeadCard(L)})),...M.strats.map(s=>({p:s,card:rvStratCard(s)}))];
+  const ppl=[...M.leads.filter(L=>!M.strats.some(s=>s.id===L.id)).map(L=>({p:L,card:rvLeadCard(L)})),...M.strats.map(s=>({p:s,card:rvStratCard(s)}))].filter(x=>kteamOK(x.p.full||x.p.n));
   const untag=ppl.filter(x=>!rvTbOf(x.p));
   el.innerHTML=`<div class="team">${RVTB.map(([g,c,sub])=>{const P=ppl.filter(x=>(rvTbOf(x.p)||{}).g===g);return `<div class="tcol"><h3><span class="st ${c}">${g}</span><small>${sub}</small></h3>${P.length?P.map(x=>x.card).join(""):`<p class="pm" style="margin:0 2px">Nobody here yet.</p>`}</div>`}).join("")}</div>${untag.length?`<h4 class="mh" style="margin-top:18px">Not tagged yet · open someone to put them in a group</h4><div class="leads">${untag.map(x=>x.card).join("")}</div>`:""}
     <p class="pm" style="margin:10px 2px 0;font-size:12.5px">Groups come from "Team brief group" in Team Roster. Where it's empty, Performance Status suggests one.</p>`}

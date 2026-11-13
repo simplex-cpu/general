@@ -10,10 +10,11 @@ function pmItems(){const M=RVX.M;if(!M)return [];
   const rt=Object.fromEntries(M.rlTeam.map(x=>[x.id,x.n]));
   const rv=M.allTasks.map(t=>({id:t.id,base:"rv",co:"Rise Voice",n:t.n,status:PM.st[t.id]||t.status||"No status",people:[...new Set(t.whoU.map(u=>first(u.name)))],due:t.due,pri:t.pri||"",area:t.area||"",link:t.cids.map(i=>RVN[i]).filter(Boolean).join(", ")}));
   const rl=M.rlTasks.map(t=>({id:t.id,base:"rl",co:"Podcast",n:t.n,status:PM.st[t.id]||t.status||"No status",people:t.owner.map(i=>first(rt[i]||"")).filter(Boolean),due:t.due,pri:t.pri||"",area:t.area||"",link:t.eps.map(i=>ep[i]).filter(Boolean).join(", ")}));
-  const all=[...rv,...rl];return [...all,...PM.added.filter(a=>!all.some(x=>x.id===a.id)).map(a=>({...a,status:PM.st[a.id]||a.status}))]}
+  /* Karen, 13 Nov: only tasks with someone from the podcast team, Sarah, Jennifer or Karen on them; tasks for anyone else, and unassigned ones, are left out */
+  const all=[...rv,...rl].filter(x=>x.people.some(kteamOK));return [...all,...PM.added.filter(a=>!all.some(x=>x.id===a.id)).map(a=>({...a,status:PM.st[a.id]||a.status}))]}
 const pmMon=d=>{const t=Date.parse(d+"T00:00:00Z"),w=(new Date(t).getUTCDay()+6)%7;return new Date(t-w*864e5).toISOString().slice(0,10)};
 function pmKeys(x){switch(PM.grp){
-  case "status":return [x.status];case "co":return [x.co];case "people":return x.people.length?x.people:["Unassigned"];
+  case "status":return [x.status];case "co":return [x.co];case "people":{const P=x.people.filter(kteamOK);return P.length?P:["Unassigned"]}
   case "pri":return [x.pri||"No priority"];case "area":return [rvClean(x.area)||"No area"];
   case "month":return [x.due?x.due.slice(0,7):"~"];case "week":return [x.due?pmMon(x.due):"~"];}return ["All"]}
 function pmLabel(k){if(k==="~")return "No due date";if(PM.grp==="month")return MON[+k.slice(5,7)-1]+" "+k.slice(0,4);if(PM.grp==="week")return "Week of "+fmtD(k)+(k.slice(0,4)!==TODAY.slice(0,4)?" "+k.slice(0,4):"");return k}
@@ -62,16 +63,16 @@ async function pmSetStatus(id,base,v){const was=PM.st[id];PM.st[id]=v;PM.msg="";
   catch(e){if(was===undefined)delete PM.st[id];else PM.st[id]=was;PM.msg="Couldn't change that status. Try again."}
   pmRender()}
 /* add a task: Rise Voice tasks go to Rise Voice's Task Manager, Podcast tasks to ReLearn's */
-function pmPeople(co){const M=RVX.M;if(co==="Podcast")return M.rlTeam.map(x=>({id:x.id,n:x.n}));
+function pmPeople(co){const M=RVX.M;if(co==="Podcast")return M.rlTeam.map(x=>({id:x.id,n:x.n})).filter(p=>kteamOK(p.n));
   const seen={};RVLEADS.forEach(L=>{seen[L.usr[0]]=L.full});M.allTasks.forEach(t=>t.whoU.forEach(u=>{if(u.id&&u.name&&!Object.values(seen).includes(u.name))seen[u.id]=seen[u.id]||u.name}));
-  return Object.entries(seen).map(([id,n])=>({id,n}))}
+  return Object.entries(seen).map(([id,n])=>({id,n})).filter(p=>kteamOK(p.n))}
 function pmAddHTML(){const M=RVX.M;if(!M)return `<p class="pm">Tasks haven't loaded yet.</p>`;const f=PM.form,co=f.co||"Rise Voice",P=pmPeople(co);
   const opt=(L,v)=>L.map(([a,b])=>`<option value="${esc(a)}"${a===v?" selected":""}>${esc(b)}</option>`).join("");
   const links=co==="Podcast"?(M.rlEps||[]).map(x=>[x.id,x.n]):M.ext.map(c=>[c.id,c.n]);
   return `<div class="ph"><h2>Add a task</h2><span class="pm">Saved in ${co==="Podcast"?"ReLearn's":"Rise Voice's"} Task Manager. The person gets a Slack message when we have their Slack ID.</span></div>
    <form class="pmform" id="pmForm"><label>Task<input name="n" maxlength="200" required autocomplete="off" value="${esc(f.n||"")}"></label>
     <label>Company<select name="co" id="pmFormCo">${opt([["Rise Voice","Rise Voice"],["Podcast","Podcast"]],co)}</select></label>
-    <label>Assign to<select name="to"><option value="">Nobody yet</option>${opt(P.map(p=>[p.id,p.n]),f.to||"")}</select></label>
+    <label>Assign to<select name="to" required><option value="" disabled${f.to?"":" selected"}>Choose a person</option>${opt(P.map(p=>[p.id,p.n]),f.to||"")}</select></label>
     <label>Due date<input type="date" name="due" value="${esc(f.due||plusDays(7))}"></label>
     <label>Status<select name="status">${opt(PMST.map(s=>[s,s]),f.status||"To Do")}</select></label>
     <label>Priority<select name="pri"><option value="">None</option>${opt(PMPRI.map(s=>[s,s]),f.pri||"")}</select></label>
@@ -81,7 +82,7 @@ function pmAddHTML(){const M=RVX.M;if(!M)return `<p class="pm">Tasks haven't loa
 function pmWire(){const fm=$("pmForm");if(!fm)return;
   const keep=()=>{PM.form={co:fm.co.value,n:fm.n.value,to:fm.to.value,due:fm.due.value,status:fm.status.value,pri:fm.pri.value,area:fm.area.value,link:fm.link.value}};
   $("pmFormCo").onchange=()=>{keep();PM.form.to="";PM.form.link="";renderPeek()};
-  fm.onsubmit=async e=>{e.preventDefault();keep();const f=PM.form;if(!f.n.trim())return;const b=fm.querySelector("button[type=submit]");b.disabled=true;$("pmFormMsg").textContent="Saving…";
+  fm.onsubmit=async e=>{e.preventDefault();keep();const f=PM.form;if(!f.n.trim())return;if(!f.to){$("pmFormMsg").textContent="Choose who the task is for.";fm.to.focus();return}const b=fm.querySelector("button[type=submit]");b.disabled=true;$("pmFormMsg").textContent="Saving…";
     const base=f.co==="Podcast"?"rl":"rv";
     try{let id;
       if(window.claude?.use){const mcp=await window.claude.use("mcp");

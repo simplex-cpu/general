@@ -1,5 +1,5 @@
 <script>
-/* ---------- Requests from Team (Karen, 13 Nov 2026): its own tab, on Kash's link only.
+/* ---------- Inbox, first called "Requests from Team" (Karen, 13 Nov 2026): its own tab, on Kash's link only.
    Tasks assigned to Kash in Rise Voice's Task Manager (the "All Projects" interface page): still open, or Done in the last 30 days.
    Read live from /requests (Kash's link) or through Airtable in the Claude copy. Status changes use the same route as the
    Project Management tab. Nothing else is written. ---------- */
