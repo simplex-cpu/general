@@ -66,7 +66,7 @@ const LD_ORDER=["New","Contact info provided by client","Lead in","First Outreac
   "Audit Booked","Audit Held","Follow-up Call","Sent to Sales","Email sequence","Nurture Sequence","Sent to Podcast","Not now","No Reply","No response (Rejected)","Offer declined (Rejected)","Not a Fit","Unqualified","Lost","Re-approach (60–90 days)","Archive","Not Applicable"];
 const ldRank=s=>{const i=LD_ORDER.indexOf(s);return i<0?(KB_STAGES.indexOf(s)>=0?40+KB_STAGES.indexOf(s):99):i};
 const ldNum=n=>Number(n||0).toLocaleString("en-GB");
-const ldNorm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+const ldNorm=s=>String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
 const ldUl=r=>{const v=r[UL.name];return String(Array.isArray(v)?sv(v[0]):sv(v)||"").trim()};
 
 /* every lead once: Kash's open deals (Sent to Sales), then whatever each team still holds */
