@@ -318,7 +318,9 @@ async function load(force){
     if(!window.claude?.use){
       /* n8n-hosted copy: data from {page path}/sales (records {id, fields:{fldXXX:value}}); saves go through {page path}/sales-api */
       S.ro=false;S.n8n=true;
-      const res=await fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store"});if(!res.ok)throw new Error("sales feed "+res.status);
+      /* Karen, 13 Nov (final QA): the feed can stall when Airtable briefly limits the Rise Voice base (30 s); one more try after 4 s */
+      const get=async()=>{for(let i=0;;i++){try{const r=await fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store"});if(r.ok||i>0||r.status<500)return r}catch(e){if(i>0)throw e}await new Promise(z=>setTimeout(z,4000))}};
+      const res=await get();if(!res.ok)throw new Error("sales feed "+res.status);
       const j=await res.json();const n=a=>(a||[]).map(r=>Object.assign({_id:r.id},r.fields||{}));
       Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),pipelines:n(j.pipelines),guests:n(j.guests),guestTeam:n(j.guestTeam),noSp:!j.salesPipeline,noPl:!j.pipelines,noG:!j.guests,fetchedAt:j.fetchedAt||"",loaded:true});
       /* v5.1: the 1,181 podcast guests come in a second, background request (header X-Sales-Part: guests), so the tab opens without waiting for them */
