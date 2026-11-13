@@ -39,7 +39,15 @@ if not RV:
     print('built without Rise Voice',len(s))
     raise SystemExit
 open('podcast-ceo/team.html','w').write(team_page(ep_parts(s)))
-css=open('rv/rv.css').read();html=open('rv/rv.html').read();js=open('rv/rv.js').read()
+css=open('rv/rv.css').read()+open('rv/requests.css').read();html=open('rv/rv.html').read();js=open('rv/rv.js').read()
+# Requests from Team (Karen, 13 Nov): its own tab after Project Management, on Kash's page only (never the team page)
+REQ=('<div id="v-requests" hidden>\n'
+     '    <section id="rq" class="rq">\n'
+     '      <div class="sh"><h2>Requests from Team</h2><span class="r rq-r"><span class="rq-count" id="rqCount"></span>'
+     '<label class="rq-donelab" id="rqDoneLab" hidden><input type="checkbox" id="rqDone"> Show done</label></span></div>\n'
+     '      <div class="rq-msg" id="rqMsg" role="status" aria-live="polite" tabindex="-1"></div>\n'
+     '      <div id="rqList"></div>\n'
+     '    </section>\n  </div>')
 rep=[
 ('<button class="tab" role="tab" aria-selected="false" data-tab="team">Team management</button>','<button class="tab" role="tab" aria-selected="false" data-tab="team">Team management</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>'),
 ('<div class="team" id="teamcols"></div>','<div class="tbsec pod"><div class="tbh"><span class="tbdot" aria-hidden="true"></span><div><h3>Podcast</h3><p>ReLearn podcast team · scores from the Monday review</p></div></div><div class="team" id="teamcols"></div></div><div class="tbsec rvs"><div class="tbh"><span class="tbdot" aria-hidden="true"></span><div><h3>Rise Voice</h3><p>Management team and strategists · grouped by Kash</p></div></div><div id="rvTeamBrief"><p class="pm">Loading Rise Voice…</p></div></div>'),
@@ -58,11 +66,14 @@ rep=[
 # Sales tab (Sales chat, v1, 3 Nov): CEO view only, never the team page. Pieces in rv/sales/.
 ('<button class="tab" role="tab" disabled>Sales</button>','<button class="tab" role="tab" aria-selected="false" data-tab="leads">Leads</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="sales">Sales</button>'),
 ('<div id="v-pm" hidden>','<div id="v-leads" hidden></div>\n  '+open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
+# Requests from Team tab (Karen, 13 Nov): after Project Management
+('<button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>','<button class="tab" role="tab" aria-selected="false" data-tab="pm">Project Management</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="requests">Requests from Team</button>'),
+('<div id="v-pm" hidden>',REQ+'\n  <div id="v-pm" hidden>'),
 ]
 for a,b in rep:
     assert s.count(a)==1,a[:80]
     s=s.replace(a,b)
-s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()
+s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
 # Leads tab (Karen, 12 Nov): its script runs inside the Sales script (same data and helpers), just before that script's last line

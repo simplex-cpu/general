@@ -5,7 +5,7 @@
    names; this runs after all of them (it wraps showTab last), so a tab it opens loads as if it were clicked. Kash's page only. */
 (()=>{
   if(typeof showTab!=="function")return;
-  const OWN=/^#(home|podcast|risevoice|leads|sales|team|pm)$/;
+  const OWN=/^#(home|podcast|risevoice|leads|sales|team|pm|requests)$/;
   const setHash=h=>{try{history.replaceState(history.state,"",location.pathname+location.search+h)}catch(e){}};
   const prev=showTab;
   showTab=function(t){prev(t);
