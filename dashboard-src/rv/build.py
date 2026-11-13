@@ -56,8 +56,8 @@ rep=[
 ('peekKind=null;openBrief=null;strip();if(lastFocus)lastFocus.focus()}','peekKind=null;openBrief=null;strip();rvClosed();if(lastFocus)lastFocus.focus()}'),
 ('u.then(f=>{SAMPLE=f;if(peekKind==="works")renderPeek()})','u.then(f=>{SAMPLE=f;if(peekKind==="works"||peekKind==="rvask")renderPeek()})'),
 # Sales tab (Sales chat, v1, 3 Nov): CEO view only, never the team page. Pieces in rv/sales/.
-('<button class="tab" role="tab" disabled>Sales</button>','<button class="tab" role="tab" aria-selected="false" data-tab="sales">Sales</button>'),
-('<div id="v-pm" hidden>',open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
+('<button class="tab" role="tab" disabled>Sales</button>','<button class="tab" role="tab" aria-selected="false" data-tab="leads">Leads</button>\n    <button class="tab" role="tab" aria-selected="false" data-tab="sales">Sales</button>'),
+('<div id="v-pm" hidden>','<div id="v-leads" hidden></div>\n  '+open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
 ]
 for a,b in rep:
     assert s.count(a)==1,a[:80]
@@ -65,7 +65,10 @@ for a,b in rep:
 s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
-s=s.rstrip()+'\n'+open('rv/sales/sales.css').read().strip()+'\n'+open('rv/sales/sales.js').read().strip()+'\n'
+# Leads tab (Karen, 12 Nov): its script runs inside the Sales script (same data and helpers), just before that script's last line
+sj=open('rv/sales/sales.js').read().strip();LAST='if(location.hash==="#sales")showTab("sales");\n})();'
+assert sj.count(LAST)==1;sj=sj.replace(LAST,'/* ---------- Leads tab (rv/sales/leads.js) ---------- */\n'+open('rv/sales/leads.js').read().strip()+'\n'+LAST)
+s=s.rstrip()+'\n'+open('rv/sales/sales.css').read().strip()+'\n'+open('rv/sales/leads.css').read().strip()+'\n'+sj+'\n'
 # Karen, 10 Nov: reopen the tab Kash was last on (after Sales, so every part's showTab runs)
 s=s.rstrip()+'\n'+open('rv/lasttab.js').read().strip()+'\n'
 open('podcast-ceo/index.html','w').write(s)
