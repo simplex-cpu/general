@@ -11,7 +11,7 @@
    Saves go to {page}/leads-api, which allows only those What's needed fields and comments. Hot / warm / cold come from the stage:
    New is cold, In progress is warm, the "talking now" stages (Pre-qual In Conversation, Upsell list Ready) are hot.
    Built into the Sales script (build.py puts it just before the script's last line), so it shares its data, helpers and styles. */
-const LD={rows:null,ul:null,at:"",refreshing:false,loading:false,err:"",view:null,lead:null,ed:null,cm:{},cmText:"",cmBusy:false,unsaved:false,more:{},
+const LD={det:{},rows:null,ul:null,at:"",refreshing:false,loading:false,err:"",view:null,lead:null,ed:null,cm:{},cmText:"",cmBusy:false,unsaved:false,more:{},
   dealFrom:null,tries:0,timer:null,shell:false,items:[],G:null};
 /* the sources, in the mockup's order (rows are ranked by size; this order breaks ties). k = the standard source name (stdO). */
 const LD_SRC=[
@@ -174,8 +174,10 @@ const ldRec=(kind,id)=>kind==="cl"?(LD.rows||[]).find(x=>x.i===id):kind==="jade"
 function ldInfo(kind,id){
   const r=ldRec(kind,id);if(!r)return null;const it=(LD.items||[]).find(x=>x.kind===kind&&x.id===id)||{};
   const src=LD_SRC.find(s=>s.k===(it.src||(kind==="ul"?"Upsells":kind==="jade"?"Podcast guest":"")))||LD_SRC[LD_SRC.length-1];
-  if(kind==="cl")return {name:r.n,co:r.c||"",src,owner:ownerN(r.ow||"")||src.owner,stage:it.stage||ldLbl((ldClStage(r)||[])[1]||r.k||""),lc:r.lc||"",ch:r.ch||"",va:+r.va||0,need:r.nd||"",
-    contact:[r.em&&mailH(r.em),r.ph&&telH(r.ph),r.ig&&igLinkH(r.ig),r.li&&linkH(r.li)].filter(Boolean),notes:[["Notes",r.no],["Next step",r.nx],["What they want",r.wa]]};
+  /* Company Leads: notes, wants and contact details are read when the lead is opened (ldLoadDetails) */
+  if(kind==="cl"){const dt=LD.det[id]||{loading:true};
+    return {name:r.n,co:r.c||"",src,owner:ownerN(r.ow||"")||src.owner,stage:it.stage||ldLbl((ldClStage(r)||[])[1]||r.k||""),lc:r.lc||"",ch:r.ch||"",va:+r.va||0,need:r.nd||"",
+      contact:[dt.em&&mailH(dt.em),dt.ph&&telH(dt.ph),dt.ig&&igLinkH(dt.ig),dt.li&&linkH(dt.li)].filter(Boolean),notes:[["Notes",dt.no],["Next step",r.nx],["What they want",dt.wa]],notesState:dt.loading?"loading":dt.err?"err":""}}
   if(kind==="jade"){const ct=(S.contacts||[]).find(c=>ids(r[L.contacts]).includes(c._id));const cv=f=>ct?String(sv(ct[f])||"").trim():"";
     return {name:String(r[L.name]||"").trim(),co:r[L.co]||"",src,owner:sv(r[L.owner])||"Jade",stage:it.stage||ldLbl(sv(r[L.stage])),lc:r[L.lastC]||"",ch:r[L.chase]||"",va:+r[L.value]||0,need:r[L.needed]||"",
       contact:[cv(CT.email)&&mailH(cv(CT.email)),cv(CT.phone)&&telH(cv(CT.phone)),cv(CT.ig)&&igLinkH(cv(CT.ig)),cv(CT.li)&&linkH(cv(CT.li))].filter(Boolean),
@@ -198,7 +200,8 @@ function ldLeadH(){
   const tds=e.td.map((x,i)=>`<div class="sl-tdr${x.d?" done":""}"><input type="checkbox" id="ldTd-${i}" data-ld="tdtog" data-i="${i}"${x.d?" checked":""} aria-label="${x.d?"Done":"Mark as done"}: ${esc(x.t)}"><textarea class="sl-tdt" data-ld="tdtext" data-i="${i}" rows="1" aria-label="To-do ${i+1}">${esc(x.t)}</textarea><button type="button" class="sl-tdx" data-ld="tdrm" data-i="${i}" aria-label="Remove: ${esc(x.t)}" title="Remove">${svg(XI,14)}</button></div>`).join("");
   const add=`<div class="sl-tda"><span class="pl" aria-hidden="true">${svg(PLUS,15)}</span><input id="ldTdNew" maxlength="300" placeholder="${e.td.length?"Add a to-do":"What do you need?"}" autocomplete="off" aria-label="Add a to-do"><button type="button" class="sl-tdadd" data-ld="tdadd">Add</button></div>`;
   const notes=inf.notes.filter(n=>String(n[1]||"").trim());
-  const notesH=notes.length?notes.map(([k,v])=>`<div class="sl-secbox ld-note"><span class="ld-nl">${esc(k)}</span><p>${esc(String(v).trim())}</p></div>`).join(""):`<div class="sl-secbox"><p class="pm">${esc(inf.owner)} hasn't written anything here yet.</p></div>`;
+  const wait=inf.notesState==="loading"?'<div class="sl-secbox"><p class="pm">Loading notes…</p></div>':inf.notesState==="err"?'<div class="sl-secbox"><p class="pm">The notes couldn\'t load. Close and open the lead again.</p></div>':"";
+  const notesH=notes.map(([k,v])=>`<div class="sl-secbox ld-note"><span class="ld-nl">${esc(k)}</span><p>${esc(String(v).trim())}</p></div>`).join("")+wait||`<div class="sl-secbox"><p class="pm">${esc(inf.owner)} hasn't written anything here yet.</p></div>`;
   const cm=LD.cm[l.kind+":"+l.id]||{loading:true,list:[]};
   const cms=cm.loading?'<p class="pm sl-cve">Loading comments…</p>':cm.err?'<p class="pm sl-cve">The comments couldn\'t load.</p>':cm.list.length?cm.list.map(c=>`<div class="sl-cv"><span class="ch">${esc(c.who)}</span><p>${esc(c.text)}</p><span class="d">${esc(c.when)}</span></div>`).join(""):'<p class="pm sl-cve">No comments yet.</p>';
   return `<div class="sl-ov" data-ld="lbg"><div class="sl-dlg sl-dlg-sp ld-ldlg" role="dialog" aria-modal="true" aria-labelledby="ldLh"><div class="sl-db">
@@ -255,7 +258,15 @@ function ldResults(){const q=el("ldQ"),box=el("ldRes");if(!q||!box)return;const 
 function ldCloseRes(clear){const box=el("ldRes"),q=el("ldQ");if(box){box.hidden=true;box.innerHTML=""}if(q){q.setAttribute("aria-expanded","false");if(clear)q.value=""}}
 
 /* ---------- opening and closing ---------- */
-function ldOpenLead(kind,id){LD.lead={kind,id};LD.unsaved=false;LD.cmText="";LD.cmBusy=false;ldEdOpen(kind,id);ldModalDraw();ldLoadComments(kind,id)}
+function ldOpenLead(kind,id){LD.lead={kind,id};LD.unsaved=false;LD.cmText="";LD.cmBusy=false;ldEdOpen(kind,id);if(kind==="cl")ldLoadDetails(id);ldModalDraw();ldLoadComments(kind,id)}
+/* one Company Leads row's notes, wants and contact details (2,500 rows of notes are too much to send with the pipelines) */
+async function ldLoadDetails(id){const r=ldRec("cl",id);if(!r)return;
+  if(r._full){LD.det[id]={no:r.no||"",wa:r.wa||"",em:r.em||"",ph:r.ph||"",ig:r.ig||"",li:r.li||""};return}
+  if(LD.det[id]&&!LD.det[id].err)return;LD.det[id]={loading:true};
+  try{const p=await ldApi("read_record",{baseId:RB,tableId:T.cl,recordId:id});const f=((p.records||[])[0]||{}).fields||{};const g=k=>String(sv(f[k])||"").trim();
+    LD.det[id]={no:g(CL.notes),wa:g(CL.want),em:g(CL.email),ph:g(CL.phone),ig:g(CL.ig),li:g(CL.li)}}
+  catch(e){LD.det[id]={err:true}}
+  if(LD.lead&&LD.lead.kind==="cl"&&LD.lead.id===id)ldModalDraw()}
 function ldCloseLead(force){const l=LD.lead;if(!l)return;
   if(!force&&LD.ed&&LD.ed.dirty){LD.unsaved=true;ldModalDraw();return}
   LD.lead=null;LD.ed=null;LD.unsaved=false;LD.cmText="";ldModalDraw();
@@ -349,7 +360,7 @@ async function ldFetch(){
       /* the Claude copy: the same fields, read through the Airtable connector */
       const F={c:CL.co,o:CL.pqo,s:CL.src,k:KBF.cl,pq:CL.pq,uw:CL.uw,up:CL.up,ai:CL.ai,rf:CL.ref,so:CL.so,ev:CL.ev,ep:CL.ep,em:CL.email,ph:CL.phone,ig:CL.ig,li:CL.li,no:CL.notes,nx:CL.next,wa:CL.want,nd:CL_NEED,ow:CL.owner,lc:CL.lastc,ch:CL.chase,va:CL.val};
       const recs=await list(RB,T.cl,[CL.name].concat(Object.values(F)));
-      const rows=recs.map(r=>{const n=String(r[CL.name]||"").trim();if(!n)return null;const x={i:r._id,n};Object.keys(F).forEach(k=>{const v=String(sv(r[F[k]])||"").trim();if(v)x[k]=v});return x}).filter(Boolean);
+      const rows=recs.map(r=>{const n=String(r[CL.name]||"").trim();if(!n)return null;const x={i:r._id,n,_full:true};Object.keys(F).forEach(k=>{const v=String(sv(r[F[k]])||"").trim();if(v)x[k]=v});return x}).filter(Boolean);
       Object.assign(LD,{rows,ul:null,at:new Date().toISOString(),refreshing:false,err:""});
     }
   }catch(e){LD.err=String(e&&e.message||e)}
