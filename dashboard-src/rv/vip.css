@@ -1,0 +1,6 @@
+/* VIP onboarding (Kash's link; Karen, 18 Nov 2026): the onboarding board fills the tab */
+#v-vip{margin:0}
+.vip-frame{display:block;width:100%;height:calc(100vh - 170px);min-height:480px;border:0;background:transparent}
+.vip-msg{margin:12px 2px;color:var(--muted);font-size:14px}
+.vip-err{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--ink);font-size:14px}
+.vip-err p{margin:0}
