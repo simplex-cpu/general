@@ -82,7 +82,8 @@ for a,b in rep:
     assert s.count(a)==1,a[:80]
     s=s.replace(a,b)
 # Team coaching's Coach button and form (Karen, 13 Nov): after the Team coaching cards' own scripts
-FIN_JS=('<script>window.RV_FIN_TAB=true;window.FIN_DATA='+open(os.environ['FIN_DATA']).read().strip()+'</script>\n') if FINANCE else ''
+# FIN_DATA (a snapshot file) only for a mockup or a test build; on Kash's page the tab reads the n8n feed {page}/finance
+FIN_JS=('<script>window.RV_FIN_TAB=true;'+('window.FIN_DATA='+open(os.environ['FIN_DATA']).read().strip()+';' if os.environ.get('FIN_DATA') else '')+'</script>\n') if FINANCE else ''
 s=s.rstrip()+'\n'+FIN_JS+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()+'\n'+open('rv/coaching.js').read()+'\n'+open('rv/vip.js').read()+('\n'+open('rv/finance.js').read() if FINANCE else '')
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
@@ -93,4 +94,4 @@ s=s.rstrip()+'\n'+open('rv/sales/sales.css').read().strip()+'\n'+open('rv/sales/
 # Karen, 10 Nov: reopen the tab Kash was last on (after Sales, so every part's showTab runs)
 s=s.rstrip()+'\n'+open('rv/lasttab.js').read().strip()+'\n'
 open(os.environ.get('RV_OUT','podcast-ceo/index.html'),'w').write(s)
-print('built',len(s),'(with the Finance mockup)' if FINANCE else '')
+print('built',len(s),('(with Finance: '+('snapshot' if os.environ.get('FIN_DATA') else 'live feed')+')') if FINANCE else '')

@@ -195,6 +195,10 @@ html.fx-lock{overflow:hidden}
 .fx-tot{display:flex;justify-content:space-between;gap:10px;margin-top:10px;padding-top:12px;border-top:2px solid var(--line);font-size:14px}
 .fx-tot b{font-size:16px}
 
+/* loading, errors, a stale podcast workbook */
+.fx-msg{padding:48px 16px;text-align:center;color:var(--muted);font-size:14px}.fx-msg p{margin:0 0 10px}
+.fx-stale{margin:-6px 0 16px;font-size:12px;color:var(--muted)}
+
 /* the Rise Voice tab keeps 3 KPIs once its finance parts live here */
 #rvKpis.kpis.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 

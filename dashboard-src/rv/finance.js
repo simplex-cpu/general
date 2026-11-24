@@ -14,7 +14,9 @@
    Numbers are the tracker's own (they match the Airtable dashboard to the penny). Data: window.FIN_DATA (a snapshot for the
    mockup; a feed when it goes live). ---------- */
 (()=>{
-const D=window.FIN_DATA;if(!D)return;
+/* the numbers: the mockup's snapshot (window.FIN_DATA), or on Kash's page the feed {page}/finance (Airtable + the accountant's
+   workbook, served from a copy refreshed every 10 minutes), loaded the first time the tab opens */
+let D=window.FIN_DATA||null,YEARS=[],NOWK="",CY="";
 const q=id=>document.getElementById(id);
 const e=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],ML=["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -39,10 +41,10 @@ const TT={good:"profit, 10%+ margin",thin:"profit under 10% margin",loss:"loss",
 const ST={"Collected":"good","To Collect":"thin","Past Due":"loss","Refunded":"none","Uncollectible":"none"};
 const BIZ={rv:{name:"Rise Voice"},pod:{name:"Podcast"}};
 const ALL=b=>b==="rv"?D.rv.months:D.pod.months;
-const YEARS=[...new Set(D.rv.months.map(m=>m.key.slice(0,4)))].sort().reverse();
-const NOWK=D.at.slice(0,7);
-const CY=YEARS.includes(NOWK.slice(0,4))?NOWK.slice(0,4):YEARS[0];
-const S={biz:"rv",year:CY,open:null,only:false,more:{},back:null};
+const S={biz:"rv",year:"",open:null,only:false,more:{},back:null};
+function setData(d){D=d;YEARS=[...new Set(D.rv.months.map(m=>m.key.slice(0,4)))].sort().reverse();NOWK=D.at.slice(0,7);
+  CY=YEARS.includes(NOWK.slice(0,4))?NOWK.slice(0,4):YEARS[0];if(!YEARS.includes(S.year))S.year=CY}
+if(D)setData(D);
 const MO=b=>b==="rv"?D.rv.months.filter(m=>m.key.slice(0,4)===S.year):D.pod.months;
 const DM=(b,k)=>b==="rv"?D.rv.months.filter(m=>m.key.slice(0,4)===k.slice(0,4)):D.pod.months;  /* the months a side panel steps through: the opened month's year */
 const find=(b,k)=>ALL(b).find(m=>m.key===k);
@@ -121,7 +123,9 @@ function tableH(b){const L=MO(b),rv=b==="rv",T=tot(rv?L:actual(L));
    <thead><tr>${head.map(h=>`<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody>
    <tfoot><tr><th scope="row">${rv?S.year+" total":"Total so far"}</th>${foot.map(c=>`<td>${c}</td>`).join("")}</tr></tfoot></table></div></div>`}
 
-function panelH(){const b=S.biz;return kpisH(b)+chartH(b)+tableH(b)}
+function panelH(){const b=S.biz;
+  if(b==="pod"&&!(D.pod&&D.pod.months&&D.pod.months.length))return `<p class="fx-msg">The podcast numbers couldn't be read from the accountant's workbook.</p>`;
+  return kpisH(b)+chartH(b)+tableH(b)+(b==="pod"&&D.pod.stale?`<p class="fx-stale">These are from ${e(D.pod.file||"the last workbook that could be read")}: the newest workbook couldn't be read.</p>`:"")}
 function render(){const v=q("finBody");if(!v)return;
   v.innerHTML=tabsH()+`<div id="fxPanel" role="tabpanel" aria-labelledby="fxTab-${S.biz}">${panelH()}</div><div class="fx-scrim" id="fxScrim" data-fx="close" hidden></div><div class="fx-dr" id="fxDr" role="dialog" aria-modal="true" aria-labelledby="fxDT" hidden></div>`}
 
@@ -229,7 +233,17 @@ document.addEventListener("click",ev=>{const v=q("v-finance");if(!v||v.hidden)re
   else if(k==="step")step(+val);
   else if(k==="only"){S.only=val==="1";drawD(true)}
   else if(k==="more"){S.more[val]=!S.more[val];drawD(true)}
-  else if(k==="jump"){const t=q(val);if(t)t.scrollIntoView({behavior:"smooth",block:"start"})}});
+  else if(k==="jump"){const t=q(val);if(t)t.scrollIntoView({behavior:"smooth",block:"start"})}
+  else if(k==="retry")load()});
+/* the feed: on Kash's page, the first time the tab opens, and again when Refresh is pressed on this tab */
+let loading=null;
+function load(fresh){if(loading||window.FIN_DATA)return;const b=q("finBody");if(b&&!D)b.innerHTML=`<p class="fx-msg">Loading…</p>`;
+  loading=fetch(location.pathname.replace(/\/$/,"")+"/finance"+(fresh?"?fresh=1":""),{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+    .then(j=>{loading=null;if(!j||j.ok!==true||!j.rv||!(j.rv.months||[]).length)throw new Error((j&&j.error)||"no data");closeD();setData(j);render()})
+    .catch(()=>{loading=null;if(!D){const x=q("finBody");if(x)x.innerHTML=`<div class="fx-msg"><p>Couldn't load the finance numbers.</p><button type="button" class="fx-link" data-fx="retry">Try again</button></div>`}})}
+/* Refresh asks the feed for a new copy (it sends the current one meanwhile), then picks the new one up once it's built */
+{const rb=q("refreshBtn");if(rb&&!window.FIN_DATA)rb.addEventListener("click",()=>{const v=q("v-finance");if(!v||v.hidden)return;load(true);
+  setTimeout(()=>{const w=q("v-finance");if(w&&!w.hidden&&!S.open)load()},25000)})}
 function pickBiz(b,kb){if(S.biz!==b){closeD();S.biz=b;render()}const n=q("fxTab-"+b);if(n&&kb!==null)n.focus({preventScroll:true})}
 document.addEventListener("keydown",ev=>{const t=ev.target;if(!S.open&&t&&t.classList&&t.classList.contains("fx-tab")&&/^(ArrowLeft|ArrowRight|Home|End)$/.test(ev.key)){ev.preventDefault();
     const o=["rv","pod"],i=o.indexOf(t.dataset.v),j=ev.key==="Home"?0:ev.key==="End"?o.length-1:(i+(ev.key==="ArrowRight"?1:-1)+o.length)%o.length;pickBiz(o[j],true);return}
@@ -250,7 +264,7 @@ document.addEventListener("focusin",ev=>{const c=ev.target.closest&&ev.target.cl
 window.RV_FIN_TAB=true;{const f=q("rvFin");if(f)f.hidden=true}
 /* the tab */
 {const st0=showTab;showTab=function(t){st0(t);const v=q("v-finance");if(!v)return;v.hidden=t!=="finance";if(t!=="finance")closeD();
-  if(t==="finance"){["asof","rvAsof"].forEach(i=>{const x=q(i);if(x)x.hidden=true});if(!q("finBody").firstChild)render()}}}
+  if(t==="finance"){["asof","rvAsof"].forEach(i=>{const x=q(i);if(x)x.hidden=true});if(!D)load();else if(!q("finBody").firstChild)render()}}}
 if(location.hash==="#finance")showTab("finance");
 })();
 </script>
