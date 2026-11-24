@@ -76,7 +76,7 @@ rep=[
 # Sales tab (Sales chat, v1, 3 Nov): CEO view only, never the team page. Pieces in rv/sales/.
 ('<div id="v-pm" hidden>','<div id="v-leads" hidden></div>\n  '+open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
 # Inbox tab (Karen, 13 Nov): after Projects; VIP onboarding (Karen, 18 Nov): the board's frame goes in vipBox
-('<div id="v-pm" hidden>',REQ+'\n  <div id="v-vip" hidden><div id="vipBox"></div></div>\n  '+('<div id="v-finance" hidden><section class="fin"><div class="sh"><h2>Finance</h2><span class="r" id="finAsof"></span></div><div id="finBody"></div></section></div>\n  ' if FINANCE else '')+'<div id="v-pm" hidden>'),
+('<div id="v-pm" hidden>',REQ+'\n  <div id="v-vip" hidden><div id="vipBox"></div></div>\n  '+('<div id="v-finance" hidden><section class="fin"><h2 class="fx-vh">Finance</h2><div id="finBody"></div></section></div>\n  ' if FINANCE else '')+'<div id="v-pm" hidden>'),
 ]
 for a,b in rep:
     assert s.count(a)==1,a[:80]

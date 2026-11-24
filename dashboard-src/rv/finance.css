@@ -4,33 +4,20 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) #v-finance{--fx-rev:#94A3B8;--fx-good:#4CC287;--fx-thin:#F0C062;--fx-loss:#FF7A70;--fx-none:#4A505A}}
 :root[data-theme="dark"] #v-finance{--fx-rev:#94A3B8;--fx-good:#4CC287;--fx-thin:#F0C062;--fx-loss:#FF7A70;--fx-none:#4A505A}
 #v-finance .fin{margin-bottom:24px}
-#v-finance .sh h2{font-size:22px;font-weight:700;letter-spacing:-.01em}
 .fx-vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .tl-good{--c:var(--fx-good)}.tl-thin{--c:var(--fx-thin)}.tl-loss{--c:var(--fx-loss)}.tl-none{--c:var(--fx-none)}
 #v-finance .neg{color:var(--act)}
 
-/* which P&L: two cards that are also the switch */
-.fx-biz{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 0 22px;max-width:860px}
-.fx-bz{all:unset;box-sizing:border-box;cursor:pointer;display:grid;gap:3px;padding:13px 16px 14px;border:1px solid var(--line);border-radius:14px;background:transparent;min-width:0}
-.fx-bz:hover{background:var(--panel)}
-.fx-bz[aria-pressed="true"]{background:var(--panel);border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-.fx-bz:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.fx-bzn{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700}
-.fx-bzn .fx-on{margin-left:auto;font-size:11.5px;font-weight:600;color:var(--muted)}
-.fx-bz[aria-pressed="false"] .fx-on{display:none}
-.fx-bdot{width:9px;height:9px;border-radius:50%;background:#4338CA;flex:none}.fx-pod .fx-bdot{background:#D92D20}
-.fx-bzv{font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fx-bzv b{font-size:15px;font-weight:700;color:var(--ink);margin-left:4px}
-
-/* the P&L's own header: name, source, year */
-.fx-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px 20px;margin:0 0 14px;flex-wrap:wrap}
-.fx-head h3{font-size:20px;font-weight:700;margin:0;letter-spacing:-.01em}
-.fx-head p{margin:3px 0 0;font-size:13px;color:var(--muted)}
-.fx-seg{display:inline-flex;padding:3px;border-radius:10px;background:var(--soft);gap:2px}
-.fx-seg button{all:unset;cursor:pointer;padding:6px 16px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted)}
+/* one row: two tabs, Rise Voice and Podcast, the full width */
+.fx-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;margin:0 0 16px;background:var(--soft);border:1px solid var(--line);border-radius:12px}
+.fx-tab{all:unset;box-sizing:border-box;cursor:pointer;text-align:center;padding:10px 16px;border-radius:9px;font-size:14px;font-weight:600;color:var(--muted)}
+.fx-tab:hover{color:var(--ink)}
+.fx-tab[aria-selected="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.fx-tab:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.fx-seg{display:inline-flex;padding:3px;border-radius:9px;background:var(--soft);gap:2px}
+.fx-seg button{all:unset;cursor:pointer;padding:4px 13px;border-radius:7px;font-size:12.5px;font-weight:600;color:var(--muted)}
 .fx-seg button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.1)}
 .fx-seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.fx-pill{font-size:12.5px;color:var(--muted);padding:5px 12px;border-radius:999px;background:var(--soft)}
 
 /* the numbers that matter */
 .fx-kpis{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,3fr);gap:14px;margin:0 0 16px}
@@ -47,7 +34,7 @@
 .fx-kl{display:block;font-size:12.5px;color:var(--muted)}
 .fx-kv{display:block;font-size:26px;font-weight:700;letter-spacing:-.015em;line-height:1.25;margin:3px 0 2px;white-space:nowrap}
 .fx-ks{display:block;font-size:12px;color:var(--muted);line-height:1.4}
-.fx-kv.tl-good,.fx-bzv b.tl-good{color:var(--fx-ink-good)}.fx-kv.tl-thin,.fx-bzv b.tl-thin{color:var(--fx-ink-thin)}.fx-kv.tl-loss,.fx-bzv b.tl-loss{color:var(--fx-ink-loss)}
+.fx-kv.tl-good{color:var(--fx-ink-good)}.fx-kv.tl-thin{color:var(--fx-ink-thin)}.fx-kv.tl-loss{color:var(--fx-ink-loss)}
 .fx-link{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--accent);white-space:nowrap}
 .fx-link:hover{text-decoration:underline;text-underline-offset:3px}
 .fx-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
@@ -56,7 +43,7 @@
 
 /* cards */
 .fx-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px 12px;margin:0 0 16px;min-width:0}
-.fx-ch{display:flex;justify-content:space-between;align-items:baseline;gap:6px 12px;flex-wrap:wrap;margin:0 0 6px}
+.fx-ch{display:flex;justify-content:space-between;align-items:center;gap:6px 12px;flex-wrap:wrap;margin:0 0 8px}
 .fx-ch h4{margin:0;font-size:15px;font-weight:700}
 .fx-hint{font-size:12.5px;color:var(--muted);margin:0}
 
@@ -93,6 +80,7 @@
 
 /* every month in a table */
 .fx-tw{position:relative;overflow-x:auto;margin:0 -18px;padding:0 18px}
+.fx-tc{padding-top:8px}
 .fx-t{width:100%;min-width:860px;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
 .fx-t.pod{min-width:620px}
 .fx-t th,.fx-t td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:400}
@@ -212,7 +200,6 @@ html.fx-lock{overflow:hidden}
 
 @media (max-width:1100px){.fx-kpis{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){
-  .fx-biz{grid-template-columns:minmax(0,1fr);gap:8px}
   .fx-kr{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 0}
   .fx-k:nth-child(odd){padding-left:0;border-left:0}
   .fx-kv{font-size:22px}

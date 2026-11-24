@@ -36,7 +36,7 @@ page = f'''<!doctype html>
   <div class="mock" role="note"><b>Mockup</b><span>The Finance tab for Kash's link, with real numbers as of {int(D["at"][8:10])} Nov {D["at"][:4]}. Click anything; nothing here is live or saved.</span></div>
   <div class="top"><div class="brand"><span class="onair" aria-hidden="true"></span>ReLearn · CEO view</div><span class="topr"></span></div>
   <nav class="tabs" role="tablist" aria-label="Dashboard tabs">{tabs}</nav>
-  <div id="v-finance" hidden><section class="fin"><div class="sh"><h2>Finance</h2><span class="r" id="finAsof"></span></div><div id="finBody"></div></section></div>
+  <div id="v-finance" hidden><section class="fin"><h2 class="fx-vh">Finance</h2><div id="finBody"></div></section></div>
 </div>
 <script>function showTab(t){{document.querySelectorAll(".tab[data-tab]").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.tab===t)))}}</script>
 <script>window.FIN_DATA={json.dumps(D, separators=(",", ":"), ensure_ascii=False).replace("</", "<\\/")}</script>
