@@ -39,11 +39,11 @@ if not RV:
     print('built without Rise Voice',len(s))
     raise SystemExit
 open('podcast-ceo/team.html','w').write(team_page(ep_parts(s)))
-css=open('rv/rv.css').read()+open('rv/requests.css').read()+open('rv/coaching.css').read()+open('rv/vip.css').read()+'.tab .temo{margin-right:6px}\n'+(open('rv/finance.css').read() if os.environ.get('FINANCE')=='1' else '');html=open('rv/rv.html').read();js=open('rv/rv.js').read()
+css=open('rv/rv.css').read()+open('rv/requests.css').read()+open('rv/coaching.css').read()+open('rv/vip.css').read()+'.tab .temo{margin-right:6px}\n'+(open('rv/finance.css').read() if os.environ.get('FINANCE','1')=='1' else '');html=open('rv/rv.html').read();js=open('rv/rv.js').read()
 # Kash's tabs (Karen, 13 Nov): short names, an emoji each, and the disabled ones (Instagram, LinkedIn, Finance) left out for now.
 # To bring one back, add it to TABS (with its data-tab) once the tab exists.
-# Finance tab (Karen, 24 Nov): built only when FINANCE=1 (the mockup); Kash's page stays as it is until Karen approves it
-FINANCE=os.environ.get('FINANCE')=='1'
+# Finance tab (Karen, 24 Nov; live on Kash's link since 24 Nov): on by default; FINANCE=0 builds the page without it
+FINANCE=os.environ.get('FINANCE','1')=='1'
 TABS=[('home','🏠','Home'),('podcast','🎙️','Podcast'),('risevoice','🚀','Rise Voice'),('leads','🎯','Leads'),('sales','🤝','Sales')]+([('finance','💷','Finance')] if FINANCE else [])+[
       ('team','👥','Team coaching'),('pm','📋','Projects'),('requests','📥','Inbox'),
       ('vip','⭐','VIP onboarding')]  # Karen, 18 Nov: the onboarding board (rv/vip.js)
