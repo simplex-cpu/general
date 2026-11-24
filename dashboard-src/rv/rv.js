@@ -231,13 +231,15 @@ function rvKpis(M){
   const E=M.ext,c=M.cur,p=M.prev,ms=c?mshort(c.end):"";
   const withS=E.filter(x=>x.s&&x.s.vchg!=null),up=withS.filter(x=>x.s.vchg>0);
   let h="";
-  if(RVX.money&&c){
+  /* Karen, 24 Nov: with the Finance tab on, the profit and past-due KPIs live there (the client ones stay here) */
+  const FT=!!window.RV_FIN_TAB;
+  if(FT){}else if(RVX.money&&c){
     h+=`<div class="kpi"><span class="lab">Projected profit MTD</span><span class="val big" style="color:${c.profit<0?"var(--act)":"var(--ok)"}">${gbp(c.profit)}</span><span class="sub">${c.status==="Actual"?"Actual":"Forecast"} for ${ms} · revenue <b>${gbp(c.rev)}</b>, costs <b>${gbp(c.costs)}</b></span></div>`;
     const g=p&&p.profit?(c.profit-p.profit)/Math.abs(p.profit):null;
     h+=`<div class="kpi"><span class="lab">Profit growth MoM</span><span class="val big" style="color:${g==null?"var(--ink)":g<0?"var(--act)":"var(--ok)"}">${g==null?"–":spc(g)}</span><span class="sub">${p?`vs ${mshort(p.end)} (<b>${gbp(p.profit)}</b>): ${c.profit<p.profit?"down":"up"} <b>${gbp(Math.abs(c.profit-p.profit))}</b>`:"No previous month"}</span></div>`;
   }else if(RVX.money)h+=`<div class="kpi"><span class="lab">Projected profit MTD</span><span class="val">–</span><span class="sub">No ${MON[+TODAY.slice(5,7)-1]} row in the Revenue tracker</span></div><div class="kpi"><span class="lab">Profit growth MoM</span><span class="val">–</span><span class="sub">Needs this month's row</span></div>`;
   else h+=lock("Projected profit MTD")+lock("Profit growth MoM");
-  if(RVX.money){const pd=M.inv.filter(i=>i.status==="Past Due"),od=M.inv.filter(i=>i.status==="To Collect"&&i.due&&i.due<TODAY);
+  if(FT){}else if(RVX.money){const pd=M.inv.filter(i=>i.status==="Past Due"),od=M.inv.filter(i=>i.status==="To Collect"&&i.due&&i.due<TODAY);
     h+=`<div class="kpi"><span class="lab">Past-due invoices</span><span class="val big" style="color:${pd.length?"var(--act)":"var(--ok)"}">${pd.length}</span><span class="sub"><b>${gbp(pd.reduce((a,i)=>a+i.amt,0))}</b>${od.length?` · plus <b>${od.length}</b> overdue still marked To Collect`:""}</span></div>`}
   else h+=lock("Past-due invoices");
   h+=`<div class="kpi"><span class="lab">Active clients</span><span class="val big">${E.length}</span><span class="sub">${RVX.money&&c&&c.paying!=null?`<b>${c.paying}</b> paying this month · `:""}not counting ${M.clients.length-E.length} own accounts</span></div>`;
@@ -245,7 +247,7 @@ function rvKpis(M){
   if(RVX.money&&c)h+=`<div class="kpi"><span class="lab">Projected churn</span><span class="val big" style="color:${c.churn?"var(--act)":"var(--ok)"}">${c.churn??0}</span><span class="sub">${c.churned.length?esc(c.churned.join(", ")):"clients"} in ${ms}'s ${c.status==="Actual"?"actuals":"forecast"}</span></div>`;
   else if(RVX.money)h+=`<div class="kpi"><span class="lab">Projected churn</span><span class="val">–</span><span class="sub">Needs this month's row</span></div>`;
   else h+=lock("Projected churn");
-  $("rvKpis").innerHTML=h;
+  $("rvKpis").innerHTML=h;if(FT)$("rvKpis").className="kpis three";
   $("rvMeta").textContent=`${E.length} clients · ${M.strats.length} strategists · live from Airtable`;
 }
 

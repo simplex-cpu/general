@@ -39,10 +39,12 @@ if not RV:
     print('built without Rise Voice',len(s))
     raise SystemExit
 open('podcast-ceo/team.html','w').write(team_page(ep_parts(s)))
-css=open('rv/rv.css').read()+open('rv/requests.css').read()+open('rv/coaching.css').read()+open('rv/vip.css').read()+'.tab .temo{margin-right:6px}\n';html=open('rv/rv.html').read();js=open('rv/rv.js').read()
+css=open('rv/rv.css').read()+open('rv/requests.css').read()+open('rv/coaching.css').read()+open('rv/vip.css').read()+'.tab .temo{margin-right:6px}\n'+(open('rv/finance.css').read() if os.environ.get('FINANCE')=='1' else '');html=open('rv/rv.html').read();js=open('rv/rv.js').read()
 # Kash's tabs (Karen, 13 Nov): short names, an emoji each, and the disabled ones (Instagram, LinkedIn, Finance) left out for now.
 # To bring one back, add it to TABS (with its data-tab) once the tab exists.
-TABS=[('home','🏠','Home'),('podcast','🎙️','Podcast'),('risevoice','🚀','Rise Voice'),('leads','🎯','Leads'),('sales','🤝','Sales'),
+# Finance tab (Karen, 24 Nov): built only when FINANCE=1 (the mockup); Kash's page stays as it is until Karen approves it
+FINANCE=os.environ.get('FINANCE')=='1'
+TABS=[('home','🏠','Home'),('podcast','🎙️','Podcast'),('risevoice','🚀','Rise Voice'),('leads','🎯','Leads'),('sales','🤝','Sales')]+([('finance','💷','Finance')] if FINANCE else [])+[
       ('team','👥','Team coaching'),('pm','📋','Projects'),('requests','📥','Inbox'),
       ('vip','⭐','VIP onboarding')]  # Karen, 18 Nov: the onboarding board (rv/vip.js)
 NAV0='<nav class="tabs" role="tablist" aria-label="Dashboard tabs">'
@@ -74,13 +76,14 @@ rep=[
 # Sales tab (Sales chat, v1, 3 Nov): CEO view only, never the team page. Pieces in rv/sales/.
 ('<div id="v-pm" hidden>','<div id="v-leads" hidden></div>\n  '+open('rv/sales/block.html').read().strip()+'\n  <div id="v-pm" hidden>'),
 # Inbox tab (Karen, 13 Nov): after Projects; VIP onboarding (Karen, 18 Nov): the board's frame goes in vipBox
-('<div id="v-pm" hidden>',REQ+'\n  <div id="v-vip" hidden><div id="vipBox"></div></div>\n  <div id="v-pm" hidden>'),
+('<div id="v-pm" hidden>',REQ+'\n  <div id="v-vip" hidden><div id="vipBox"></div></div>\n  '+('<div id="v-finance" hidden><section class="fin"><div class="sh"><h2>Finance</h2><span class="r">Pick a month to see the invoices behind its revenue</span></div><div id="finBody"></div></section></div>\n  ' if FINANCE else '')+'<div id="v-pm" hidden>'),
 ]
 for a,b in rep:
     assert s.count(a)==1,a[:80]
     s=s.replace(a,b)
 # Team coaching's Coach button and form (Karen, 13 Nov): after the Team coaching cards' own scripts
-s=s.rstrip()+'\n'+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()+'\n'+open('rv/coaching.js').read()+'\n'+open('rv/vip.js').read()
+FIN_JS=('<script>window.RV_FIN_TAB=true;window.FIN_DATA='+open(os.environ['FIN_DATA']).read().strip()+'</script>\n') if FINANCE else ''
+s=s.rstrip()+'\n'+FIN_JS+js+'\n'+open('rv/pm.js').read()+'\n'+open('rv/requests.js').read()+'\n'+open('rv/coaching.js').read()+'\n'+open('rv/vip.js').read()+('\n'+open('rv/finance.js').read() if FINANCE else '')
 s=ep_parts(s)
 # Sales last, as in the published v37: its script wraps showTab after every other part has
 # Leads tab (Karen, 12 Nov): its script runs inside the Sales script (same data and helpers), just before that script's last line
@@ -89,5 +92,5 @@ assert sj.count(LAST)==1;sj=sj.replace(LAST,'/* ---------- Leads tab (rv/sales/l
 s=s.rstrip()+'\n'+open('rv/sales/sales.css').read().strip()+'\n'+open('rv/sales/leads.css').read().strip()+'\n'+sj+'\n'
 # Karen, 10 Nov: reopen the tab Kash was last on (after Sales, so every part's showTab runs)
 s=s.rstrip()+'\n'+open('rv/lasttab.js').read().strip()+'\n'
-open('podcast-ceo/index.html','w').write(s)
-print('built',len(s))
+open(os.environ.get('RV_OUT','podcast-ceo/index.html'),'w').write(s)
+print('built',len(s),'(with the Finance mockup)' if FINANCE else '')
