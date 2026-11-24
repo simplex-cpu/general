@@ -66,7 +66,7 @@ const ORIG_LC={};ORIGINS.forEach(o=>ORIG_LC[o.toLowerCase()]=o);Object.keys(ORIG
 const stdO=v=>{const s=String(sv(v)||"").replace(/^[^A-Za-z]+/,"").trim();return s?(ORIG_LC[s.toLowerCase()]||"Other"):""};
 /* stage names as shown (Airtable values stay as they are) */
 const ST_LABEL={"Sales Pipeline":"Sent to Sales","Podcast Pipeline":"Sent to Podcast"};
-const stL=s=>ST_LABEL[s]||s;
+const stL=s=>layName(s)||ST_LABEL[s]||s;
 /* the deal's From as shown: the Growth audit path is now Podcast Leads */
 const fromL=s=>/growth audit path/i.test(String(s||""))?"Podcast Leads (Jade)":String(s||"");
 const JADE_STAGES=["10 – Lead in","20 – Audit booked","30 – Audit held","40 – Growth plan sent","50 – Follow-up call","60 – Proposal","70 – Won","79 – Lost","80 – Re-approach (60–90 days)"];
@@ -123,7 +123,7 @@ const OI={
 OI["Podcast guest"]=OI.Podcast;OI.Referrals=OI.Referral;OI.Events=OI.Event;OI["IG organic"]=OI.Instagram;OI.Upsells=OI.Upsell;
 OI["Kash brand community"]={c:"#4338CA",p:OI["Rise Voice"].p};OI["ReLearn community leads"]={c:"#DB2777",p:OI.Referral.p};OI["Episode keyword"]=OI["Episode request"];
 const DUE_ORDER={overdue:0,today:1,week:2,later:3};
-const RO_BLOCK=new Set(["tdrm","tdadd","kbsave","handgo","xcolnew","xcoladd","xcolrm","addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
+const RO_BLOCK=new Set(["tdrm","tdadd","kbsave","handgo","xcolnew","xcoladd","xcolrm","colrn","colsave","colmv","addoffer","spwon","splost","spmore","delgo","ctedit","ctsave","fab","svc","spsvc","clsvc","postc","addconv","savelead","dropgo","dropsave","dropmanual","inadd","insave","logct","logsp"]);
 const VIEW_ONLY="View only on this link. Open the Claude copy to make changes.";
 const CHEV="M15 18l-6-6 6-6",EXP="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",PLUS="M12 5v14M5 12h14",XI="M6 6l12 12M18 6 6 18",MIC="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zM19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8";
 
@@ -318,10 +318,13 @@ async function load(force){
     if(!window.claude?.use){
       /* n8n-hosted copy: data from {page path}/sales (records {id, fields:{fldXXX:value}}); saves go through {page path}/sales-api */
       S.ro=false;S.n8n=true;
+      /* Karen, 24 Nov: Kash's column names and order, read beside the feed (no answer leaves the standard board) */
+      const layP=fetch(location.pathname.replace(/\/$/,"")+"/sales-layout",{cache:"no-store"}).then(r=>r.ok?r.json():null).catch(()=>null);
       /* Karen, 13 Nov (final QA): the feed can stall when Airtable briefly limits the Rise Voice base (30 s); one more try after 4 s */
       const get=async()=>{for(let i=0;;i++){try{const r=await fetch(location.pathname.replace(/\/$/,"")+"/sales",{cache:"no-store"});if(r.ok||i>0||r.status<500)return r}catch(e){if(i>0)throw e}await new Promise(z=>setTimeout(z,4000))}};
       const res=await get();if(!res.ok)throw new Error("sales feed "+res.status);
       const j=await res.json();const n=a=>(a||[]).map(r=>Object.assign({_id:r.id},r.fields||{}));
+      {const lj=await layP;if(lj&&lj.ok)S.lay=layNorm(lj.layout)}
       Object.assign(S,{leads:n(j.leads),conv:n(j.conversations),calls:n(j.calls),money:n(j.moneyIn),contacts:n(j.contacts),cl:n(j.companyLeads),sp:n(j.salesPipeline),ul:n(j.upsellList),pipelines:n(j.pipelines),guests:n(j.guests),guestTeam:n(j.guestTeam),noSp:!j.salesPipeline,noPl:!j.pipelines,noG:!j.guests,fetchedAt:j.fetchedAt||"",loaded:true});
       /* v5.1: the 1,181 podcast guests come in a second, background request (header X-Sales-Part: guests), so the tab opens without waiting for them */
       /* Kash's board (SALES_ONLY) never shows the guests, so it does not ask for them (10 Nov: that request kept n8n busy for 15 s) */
@@ -427,14 +430,51 @@ function xSave(){try{localStorage.setItem(XCOL_KEY,JSON.stringify(S.xloc))}catch
 function kbCols(){
   const seen=new Set(KB_STAGES),out=KB_STAGES.slice();
   const add=st=>{st=String(st||"").trim();if(st&&!seen.has(st)&&!KB_TEAM.has(st)&&st!=="Pre-qual"&&st!=="In Conversations"){seen.add(st);out.push(st)}};
-  (S.xloc||[]).forEach(add);if(SALES_ONLY)(S.sp||[]).forEach(r=>add(sv(r[SP.stage])));return out}
+  (S.xloc||[]).forEach(add);if(SALES_ONLY){(S.lay.order||[]).forEach(add);(S.sp||[]).forEach(r=>add(sv(r[SP.stage])))}
+  /* Karen, 24 Nov: Kash's own order first (the columns that still exist), then any column not in it, in its usual place */
+  const ord=SALES_ONLY?(S.lay.order||[]).filter(s=>seen.has(s)):[];
+  return ord.length?ord.concat(out.filter(s=>!ord.includes(s))):out}
 const isXCol=st=>!KB_STAGES.includes(st)&&kbCols().includes(st);
 /* a name Kash types for a new column: "" if it can be used, else why not */
 function xColErr(name){
   const t=name.trim(),lc=t.toLowerCase();if(!t)return "Type a name for the column.";if(t.length>30)return "Keep the name under 30 characters.";
   if(kbCols().some(c=>c.toLowerCase()===lc))return "There is already a "+t+" column.";
   if([...KB_TEAM,"Pre-qual","In Conversations"].some(c=>c.toLowerCase()===lc))return t+" is one of the team's statuses. Pick another name.";
+  if(kbCols().some(c=>stL(c).toLowerCase()===lc))return "There is already a column called "+t+".";
   return ""}
+/* Karen, 24 Nov (Kash): he renames the board's columns and puts them in his own order (drag a column by its title, or use the
+   arrows in the rename box). Names are for this board only: Airtable keeps each status as it is (the team's boards and the Airtable
+   automations match on it), so a renamed column is still the same status in every table. His order, his names and the columns he
+   adds are saved for every device through {page}/sales-layout; until that loads, the board shows the standard names and order. */
+S.lay={order:[],names:{}};S.colEdit=null;S.laySeq=0;
+const LAY_MAX=30,ARR_L="M19 12H5M12 19l-7-7 7-7",ARR_R="M5 12h14M12 5l7 7-7 7";
+function layName(st){return (S.lay&&S.lay.names&&S.lay.names[st])||""}
+function layNorm(v){const o=v&&typeof v==="object"?v:{},seen=new Set();
+  const order=(Array.isArray(o.order)?o.order:[]).map(x=>String(x==null?"":x).trim()).filter(x=>x&&x.length<=60&&!seen.has(x)&&seen.add(x)).slice(0,60);
+  const names={};Object.entries(o.names&&typeof o.names==="object"&&!Array.isArray(o.names)?o.names:{}).slice(0,60).forEach(([k,n])=>{k=String(k).trim();n=String(n==null?"":n).replace(/\s+/g," ").trim().slice(0,LAY_MAX);if(k&&n&&n!==k)names[k]=n});
+  return {order,names}}
+/* save the whole layout; the board shows it at once and goes back if the save fails (only the latest save puts it back) */
+async function laySave(next,msg,after){
+  const prev=S.lay,my=++S.laySeq;S.lay=layNorm(next);render();if(after)after();
+  if(!S.n8n){toast(msg);return true}
+  try{const r=await fetch(location.pathname.replace(/\/$/,"")+"/sales-layout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(S.lay),cache:"no-store"});
+    const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)throw new Error("layout");toast(msg);return true}
+  catch(e){if(my===S.laySeq){S.lay=prev;render();if(after)after()}toast("Couldn't save the column change. Try again.");return false}}
+const colBtn=(act,st,x)=>document.querySelector(`#v-sales [data-act="${act}"][data-stage="${CSS.escape(st)}"]${x||""}`);
+function colEditClose(){const st=S.colEdit&&S.colEdit.st;S.colEdit=null;render();const b=st&&colBtn("colrn",st);if(b)b.focus({preventScroll:true})}
+function colRename(){const e=S.colEdit;if(!e)return;const i=el("slColName"),st=e.st;const name=String(i?i.value:e.name).replace(/\s+/g," ").trim();
+  const bad=m=>{S.colEdit={st,name,err:m};render();const n=el("slColName");if(n){n.focus({preventScroll:true});n.select()}};
+  if(name.length>LAY_MAX)return bad("Keep the name under "+LAY_MAX+" characters.");
+  if(name&&kbCols().some(c=>c!==st&&stL(c).toLowerCase()===name.toLowerCase()))return bad("There is already a column called "+name+".");
+  const names=Object.assign({},S.lay.names);if(!name||name===st)delete names[st];else names[st]=name;
+  if((names[st]||"")===(S.lay.names[st]||"")){colEditClose();return}
+  S.colEdit=null;laySave({order:S.lay.order,names},names[st]?"Renamed to "+names[st]:"Back to "+st,()=>{const b=colBtn("colrn",st);if(b)b.focus({preventScroll:true})})}
+/* move a column one place left or right (the rename box stays open on it) */
+function colMove(st,dir){const cols=kbCols(),i=cols.indexOf(st),j=i+dir;if(i<0||j<0||j>=cols.length)return;const o=cols.slice();o.splice(i,1);o.splice(j,0,st);
+  laySave({order:o,names:S.lay.names},"Moved "+stL(st)+(dir<0?" left":" right"),()=>{const b=colBtn("colmv",st,`[data-dir="${dir}"]`);if(b&&!b.disabled)b.focus({preventScroll:true});else{const n=el("slColName");if(n)n.focus({preventScroll:true})}})}
+/* a column dropped before or after another (or on the + at the end) */
+function colPlace(st,target,after){const cols=kbCols().filter(c=>c!==st);let i=target?cols.indexOf(target):cols.length;if(i<0)return;if(after)i++;cols.splice(i,0,st);
+  if(cols.join("\n")===kbCols().join("\n"))return;laySave({order:cols,names:S.lay.names},"Moved "+stL(st))}
 /* Karen, 10 Nov: Kash can give a card to Jade, Sarah or Gretta; that sends it back to the team, as "Send back to team" does.
    Jade's Leads table only has Kash and Jade (and Sales hire) as owners, so a podcast lead can only go back to Jade.
    Gretta is spelled "Greta" in Airtable (shown as Gretta). */
@@ -456,7 +496,10 @@ function kbDraftSet(act,a,id){
 const xScrollEnd=()=>{const bd=document.querySelector("#v-sales .sl-board.sl-full");if(bd)bd.scrollLeft=bd.scrollWidth};
 function xAdd(){const i=el("slXName");const name=(i?i.value:"").trim();const err=xColErr(name);
   if(err){S.xadd={name,err};render();const n=el("slXName");if(n){n.focus({preventScroll:true});n.select()}return}
-  S.xloc=S.xloc.concat([name]);xSave();S.xadd=null;render();xScrollEnd();
+  S.xloc=S.xloc.concat([name]);xSave();S.xadd=null;
+  /* Karen, 24 Nov: on Kash's link the new column is kept in his saved layout, so it stays on every device before any card moves in */
+  if(S.n8n){laySave({order:kbCols(),names:S.lay.names},name+" added",()=>{xScrollEnd();const b=el("slXPlus");if(b)b.focus({preventScroll:true})});return}
+  render();xScrollEnd();
   const b=el("slXPlus");if(b)b.focus({preventScroll:true});toast(name+" added. Drag a card into it to save it in Airtable.")}
 function derive(){
   const J=SALES_ONLY?[]:deriveJ(),K=SALES_ONLY?[]:deriveCL();let P=deriveSP();
@@ -535,9 +578,18 @@ function toggleFold(bk,st){const a=S.cols[bk]||[];S.cols[bk]=a.includes(st)?a.fi
 function colH(bk,stages,st,n,inner,add,extra,label,ic){
   const tm=TONE_MAP[bk];const tone=tm?(tm[st]||"s1"):stageTone(stages,st),lab=label||stL(st)||"No stage yet",tip=stageInfo(bk,st),info=bk==="prequal-o"||bk==="guests"||bk==="sp-src"||(SALES_ONLY&&bk==="sp")?"":tip,d=`data-board="${esc(bk)}" data-stage="${esc(st)}"`;
   const mark=ic||'<i class="sl-dot"></i>';
-  if(isFolded(bk,st))return `<div class="sl-col sl-colc stx st-${tone}" ${d}><button type="button" class="sl-cexp" data-act="fold" ${d} aria-expanded="false" aria-label="Show ${esc(lab)}, ${n} ${n===1?"card":"cards"}" title="${esc(tip)}">${mark}<small>${n}</small><span class="v">${esc(lab)}</span></button></div>`;
-  return `<div class="sl-col" ${d}><div class="sl-colh stx st-${tone}"><div class="t"><span${tip&&!info?` title="${esc(tip)}"`:""}>${mark}${esc(lab)}</span><span class="r"><small>${n}</small><button type="button" class="sl-ccol" data-act="fold" ${d} aria-expanded="true" aria-label="Fold ${esc(lab)}" title="Fold this column">${svg(CHEV,15)}</button></span></div>${info?`<p class="sl-cinfo">${esc(info)}</p>`:""}${extra||""}</div>${inner}${add}</div>`;
+  /* Karen, 24 Nov: on Kash's board a column is moved by dragging its title, and its pen opens the rename box (with arrows to move it) */
+  const lay=SALES_ONLY&&bk==="sp"&&!S.ro&&st!=="Pre-qual",dg=lay&&!S.colEdit?` draggable="true" data-coldrag="${esc(st)}"`:"";
+  if(isFolded(bk,st))return `<div class="sl-col sl-colc stx st-${tone}" ${d}${dg}><button type="button" class="sl-cexp" data-act="fold" ${d} aria-expanded="false" aria-label="Show ${esc(lab)}, ${n} ${n===1?"card":"cards"}" title="${esc(tip)}">${mark}<small>${n}</small><span class="v">${esc(lab)}</span></button></div>`;
+  if(lay&&S.colEdit&&S.colEdit.st===st)return `<div class="sl-col sl-cediting" ${d}><div class="sl-colh stx st-${tone}">${colEditH(st,d)}${extra||""}</div>${inner}${add}</div>`;
+  return `<div class="sl-col" ${d}><div class="sl-colh stx st-${tone}"${dg}><div class="t"><span${tip&&!info?` title="${esc(tip)}"`:""}>${mark}${esc(lab)}</span><span class="r"><small>${n}</small>${lay?`<button type="button" class="sl-crn" data-act="colrn" ${d} aria-label="Rename or move ${esc(lab)}" title="Rename or move this column">${svg(PEN_I,13)}</button>`:""}<button type="button" class="sl-ccol" data-act="fold" ${d} aria-expanded="true" aria-label="Fold ${esc(lab)}" title="Fold this column">${svg(CHEV,15)}</button></span></div>${info?`<p class="sl-cinfo">${esc(info)}</p>`:""}${extra||""}</div>${inner}${add}</div>`;
 }
+/* the rename box in a column's title: the name (empty = back to the Airtable name), arrows to move the column, Cancel and Save */
+function colEditH(st,d){const e=S.colEdit,cols=kbCols(),i=cols.indexOf(st);
+  return `<div class="sl-cedit"><div class="sl-cetop"><label for="slColName">Column name</label><span class="sl-cemv"><button type="button" class="sl-cearr" data-act="colmv" data-dir="-1" ${d} aria-label="Move left" title="Move left"${i<=0?" disabled":""}>${svg(ARR_L,14)}</button><button type="button" class="sl-cearr" data-act="colmv" data-dir="1" ${d} aria-label="Move right" title="Move right"${i>=cols.length-1?" disabled":""}>${svg(ARR_R,14)}</button></span></div>
+    <input id="slColName" maxlength="${LAY_MAX}" autocomplete="off" value="${esc(e.name)}" placeholder="${esc(st)}">
+    ${e.err?`<p class="sl-xerr" role="alert">${esc(e.err)}</p>`:`<p class="sl-cehint">Airtable keeps “${esc(st)}”.</p>`}
+    <div class="sl-cebtns"><button type="button" class="sl-ghost" data-act="colcancel">Cancel</button><button type="button" class="sl-solid" data-act="colsave">Save</button></div></div>`}
 /* the row under the stats: the name search (moved in by render) and the view's own controls */
 const toolsH=x=>`<div class="sl-tools" id="slTools">${x||""}</div>`;
 const SRC_FOOT="Each card shows its stage. Fold any column with its arrow.";
@@ -668,7 +720,7 @@ function spColsH(D,stages,all){
     if(st==="Pre-qual"){const pq=D.P.filter(p=>p.pre);return colH("sp",SP_STAGES,st,pq.length,pqTileH(pq,D),"","")}
     const cs=D.P.filter(p=>p.stage===st).sort((a,c)=>(DUE_ORDER[a.due]-DUE_ORDER[c.due])||a.name.localeCompare(c.name));
     /* Karen, 10 Nov: one of Kash's own columns that is still empty (kept in this browser) can be removed */
-    const mine=SALES_ONLY&&!KB_STAGES.includes(st),rm=mine&&!cs.length&&(S.xloc||[]).includes(st)&&!S.ro;
+    const mine=SALES_ONLY&&!KB_STAGES.includes(st),rm=mine&&!cs.length&&((S.xloc||[]).includes(st)||(S.lay.order||[]).includes(st))&&!S.ro;
     const inner=cs.map(p=>spKcardH(p,D,all)).join("")||`<div class="sl-empty">Nobody here${rm?`<button type="button" class="sl-xrm" data-act="xcolrm" data-stage="${esc(st)}">Remove column</button>`:""}</div>`;
     /* "Add a lead" only on open stages (a new lead never starts as won or lost); his own columns are open */
     /* Karen, 11 Nov (Kash): the value in each column, under its name (a card with no value adds nothing) */
@@ -1651,7 +1703,15 @@ document.addEventListener("click",async e=>{
   if(act==="xcolnew"){S.xadd={name:"",err:""};render();xScrollEnd();const i=el("slXName");if(i)i.focus({preventScroll:true});return}
   if(act==="xcolcancel"){S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}
   if(act==="xcoladd"){xAdd();return}
-  if(act==="xcolrm"){const st=a.dataset.stage;S.xloc=S.xloc.filter(x=>x!==st);xSave();render();toast("Column removed");const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}
+  if(act==="xcolrm"){const st=a.dataset.stage;S.xloc=S.xloc.filter(x=>x!==st);xSave();const foc=()=>{const b=el("slXPlus");if(b)b.focus({preventScroll:true})};
+    /* Karen, 24 Nov: a column in his saved layout leaves it too (with its name) */
+    if(S.n8n&&((S.lay.order||[]).includes(st)||S.lay.names[st])){const names=Object.assign({},S.lay.names);delete names[st];laySave({order:(S.lay.order||[]).filter(x=>x!==st),names},"Column removed",foc);return}
+    render();toast("Column removed");foc();return}
+  /* Karen, 24 Nov: rename or move one of the board's columns */
+  if(act==="colrn"){const st=a.dataset.stage;S.colEdit={st,name:stL(st),err:""};render();const i=el("slColName");if(i){i.focus({preventScroll:true});i.select()}return}
+  if(act==="colcancel"){colEditClose();return}
+  if(act==="colsave"){colRename();return}
+  if(act==="colmv"){colMove(a.dataset.stage,+a.dataset.dir);return}
   if(act==="spmore"){if(menuIsOpen())menuClose(true);else menuOpen();return}
   if(act==="spwon"||act==="splost"){if(a.getAttribute("aria-pressed")!=="true")setWonLost(act==="spwon");return}
   if(act==="sectog"){const k=a.dataset.sec;S.sec[k]=!S.sec[k];a.setAttribute("aria-expanded",String(S.sec[k]));const b=el("slSec-"+k);if(b){b.hidden=!S.sec[k];b.querySelectorAll("textarea").forEach(grow)}return}
@@ -1751,6 +1811,7 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&!e.isComposing&&e.target&&e.target.classList&&e.target.classList.contains("sl-tdt")){e.preventDefault();const i=el("slTdNew");if(i)i.focus();return}
   if(e.key==="Enter"&&!e.isComposing&&e.target&&e.target.id==="slSnm"){e.preventDefault();e.target.blur();return}
   if(e.target&&e.target.id==="slXName"){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();xAdd();return}if(e.key==="Escape"){e.preventDefault();S.xadd=null;render();const b=el("slXPlus");if(b)b.focus({preventScroll:true});return}}
+  if(e.target&&e.target.id==="slColName"){if(e.key==="Enter"&&!e.isComposing){e.preventDefault();colRename();return}if(e.key==="Escape"){e.preventDefault();colEditClose();return}}
   if(e.key==="Escape"&&menuIsOpen()){e.preventDefault();menuClose(true);return}
   /* ⋯ opens from the keyboard with ArrowDown too */
   if(e.key==="ArrowDown"&&e.target&&e.target.id==="slMore"){e.preventDefault();menuOpen();return}
@@ -1851,10 +1912,11 @@ document.addEventListener("wheel",e=>{
 },{passive:false});
 document.addEventListener("dragstart",e=>{const c=e.target.closest&&e.target.closest("#v-sales .sl-kc");if(!c)return;if(c.closest('.sl-board[data-group="date"]')){e.preventDefault();return}slDrag=true;e.dataTransfer.setData("text/plain",c.dataset.kind+":"+c.dataset.id);e.dataTransfer.effectAllowed="move"});
 document.addEventListener("dragover",e=>{
-  if(slDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
+  if(slDrag||colDrag){const y=e.clientY,H=innerHeight,E=90;if(y<E)window.scrollBy(0,-Math.ceil((E-y)/3));else if(y>H-E)window.scrollBy(0,Math.ceil((y-(H-E))/3));
     const bd=document.querySelector("#v-sales .sl-board");if(bd){const r=bd.getBoundingClientRect();if(y>r.top&&y<r.bottom){if(e.clientX<r.left+70)bd.scrollLeft-=16;else if(e.clientX>r.right-70)bd.scrollLeft+=16;
       /* desktop: the board scrolls inside itself, so near its top or bottom edge it scrolls up or down to reach the other columns */
       if(bd.scrollHeight>bd.clientHeight){if(y<r.top+70)bd.scrollTop-=Math.ceil((r.top+70-y)/2);else if(y>r.bottom-70)bd.scrollTop+=Math.ceil((y-(r.bottom-70))/2)}}}}
+  if(colDrag)return; /* a column being moved: handled below */
   const col=dropCol(e);if(!col||col.closest('.sl-board[data-group="date"]'))return;const cb=col.dataset.board;
   /* grouped by source: only the source columns take a drop (not the Pre-qual tile, not "No source").
      v6.1: grouped by stage, the Pre-qual tile takes no drop either (Pre-qual is set by the teams, not by Kash) */
@@ -1862,7 +1924,7 @@ document.addEventListener("dragover",e=>{
   if(bySrc?!(cb==="sp-src"&&col.dataset.stage):!((cb==="sp"&&col.dataset.stage!=="Pre-qual")||(BK[cb]&&!(cb==="prequal"&&S.pqGroup==="origin"))))return;e.preventDefault();document.querySelectorAll("#v-sales .sl-col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
 document.addEventListener("dragleave",e=>{const t=e.target;if(!t||!t.closest)return;const col=t.closest("#v-sales .sl-col");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over");
   if(t.matches("#v-sales .sl-board")&&!t.contains(e.relatedTarget))clearOver()});
-document.addEventListener("drop",e=>{slDrag=false;const col=dropCol(e);if(!col||col.closest('.sl-board[data-group="date"]'))return;e.preventDefault();clearOver();
+document.addEventListener("drop",e=>{if(colDrag)return;slDrag=false;const col=dropCol(e);if(!col||col.closest('.sl-board[data-group="date"]'))return;e.preventDefault();clearOver();
   const [kind,id]=(e.dataTransfer.getData("text/plain")||"").split(":");if(!id)return;if(S.ro){toast(VIEW_ONLY);return}
   const bk=col.dataset.board;const st=col.dataset.stage;
   if(col.closest('.sl-board[data-group="source"]')){if(bk==="sp-src"&&kind==="sp"&&ORIGINS.includes(st))setTimeout(()=>setOrigin(id,st),0);return}
@@ -1872,6 +1934,25 @@ document.addEventListener("drop",e=>{slDrag=false;const col=dropCol(e);if(!col||
     if(bk==="sp"&&kind==="sp"){const r=recOf("sp",id);if(r&&spStage(r[SP.stage])!==st)saveRec("sp",id,{[SP.stage]:st},false,true)}
     else if(bk==="jade"&&kind==="jade"){const r=lead(id);if(r&&(sv(r[L.stage])||JADE_STAGES[0])!==st)saveLead(id,{[L.stage]:st})}
     else{const b=BK[bk];const r=recOf("cl",id);if(b&&b.kind==="cl"&&kind==="cl"&&r&&sv(r[b.field])!==st&&derive().K.some(x=>x.id===id&&x.boards.includes(b)))setClStage(id,b,st)}},0)});
+
+/* Karen, 24 Nov (Kash): drag a column by its title to put it before or after another one (a blue bar shows where it lands);
+   dropping it on the + at the end puts it last */
+let colDrag=null;
+const colIns=()=>document.querySelectorAll("#v-sales .sl-cins-l,#v-sales .sl-cins-r").forEach(x=>x.classList.remove("sl-cins-l","sl-cins-r"));
+const colDragEnd=()=>{colDrag=null;colIns();document.querySelectorAll("#v-sales .sl-cdrag").forEach(x=>x.classList.remove("sl-cdrag"))};
+document.addEventListener("dragstart",e=>{const h=e.target.closest&&e.target.closest("#v-sales [data-coldrag]");if(!h||S.ro||S.colEdit)return;
+  colDrag=h.dataset.coldrag;e.dataTransfer.setData("text/plain","col:"+colDrag);e.dataTransfer.effectAllowed="move";
+  const c=h.closest(".sl-col");if(c)setTimeout(()=>c.classList.add("sl-cdrag"),0)});
+document.addEventListener("dragover",e=>{if(!colDrag)return;const col=dropCol(e);colIns();if(!col||!col.closest("#v-sales .sl-board.sl-full"))return;
+  e.preventDefault();e.dataTransfer.dropEffect="move";const st=col.dataset.stage;
+  if(!st){col.classList.add("sl-cins-l");return}if(st===colDrag)return;const r=col.getBoundingClientRect();col.classList.add(e.clientX<r.left+r.width/2?"sl-cins-l":"sl-cins-r")});
+document.addEventListener("drop",e=>{if(!colDrag)return;const st=colDrag,col=dropCol(e);colDragEnd();if(!col||!col.closest("#v-sales .sl-board.sl-full"))return;e.preventDefault();
+  const t=col.dataset.stage;if(t===st)return;const r=col.getBoundingClientRect(),after=!!t&&e.clientX>=r.left+r.width/2;
+  /* after the drag has fully ended, as for cards */
+  setTimeout(()=>colPlace(st,t||null,after),0)});
+document.addEventListener("dragend",()=>{if(colDrag||document.querySelector("#v-sales .sl-cdrag"))colDragEnd()});
+/* what Kash types in the rename box survives a redraw */
+document.addEventListener("input",e=>{if(e.target&&e.target.id==="slColName"&&S.colEdit)S.colEdit.name=e.target.value});
 
 /* a deal dropped on another source column: its Origin becomes that standard origin (typecast adds the option if needed).
    v6.1: Origin belongs to the person (as in the deal window), so every offer of the person moves with it, in one update */

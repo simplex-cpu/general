@@ -805,4 +805,21 @@ html:has(#slModal .sl-ov) body{overflow:hidden}
 @media (pointer:coarse){.sl-ctr input{width:20px;height:20px;margin:0}.sl-ctm{padding-left:27px}.sl-octl{min-height:44px}.sl-tdr>input{width:22px;height:22px;margin:1px 0 0}.sl-tdx{width:40px;height:40px;margin:-8px -8px -8px 0}.sl-tda input{min-height:40px;font-size:16px}.sl-tdadd{min-height:40px}.sl-nin{font-size:20px}}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .sl-call{color:#C7D2FE;background:#1F2A47}:root:not([data-theme="light"]) .sl-call.td{color:#FCD34D;background:#3A2E12}:root:not([data-theme="light"]) .sl-octl,:root:not([data-theme="light"]) .sl-tdadd,:root:not([data-theme="light"]) .sl-tda .pl{color:#A5B4FC}}
 :root[data-theme="dark"] .sl-call{color:#C7D2FE;background:#1F2A47}:root[data-theme="dark"] .sl-call.td{color:#FCD34D;background:#3A2E12}:root[data-theme="dark"] .sl-octl,:root[data-theme="dark"] .sl-tdadd,:root[data-theme="dark"] .sl-tda .pl{color:#A5B4FC}
+/* Karen, 24 Nov (Kash): rename and move the board's columns */
+.sl-full .sl-colh[draggable="true"],.sl-full .sl-colc[draggable="true"]{cursor:grab}
+.sl-full .sl-colh[draggable="true"]:active,.sl-full .sl-colc[draggable="true"]:active{cursor:grabbing}
+.sl-crn{all:unset;box-sizing:border-box;cursor:pointer;width:26px;height:26px;margin:-4px -2px -4px 0;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;color:var(--ink);opacity:.55}
+.sl-crn:hover{opacity:1;background:rgba(127,127,127,.16)}.sl-crn:focus-visible{outline:2px solid #4338CA;outline-offset:1px;opacity:1}
+.sl-col.sl-cdrag{opacity:.4}
+.sl-col.sl-cins-l{box-shadow:-4px 0 0 #4338CA}.sl-col.sl-cins-r{box-shadow:4px 0 0 #4338CA}
+.sl-cedit{display:flex;flex-direction:column;gap:6px;cursor:default}
+.sl-cetop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sl-cedit input{width:100%;box-sizing:border-box}
+.sl-cedit input::placeholder{color:var(--muted)}
+.sl-cehint{margin:0;font-size:12px;line-height:1.35;color:var(--muted);font-weight:400}
+.sl-cebtns{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:2px}
+.sl-cemv{display:inline-flex;gap:4px}
+.sl-cearr{all:unset;box-sizing:border-box;cursor:pointer;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--line);color:var(--ink);background:var(--panel)}
+.sl-cearr:hover{border-color:#4338CA}.sl-cearr:focus-visible{outline:2px solid #4338CA;outline-offset:1px}
+.sl-cearr:disabled{opacity:.35;cursor:default;border-color:var(--line)}
 </style>
