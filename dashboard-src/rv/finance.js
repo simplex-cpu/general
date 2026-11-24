@@ -1,80 +1,259 @@
 <script>
-/* ---------- Finance (Karen, 24 Nov 2026; mockup first, Kash's link only): Rise Voice P&L and Podcast P&L in their own tab ----------
-   Revenue per month as bars. Picking a month (its bar or its row) shows that month's numbers and only the invoices behind its
-   revenue: the part of each invoice counted in that month. A retainer is split by the days left in the month it is due, and the
-   rest rolls into the next month (the Revenue tracker's own formulas), so the list adds up to the month's revenue. Uncollectible
-   invoices don't count, as in the Revenue tracker. Data: window.FIN_DATA (the mockup's snapshot) until a feed exists.
-   The Rise Voice tab loses its finance pieces (profit KPIs, past-due count, PNL Overview, Late invoices): they live here now. ---------- */
+/* ---------- Finance tab v2 (Karen, 24 Nov 2026; Kash's link only; a mockup until Karen approves it) ----------
+   From Karen's Airtable "PNL Overview" (Finance interface): the same numbers, cleaner, and one click from any month to its details.
+   - Two P&Ls, one at a time (the two cards at the top switch): Rise Voice (Airtable: Revenue tracker + Invoices, in £) and the
+     Podcast (the accountant's monthly workbook in Drive, in US$ as the accountant keeps it; £ at the workbook's own 0.75 rate).
+   - The numbers that matter: this month and the whole year (Rise Voice), the latest month and the year so far (Podcast).
+   - One chart: revenue and profit/loss for every month, the amount on every bar; profit in traffic-light colours (green: a
+     profit with a 10%+ margin, amber: a thinner profit, red: a loss); forecast months hatched.
+   - Every month in a table, with the year's totals.
+   - Clicking a month (its bars or its row) opens it on the side: the month's P&L, collection, clients and churn, biggest
+     clients, the tracker's finance notes (PNL Notes), admin notes and sales target, and only the invoices behind that month's
+     revenue (the part of each invoice counted that month; they add up to the month's revenue). Podcast: where the money went
+     and every transaction behind the month.
+   Numbers are the tracker's own (they match the Airtable dashboard to the penny). Data: window.FIN_DATA (a snapshot for the
+   mockup; a feed when it goes live). ---------- */
 (()=>{
 const D=window.FIN_DATA;if(!D)return;
 const q=id=>document.getElementById(id);
 const e=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const MS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],ML=["January","February","March","April","May","June","July","August","September","October","November","December"];
-const mS=k=>MS[+k.slice(5,7)-1],mL=k=>ML[+k.slice(5,7)-1]+" "+k.slice(0,4),prevKey=k=>{const y=+k.slice(0,4),m=+k.slice(5,7);return m===1?(y-1)+"-12":y+"-"+String(m-1).padStart(2,"0")};
-const gbp=n=>(n<0?"−":"")+"£"+Math.round(Math.abs(n)).toLocaleString("en-GB");
-const kgbp=n=>{const a=Math.abs(n),s=n<0?"−":"";return a>=1e6?s+"£"+(a/1e6).toFixed(1)+"M":a>=1e3?s+"£"+(a>=1e5?Math.round(a/1e3):(a/1e3).toFixed(1).replace(/\.0$/,""))+"K":s+"£"+Math.round(a)};
-const pct=x=>(x>0?"+":x<0?"−":"")+Math.abs(Math.round(x*100))+"%";
-const dmy=d=>d?(+d.slice(8,10))+" "+MS[+d.slice(5,7)-1]+(d.slice(0,4)!==D.at.slice(0,4)?" "+d.slice(0,4):""):"no date";
-const ST={"Collected":"ok","To Collect":"watch","Past Due":"act","Refunded":"mute","Uncollectible":"mute"};
-const BIZ=[["rv","Rise Voice P&L","From the Revenue tracker and Invoices in Airtable. All amounts in £."],["pod","Podcast P&L","ReLearn podcast."]];
-const F={};BIZ.forEach(([k])=>{const B=D[k];if(!B)return;const cur=B.months.find(m=>m.key===D.at.slice(0,7));F[k]={sel:(cur||B.months[B.months.length-1]).key}});
-const monthOf=(k,key)=>D[k].months.find(m=>m.key===key);
-/* the chart: one bar per month (revenue), on one axis; profit is in the table and the month's numbers, never a second scale */
-function chartH(k){const B=D[k],max=Math.max(1,...B.months.map(m=>m.rev)),step=[1e3,2e3,5e3,1e4,2e4,25e3,5e4,1e5,2e5,5e5].find(s=>max/s<=5)||1e6,top=Math.ceil(max/step)*step;
-  const grid=[];for(let v=0;v<=top;v+=step)grid.push(v);
-  return `<div class="fin-chart"><div class="fin-legend" aria-hidden="true"><span><i class="fin-sw"></i>Actual</span><span><i class="fin-sw fc"></i>Forecast</span></div>
-   <div class="fin-plot"><div class="fin-grid" aria-hidden="true">${grid.map(v=>`<div style="bottom:${v/top*100}%"><span>${kgbp(v)}</span></div>`).join("")}</div>
-   <div class="fin-cols" role="group" aria-label="${e(BIZ.find(b=>b[0]===k)[1])}: revenue by month">${B.months.map(m=>{const on=m.key===F[k].sel,fc=m.status!=="Actual";
-     return `<button type="button" class="fin-b${on?" on":""}${fc?" fc":""}" data-fin="${k}" data-m="${m.key}" aria-pressed="${on}" aria-label="${e(mL(m.key))}${fc?", forecast":""}: revenue ${e(gbp(m.rev))}, profit ${e(gbp(m.profit))}">
-       <span class="fin-bw"><span class="fin-bv">${on?e(kgbp(m.rev)):""}</span><span class="fin-bar" style="height:${Math.max(.5,m.rev/top*100)}%"></span></span><span class="fin-bl">${mS(m.key)}</span></button>`}).join("")}</div></div>
-   <div class="fin-tip" id="finTip-${k}" role="tooltip" hidden></div></div>`}
-/* the selected month's numbers */
-function kpisH(k){const m=monthOf(k,F[k].sel),p=monthOf(k,prevKey(m.key)),fc=m.status!=="Actual",ch=p&&p.rev?(m.rev-p.rev)/p.rev:null,mg=m.rev?m.profit/m.rev:null;
-  return `<div class="fin-kpis">
-   <div class="kpi"><span class="lab">Revenue · ${e(mL(m.key))}</span><span class="val big">${e(gbp(m.rev))}</span><span class="sub">${fc?"Forecast · ":""}${p?`${e(mS(p.key))} ${e(gbp(p.rev))}${ch!=null?` (${pct(ch)})`:""}`:"No earlier month"}</span></div>
-   <div class="kpi"><span class="lab">Costs</span><span class="val big">${e(gbp(m.costs))}</span><span class="sub">${p?`${e(mS(p.key))} ${e(gbp(p.costs))}`:"&nbsp;"}</span></div>
-   <div class="kpi"><span class="lab">Profit</span><span class="val big" style="color:${m.profit<0?"var(--act)":"var(--ok)"}">${e(gbp(m.profit))}</span><span class="sub">${mg!=null?`${Math.round(mg*100)}% margin`:""}${p?` · ${e(mS(p.key))} ${e(gbp(p.profit))}`:""}</span></div>
-   <div class="kpi"><span class="lab">Collected</span><span class="val big">${e(gbp(m.col))}</span><span class="sub">To collect ${e(gbp(m.tocol))}${m.pastdue?` · <b style="color:var(--act)">${e(gbp(m.pastdue))} past due</b>`:""}</span></div></div>`}
-/* every month in a table: the chart's table view, and another way to pick a month */
-function tableH(k){const B=D[k];return `<div class="fin-tw"><table class="fin-t"><caption class="vh">${e(BIZ.find(b=>b[0]===k)[1])} by month</caption>
-   <thead><tr><th scope="col">Month</th><th scope="col">Revenue</th><th scope="col">Costs</th><th scope="col">Profit</th></tr></thead><tbody>
-   ${B.months.slice().reverse().map(m=>{const on=m.key===F[k].sel;return `<tr class="${on?"on":""}"><th scope="row"><button type="button" class="fin-mb" data-fin="${k}" data-m="${m.key}" aria-pressed="${on}">${e(mS(m.key))} ${m.key.slice(0,4)}${m.status!=="Actual"?` <small>forecast</small>`:""}</button></th>
-     <td>${e(gbp(m.rev))}</td><td>${e(gbp(m.costs))}</td><td class="${m.profit<0?"neg":""}">${e(gbp(m.profit))}</td></tr>`}).join("")}</tbody></table></div>`}
-/* the invoices behind the selected month's revenue: invoiced that month, then carried over from the month before */
-function invH(k){const B=D[k],m=monthOf(k,F[k].sel),I=B.invoices,pk=prevKey(m.key);
-  const row=x=>{const v=I[x.id]||{},st=v.status||"",tone=ST[st]||"mute",split=v.amt&&Math.abs(v.amt-x.part)>0.5;
-    return `<li class="fin-ir"><div class="fin-ic"><b>${e(v.payer||v.n||"Invoice")}</b><small>${e(v.type||"Invoice")} · due ${e(dmy(v.due))}${split?` · ${x.kind==="roll"?"rest of a":"part of a"} ${e(gbp(v.amt))} invoice`:""}</small></div>
-      <span class="fin-st st-${tone}">${e(st||"No status")}</span><b class="fin-amt">${e(gbp(x.part))}</b></li>`};
-  const grp=(t,L)=>L.length?`<div class="fin-g"><h5>${t}<span>${e(gbp(L.reduce((a,x)=>a+x.part,0)))} · ${L.length} invoice${L.length===1?"":"s"}</span></h5><ul class="fin-il">${L.slice().sort((a,b)=>b.part-a.part).map(row).join("")}</ul></div>`:"";
-  const a=m.items.filter(x=>x.kind!=="roll"),b=m.items.filter(x=>x.kind==="roll"),tot=m.items.reduce((s,x)=>s+x.part,0);
-  return `<div class="fin-inv" aria-live="polite"><div class="fin-ih"><h4>Invoices behind ${e(mL(m.key))} revenue</h4><p>${e(gbp(m.rev))} from ${m.items.length} invoice${m.items.length===1?"":"s"}${m.status!=="Actual"?" · forecast month":""}</p></div>
-   ${grp("Invoiced in "+ML[+m.key.slice(5,7)-1],a)}${grp("Carried over from "+ML[+pk.slice(5,7)-1],b)}
-   ${m.items.length?"":`<p class="fin-none">No invoices count in this month.</p>`}
-   <div class="fin-tot"><span>Total</span><b>${e(gbp(tot))}</b></div>${m.uncollectible?`<p class="fin-note">${m.uncollectible} uncollectible invoice${m.uncollectible===1?" is":"s are"} left out, as in the Revenue tracker.</p>`:""}</div>`}
-/* moved from the Rise Voice tab: invoices past due, or still to collect after their due date (this year's) */
-function lateH(k){const B=D[k];if(!B.late)return "";const L=B.late.map(id=>Object.assign({id},B.invoices[id]||{}));const days=d=>Math.round((Date.parse(D.at)-Date.parse(d))/864e5);
-  return `<div class="fin-late"><div class="fin-lh"><h4>Late invoices</h4><span>${L.length} · ${e(gbp(L.reduce((a,x)=>a+(x.amt||0),0)))}</span></div>
-   ${L.length?`<ul class="fin-il">${L.map(v=>`<li class="fin-ir"><div class="fin-ic"><b>${e(v.payer||v.n)}</b><small>Due ${e(dmy(v.due))} · ${days(v.due)} days ago</small></div><span class="fin-st st-${ST[v.status]||"mute"}">${e(v.status)}</span><b class="fin-amt">${e(gbp(v.amt||0))}</b></li>`).join("")}</ul>`:`<p class="fin-none">Nothing late.</p>`}</div>`}
-function secH([k,title,sub]){const B=D[k];if(!B)return "";
-  return `<section class="fin-sec fin-${k}${B.example?" fin-example":""}" id="finSec-${k}"><div class="fin-h"><span class="fin-dot" aria-hidden="true"></span><div><h3>${e(title)}</h3><p>${e(B.sub||sub)}</p></div>${B.example?`<span class="fin-ex">Example numbers</span>`:""}</div>
-   ${B.example?`<p class="fin-exnote">${e(B.example)}</p>`:""}
-   <div id="finK-${k}">${kpisH(k)}</div>${chartH(k)}<div class="fin-two"><div>${tableH(k)}</div><div id="finI-${k}">${invH(k)}</div></div>${lateH(k)}</section>`}
-function render(){const v=q("finBody");if(!v)return;v.innerHTML=BIZ.map(secH).join("")}
-/* picking a month redraws only that business's numbers, bars, table and invoices; focus stays on what was pressed */
-function pick(k,key,from){if(!F[k]||!monthOf(k,key))return;F[k].sel=key;const s=q("finSec-"+k);if(!s)return;const tmp=document.createElement("div");tmp.innerHTML=secH(BIZ.find(b=>b[0]===k));s.replaceWith(tmp.firstElementChild);
-  const b=document.querySelector(`#finSec-${k} [data-m="${key}"]${from==="t"?".fin-mb":".fin-b"}`);if(b)b.focus({preventScroll:true})}
-document.addEventListener("click",ev=>{const b=ev.target.closest("[data-fin][data-m]");if(!b||!q("v-finance")||q("v-finance").hidden)return;pick(b.dataset.fin,b.dataset.m,b.classList.contains("fin-mb")?"t":"b")});
-/* hover or focus on a bar: its month in a tooltip (the value lives on the mark for the selected month only) */
-function tip(b,show){const k=b.dataset.fin,t=q("finTip-"+k);if(!t)return;if(!show){t.hidden=true;return}const m=monthOf(k,b.dataset.m);if(!m)return;
-  t.innerHTML=`<b>${e(mL(m.key))}</b>${m.status!=="Actual"?" · forecast":""}<br>Revenue ${e(gbp(m.rev))}<br>Costs ${e(gbp(m.costs))}<br>Profit <span style="color:${m.profit<0?"var(--act)":"inherit"}">${e(gbp(m.profit))}</span>`;
-  t.hidden=false;const c=t.parentElement.getBoundingClientRect(),r=b.getBoundingClientRect();let x=r.left+r.width/2-c.left-t.offsetWidth/2;x=Math.max(0,Math.min(x,c.width-t.offsetWidth));t.style.left=x+"px";t.style.top=Math.max(0,r.top-c.top-t.offsetHeight-6)+"px"}
-document.addEventListener("mouseover",ev=>{const b=ev.target.closest&&ev.target.closest(".fin-b");document.querySelectorAll(".fin-tip").forEach(t=>{if(!b||t.id!=="finTip-"+b.dataset.fin)t.hidden=true});if(b)tip(b,true)});
-document.addEventListener("focusin",ev=>{const b=ev.target.closest&&ev.target.closest(".fin-b");if(b)tip(b,true)});
-document.addEventListener("focusout",ev=>{const b=ev.target.closest&&ev.target.closest(".fin-b");if(b)tip(b,false)});
-/* the Rise Voice tab without its finance pieces */
+const mi=k=>+k.slice(5,7)-1,mS=k=>MS[mi(k)],mN=k=>ML[mi(k)],mL=k=>mN(k)+" "+k.slice(0,4);
+const prevKey=k=>{const y=+k.slice(0,4),m=+k.slice(5,7);return m===1?(y-1)+"-12":y+"-"+String(m-1).padStart(2,"0")};
+const SYM={rv:"£",pod:"$"};
+/* money: whole units ("£42,415"); {k:1} compact ("£42.4k"); {c:1} with pence (podcast transactions); {sym:"£"} another currency */
+function fmt(n,b,o){o=o||{};n=+n||0;const s=o.sym||SYM[b],a=Math.abs(n),sg=n<=-0.005&&(o.c||n<=-0.5)?"−":(o.plus&&n>=0.5?"+":"");
+  if(o.c)return sg+s+a.toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(o.k){if(a>=1e6)return sg+s+(a/1e6).toFixed(1).replace(/\.0$/,"")+"M";if(a>=1e4)return sg+s+Math.round(a/1e3)+"k";if(a>=1e3)return sg+s+(a/1e3).toFixed(1).replace(/\.0$/,"")+"k";return sg+s+Math.round(a)}
+  return sg+s+Math.round(a).toLocaleString("en-GB")}
+const inGBP=n=>fmt(n*D.pod.rate,"pod",{sym:"£"});
+const pct=x=>x==null||!isFinite(x)?"":(Math.round(x*100)<0?"−":"")+Math.abs(Math.round(x*100))+"%";
+const chg=(a,b)=>b?(a-b)/Math.abs(b):null;
+const chgS=x=>x==null||!isFinite(x)?"":(x>=0.005?"▲ ":x<=-0.005?"▼ ":"")+Math.abs(Math.round(x*100))+"%";
+const day=d=>d?(+d.slice(8,10))+" "+MS[+d.slice(5,7)-1]+(d.slice(0,4)!==D.at.slice(0,4)?" "+d.slice(0,4):""):"no date";
+const sum=(L,f)=>L.reduce((a,x)=>a+(+(f?f(x):x)||0),0);
+/* traffic lights: green = a profit with a 10%+ margin, amber = a thinner profit (or breaking even), red = a loss */
+const tone=(p,r)=>Math.abs(p)<0.5&&Math.abs(r)<0.5?"none":p<=-0.5?"loss":(r>0?p/r:0)<0.10?"thin":"good";
+const mgn=(p,r)=>r>0&&Math.abs(p/r)<=1?`${pct(p/r)} margin`:"";
+const TT={good:"profit, 10%+ margin",thin:"profit under 10% margin",loss:"loss",none:"no activity"};
+const ST={"Collected":"good","To Collect":"thin","Past Due":"loss","Refunded":"none","Uncollectible":"none"};
+const BIZ={rv:{name:"Rise Voice",title:"Rise Voice P&L",src:"From Airtable: the Revenue tracker and Invoices. Amounts in £."},
+           pod:{name:"Podcast",title:"Podcast P&L",src:"From the accountant's monthly workbook in Drive ("+D.pod.file+"). Amounts in US$, as the accountant keeps them."}};
+const ALL=b=>b==="rv"?D.rv.months:D.pod.months;
+const YEARS=[...new Set(D.rv.months.map(m=>m.key.slice(0,4)))].sort().reverse();
+const NOWK=D.at.slice(0,7);
+const S={biz:"rv",year:YEARS.includes(NOWK.slice(0,4))?NOWK.slice(0,4):YEARS[0],open:null,only:false,more:{},back:null};
+const MO=b=>b==="rv"?D.rv.months.filter(m=>m.key.slice(0,4)===S.year):D.pod.months;
+const find=(b,k)=>ALL(b).find(m=>m.key===k);
+const prevM=(b,k)=>{const L=ALL(b),i=L.findIndex(m=>m.key===k);return i>0?L[i-1]:null};
+const isFc=m=>m.status!=="Actual";
+const headM=b=>b==="rv"?(find("rv",NOWK)||D.rv.months[D.rv.months.length-1]):D.pod.months[D.pod.months.length-1];
+const tot=L=>({rev:sum(L,m=>m.rev),col:sum(L,m=>m.col),tocol:sum(L,m=>m.tocol),pastdue:sum(L,m=>m.pastdue),costs:sum(L,m=>m.costs),profit:sum(L,m=>m.profit),cprofit:sum(L,m=>m.cprofit),churn:sum(L,m=>m.churn)});
+
+/* ---- the two cards that switch P&L ---- */
+function bizH(){return `<div class="fx-biz" role="group" aria-label="Which P&L to show">${["rv","pod"].map(b=>{const m=headM(b),t=tone(m.profit,m.rev);
+  return `<button type="button" class="fx-bz fx-${b}" data-fx="biz" data-v="${b}" aria-pressed="${S.biz===b}"><span class="fx-bzn"><i class="fx-bdot" aria-hidden="true"></i>${e(BIZ[b].title)}<span class="fx-on">Showing</span></span>
+    <span class="fx-bzv">${e(mN(m.key))} profit${isFc(m)?" (forecast)":""}<b class="tl-${t}">${e(fmt(m.profit,b))}</b></span></button>`}).join("")}</div>`}
+function headH(b){return `<div class="fx-head"><div><h3>${e(BIZ[b].title)}</h3><p>${e(BIZ[b].src)}</p></div>${b==="rv"
+  ?`<div class="fx-seg" role="group" aria-label="Year">${YEARS.map(y=>`<button type="button" data-fx="year" data-v="${y}" aria-pressed="${y===S.year}">${y}</button>`).join("")}</div>`
+  :`<span class="fx-pill">${e(mS(D.pod.months[0].key))}–${e(mL(D.pod.months[D.pod.months.length-1].key))} · the latest workbook</span>`}</div>`}
+
+/* ---- the numbers that matter ---- */
+const kpi=(lab,val,sub,cls,act)=>`<div class="fx-k">${act?`<button type="button" ${act}>`:""}<span class="fx-kl">${lab}</span><span class="fx-kv ${cls||""}">${val}</span><span class="fx-ks">${sub||"&nbsp;"}</span>${act?"</button>":""}</div>`;
+const grp=(title,right,inner)=>`<div class="fx-kg"><div class="fx-kgh"><h4>${title}</h4>${right||""}</div><div class="fx-kr">${inner}</div></div>`;
+function kpisH(b){
+  if(b==="rv"){const L=MO("rv"),cur=S.year===NOWK.slice(0,4)?find("rv",NOWK):null,T=tot(L),late=D.rv.late.filter(x=>x.m.slice(0,4)===S.year);let h="";
+    if(cur){const p=prevM("rv",cur.key),t=tone(cur.profit,cur.rev);
+      h+=grp(`This month · ${e(mL(cur.key))}${isFc(cur)?` <span class="fx-tag">Forecast</span>`:""}`,`<button type="button" class="fx-link" data-fx="open" data-m="${cur.key}">Open ${e(mN(cur.key))} →</button>`,
+        kpi("Revenue",e(fmt(cur.rev,b)),p?`${e(mS(p.key))} ${e(fmt(p.rev,b))} · ${e(chgS(chg(cur.rev,p.rev)))}`:"")+
+        kpi("Profit",e(fmt(cur.profit,b)),[mgn(cur.profit,cur.rev),p?`${e(mS(p.key))} ${e(fmt(p.profit,b))}`:""].filter(Boolean).join(" · "),"tl-"+t)+
+        kpi("Collected profit",e(fmt(cur.cprofit,b)),`Collected ${e(fmt(cur.col,b))} minus costs`,cur.cprofit<=-0.5?"neg":"")+
+        kpi("Past due",e(fmt(cur.pastdue,b)),`Invoices due in ${e(mN(cur.key))}`,cur.pastdue>=0.5?"neg":""))}
+    h+=grp(`${S.year} · all months${L.some(isFc)?` <span class="fx-tag">Includes the forecast months</span>`:""}`,"",
+      kpi("Collected revenue",e(fmt(T.col,b)),`Revenue ${e(fmt(T.rev,b))}`)+
+      kpi("Collected profit",e(fmt(T.cprofit,b)),[`Profit ${e(fmt(T.profit,b))}`,mgn(T.profit,T.rev)].filter(Boolean).join(" · "),T.cprofit<=-0.5?"neg":"")+
+      kpi("Past due",e(fmt(T.pastdue,b)),late.length?`${late.length} invoice${late.length===1?"":"s"} · See which →`:"Nothing past due",T.pastdue>=0.5?"neg":"",late.length?`data-fx="late" aria-label="Past due ${e(fmt(T.pastdue,b))}: see the ${late.length} invoices"`:""));
+    return `<div class="fx-kpis${cur?"":" one"}">${h}</div>`}
+  const L=D.pod.months,cur=L[L.length-1],p=prevM("pod",cur.key),T=tot(L),cs=D.pod.cats.filter(c=>c.kind==="cost").map(c=>[c,sum(L,m=>m.cat[c.k])]).sort((a,c)=>c[1]-a[1])[0];
+  return `<div class="fx-kpis">${grp(`Latest month · ${e(mL(cur.key))}`,`<button type="button" class="fx-link" data-fx="open" data-m="${cur.key}">Open ${e(mN(cur.key))} →</button>`,
+      kpi("Revenue",e(fmt(cur.rev,b)),p?`${e(mS(p.key))} ${e(fmt(p.rev,b))} · ${e(chgS(chg(cur.rev,p.rev)))}`:"")+
+      kpi("Costs",e(fmt(cur.costs,b)),p?`${e(mS(p.key))} ${e(fmt(p.costs,b))} · ${e(chgS(chg(cur.costs,p.costs)))}`:"")+
+      kpi("Profit / loss",e(fmt(cur.profit,b)),`≈ ${e(inGBP(cur.profit))} at the workbook's rate`,"tl-"+tone(cur.profit,cur.rev)))+
+    grp(`2026 so far · ${e(mS(L[0].key))}–${e(mS(cur.key))}`,"",
+      kpi("Revenue",e(fmt(T.rev,b)),`YouTube ${e(fmt(sum(L,m=>m.cat.yt),b))} · other ${e(fmt(sum(L,m=>m.cat.share),b))}`)+
+      kpi("Costs",e(fmt(T.costs,b)),cs?`Biggest: ${e(cs[0].name.toLowerCase())} ${e(fmt(cs[1],b))}`:"")+
+      kpi("Profit / loss",e(fmt(T.profit,b)),`≈ ${e(inGBP(T.profit))} at the workbook's rate`,"tl-"+tone(T.profit,T.rev)))}</div>`}
+
+/* ---- the chart: revenue (top) and profit/loss (below) for the same months; a month is one button ---- */
+const G=58,T1=26,H1=150,T2=34,H2=150,XL=26,PT=18,PB=18;
+function niceStep(r){const raw=(r||1)/3,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
+const two=(v,b)=>`<span class="f">${e(fmt(v,b))}</span><span class="c">${e(fmt(v,b,{k:1}))}</span>`;
+const ariaM=(b,m)=>`${mL(m.key)}${isFc(m)?", forecast":""}: revenue ${fmt(m.rev,b)}, costs ${fmt(m.costs,b)}, ${m.profit<=-0.5?"loss":"profit"} ${fmt(m.profit,b)}${mgn(m.profit,m.rev)?` (${mgn(m.profit,m.rev)})`:""}. Open the month.`;
+function chartH(b){const L=MO(b);if(!L.length)return "";
+  const rtop=Math.max(1,...L.map(m=>m.rev)),rs=niceStep(rtop);
+  const pmx=Math.max(0,...L.map(m=>m.profit)),pmn=Math.min(0,...L.map(m=>m.profit)),ps=niceStep(pmx-pmn);
+  let ptop=pmx,pbot=pmn;if(ptop-pbot<1)ptop=1;
+  const y1=v=>v/rtop*(H1-PT),y2=v=>PB+(v-pbot)/(ptop-pbot)*(H2-PT-PB),O2=H1+T2,z=y2(0);
+  const ticks=(lo,hi,st)=>{const t=[];for(let v=Math.ceil(lo/st-1e-9)*st,i=0;v<=hi+st/1e6&&i<12;i++,v+=st)t.push(Math.abs(v)<st/1e6?0:v);return t};
+  const grid=ticks(0,rtop,rs).map(v=>`<div class="fx-gl" style="top:${(T1+H1-y1(v)).toFixed(1)}px"><span>${e(fmt(v,b,{k:1}))}</span></div>`).join("")
+    +ticks(pbot,ptop,ps).map(v=>`<div class="fx-gl${Math.abs(v)<1e-9?" z":""}" style="top:${(T1+O2+H2-y2(v)).toFixed(1)}px"><span>${e(fmt(v,b,{k:1}))}</span></div>`).join("");
+  const cols=L.map(m=>{const fc=isFc(m),t=tone(m.profit,m.rev),hr=m.rev>=0.5?Math.max(2,y1(m.rev)):0,yp=y2(m.profit),up=m.profit>=0,on=!!(S.open&&!S.open.late&&S.open.b===b&&S.open.k===m.key);
+    const pt=up?O2+H2-yp:O2+H2-z,ph=Math.abs(m.profit)>=0.5?Math.max(2,Math.abs(yp-z)):0;
+    return `<button type="button" class="fx-col${fc?" fc":""}${on?" on":""}${b==="rv"&&m.key===NOWK?" now":""}" data-fx="open" data-m="${m.key}" aria-label="${e(ariaM(b,m))}">
+      ${hr?`<span class="fx-bar rev" style="top:${(H1-hr).toFixed(1)}px;height:${hr.toFixed(1)}px"></span>`:""}<span class="fx-v${m.rev<0.5?" zero":""}" style="top:${(H1-hr-17).toFixed(1)}px">${two(m.rev,b)}</span>
+      ${ph?`<span class="fx-bar tl-${t}${up?"":" dn"}" style="top:${pt.toFixed(1)}px;height:${ph.toFixed(1)}px"></span>`:""}<span class="fx-v${m.profit<=-0.5?" neg":""}" style="top:${(up?O2+H2-yp-17:O2+H2-yp+3).toFixed(1)}px">${two(m.profit,b)}</span>
+      <span class="fx-xl" style="top:${O2+H2}px">${e(mS(m.key))}</span></button>`}).join("");
+  const lab=b==="rv"?`${S.year} by month`:`${mS(L[0].key)}–${mL(L[L.length-1].key)} by month`;
+  return `<div class="fx-card"><div class="fx-ch"><h4>${e(lab)}</h4><p class="fx-hint">Click a month to open it: ${b==="rv"?"its invoices, notes and summary":"its transactions, notes and summary"}</p></div>
+   <div class="fx-cw"><div class="fx-pl" id="fxPlot" style="height:${T1+H1+T2+H2+XL}px">
+    <div class="fx-lh" style="top:0;height:${T1}px"><b>Revenue</b><span class="fx-lg">${L.some(isFc)?`<span><i class="fx-sw fc"></i>Forecast</span>`:""}</span></div>
+    <div class="fx-lh" style="top:${T1+H1+4}px;height:${T2-4}px"><b>Profit / loss</b><span class="fx-lg"><span><i class="fx-sw tl-good"></i>Profit, 10%+ margin</span><span><i class="fx-sw tl-thin"></i>Profit under 10%</span><span><i class="fx-sw tl-loss"></i>Loss</span></span></div>
+    ${grid}<div class="fx-cols" role="group" aria-label="Months" style="top:${T1}px">${cols}</div><div class="fx-tip" id="fxTip" role="tooltip" hidden></div>
+   </div></div></div>`}
+
+/* ---- every month in a table (the chart's table view, and another way in) ---- */
+function tableH(b){const L=MO(b),T=tot(L),rv=b==="rv";
+  const pf=(v,r)=>{const t=tone(v,r);return `<span class="fx-pf tl-${t}"><i aria-hidden="true"></i>${e(fmt(v,b))}<span class="fx-vh"> (${TT[t]})</span></span>`};
+  const nv=(v,o)=>`<span class="${v<=-0.5?"neg":""}">${e(fmt(v,b,o))}</span>`;
+  const head=rv?["Month","Revenue","Collected","To collect","Costs","Profit","Collected profit","Clients lost"]:["Month","Revenue","Costs","Profit / loss","Profit / loss in £"];
+  const cells=m=>rv?[e(fmt(m.rev,b)),e(fmt(m.col,b)),e(fmt(m.tocol,b)),e(fmt(m.costs,b)),pf(m.profit,m.rev),nv(m.cprofit),String(m.churn||0)]:[e(fmt(m.rev,b)),e(fmt(m.costs,b)),pf(m.profit,m.rev),nv(m.profit*D.pod.rate,{sym:"£"})];
+  const rows=L.map(m=>{const fc=isFc(m),now=rv&&m.key===NOWK,on=!!(S.open&&!S.open.late&&S.open.b===b&&S.open.k===m.key);
+    return `<tr class="${fc?"fc":""}${on?" on":""}" data-fx="open" data-m="${m.key}"><th scope="row"><button type="button" class="fx-mb" data-fx="open" data-m="${m.key}">${e(mN(m.key))}</button>${now?`<span class="fx-tag now">This month</span>`:""}${fc?`<span class="fx-tag">Forecast</span>`:""}</th>${cells(m).map(c=>`<td>${c}</td>`).join("")}</tr>`}).join("");
+  const foot=rv?[e(fmt(T.rev,b)),e(fmt(T.col,b)),e(fmt(T.tocol,b)),e(fmt(T.costs,b)),pf(T.profit,T.rev),nv(T.cprofit),String(T.churn)]:[e(fmt(T.rev,b)),e(fmt(T.costs,b)),pf(T.profit,T.rev),nv(T.profit*D.pod.rate,{sym:"£"})];
+  return `<div class="fx-card"><div class="fx-ch"><h4>Month by month</h4><p class="fx-hint">${rv?"As in the Revenue tracker":"As in the accountant's workbook"} · click a month to open it</p></div>
+   <div class="fx-tw"><table class="fx-t${rv?"":" pod"}"><caption class="fx-vh">${e(BIZ[b].title)} by month</caption>
+   <thead><tr>${head.map(h=>`<th scope="col">${h}</th>`).join("")}</tr></thead><tbody>${rows}</tbody>
+   <tfoot><tr><th scope="row">${rv?S.year+" total":"Total so far"}</th>${foot.map(c=>`<td>${c}</td>`).join("")}</tr></tfoot></table></div></div>`}
+
+function panelH(){const b=S.biz;return headH(b)+kpisH(b)+chartH(b)+tableH(b)}
+function render(){const v=q("finBody");if(!v)return;const a=q("finAsof");if(a)a.textContent="Numbers as of "+day(D.at)+" "+D.at.slice(0,4);
+  v.innerHTML=bizH()+`<div id="fxPanel">${panelH()}</div><div class="fx-scrim" id="fxScrim" data-fx="close" hidden></div><div class="fx-dr" id="fxDr" role="dialog" aria-modal="true" aria-labelledby="fxDT" hidden></div>`}
+
+/* ---- a month, on the side ---- */
+const md=s=>{const bold=t=>t.replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");let h="",li=false;
+  for(const ln of e(s).replace(/\\-/g,"-").split("\n")){const t=ln.trim();
+    if(/^[-•]\s*\S/.test(t)){if(!li){h+="<ul>";li=true}h+=`<li>${bold(t.replace(/^[-•]\s*/,""))}</li>`}
+    else{if(li){h+="</ul>";li=false}if(t)h+=`<p>${bold(t)}</p>`}}
+  return h+(li?"</ul>":"")};
+function noteH(title,text,id,none){if(!text)return `<div class="fx-nb"><h5>${title}</h5><p class="fx-none">${none}</p></div>`;
+  const long=text.length>520||text.split("\n").length>9;
+  return `<div class="fx-nb"><h5>${title}</h5><div class="fx-nt${long&&!S.more[id]?" clamp":""}">${md(text)}</div>${long?`<button type="button" class="fx-link" data-fx="more" data-v="${id}" aria-expanded="${!!S.more[id]}">${S.more[id]?"Show less":"Show all"}</button>`:""}</div>`}
+const srow=(lab,val,cls,small)=>`<div class="fx-sr ${cls||""}"><span>${lab}</span><b>${val}</b>${small?`<small>${small}</small>`:""}</div>`;
+function hdrH(b,m){const L=MO(b),i=L.findIndex(x=>x.key===m.key);
+  return `<div class="fx-dh"><div class="fx-dnav"><button type="button" data-fx="step" data-v="-1" aria-label="Previous month"${i>0?"":" disabled"}>‹</button><button type="button" data-fx="step" data-v="1" aria-label="Next month"${i>=0&&i<L.length-1?"":" disabled"}>›</button></div>
+   <div class="fx-dt"><h3 id="fxDT" tabindex="-1">${e(mL(m.key))}</h3><p>${e(BIZ[b].name)} · ${isFc(m)?`<span class="fx-tag">Forecast</span>`:"Actual"}</p></div>
+   <button type="button" class="fx-x" data-fx="close" aria-label="Close">✕</button></div>`}
+function rvMonthH(m){const b="rv",p=prevM(b,m.key),t=tone(m.profit,m.rev),I=D.rv.invoices,its=m.items.map(x=>Object.assign({},I[x.id]||{},x));
+  const np=its.filter(x=>x.status==="To Collect"||x.status==="Past Due"),still=Math.max(0,m.tocol-m.pastdue-m.unc),whole=Math.max(1,m.col+m.tocol);
+  const nNotes=[m.pnl,m.admin,m.target,m.why,m.ap].filter(Boolean).length;
+  const seg=(v,c,l)=>v>=0.5?`<i class="tl-${c}" style="width:${(v/whole*100).toFixed(2)}%" title="${e(l)}: ${e(fmt(v,b))}"></i>`:"";
+  const by={};its.forEach(x=>{const k=x.payer||x.n||"Invoice";by[k]=(by[k]||0)+x.part});const top=Object.entries(by).sort((a,c)=>c[1]-a[1]).slice(0,5),tmax=top.length?top[0][1]:1;
+  const rs=Object.entries(m.reasons||{}).sort((a,c)=>c[1]-a[1]);
+  const row=x=>{const split=x.amt&&Math.abs(x.amt-x.part)>0.5,st=x.status||"No status";
+    return `<li class="fx-ir"><div class="fx-ic"><b>${e(x.payer||x.n||"Invoice")}</b><small>${e([x.type||"Invoice","due "+day(x.due),x.sw&&x.sw!=="Not Paying"?x.sw:"",split?`${x.kind==="roll"?"the rest of a":"part of a"} ${fmt(x.amt,b)} invoice`:""].filter(Boolean).join(" · "))}</small></div><span class="fx-is tl-${ST[st]||"none"}"><i aria-hidden="true"></i>${e(st)}</span><b class="fx-ia">${e(fmt(x.part,b))}</b></li>`};
+  const L=S.only?np:its,A=L.filter(x=>x.kind!=="roll"),R=L.filter(x=>x.kind==="roll");
+  const ig=(title,G)=>G.length?`<div class="fx-ig"><h5>${title}<span>${e(fmt(sum(G,x=>x.part),b))} · ${G.length} invoice${G.length===1?"":"s"}</span></h5><ul class="fx-il">${G.slice().sort((a,c)=>c.part-a.part).map(row).join("")}</ul></div>`:"";
+  return hdrH(b,m)+`<div class="fx-db" id="fxDB">
+   <nav class="fx-jump" aria-label="In this month"><button type="button" data-fx="jump" data-v="fxS1">Summary</button><button type="button" data-fx="jump" data-v="fxS2">Notes${nNotes?`<b>${nNotes}</b>`:""}</button><button type="button" data-fx="jump" data-v="fxS3">Invoices<b>${its.length}</b></button></nav>
+   <div class="fx-ds" id="fxS1"><div class="fx-st">
+     ${srow("Revenue",e(fmt(m.rev,b)),"",p?`${e(mN(p.key))}: ${e(fmt(p.rev,b))} · ${e(chgS(chg(m.rev,p.rev)))}`:"")}
+     ${srow("Costs",e(fmt(-m.costs,b)),"",p?`${e(mN(p.key))}: ${e(fmt(-p.costs,b))}`:"")}
+     ${srow("Profit",e(fmt(m.profit,b)),"tot tl-"+t,[mgn(m.profit,m.rev)||TT[t],p?`${e(mN(p.key))}: ${e(fmt(p.profit,b))}`:""].filter(Boolean).join(" · "))}
+     ${srow("Collected profit",e(fmt(m.cprofit,b)),m.cprofit<=-0.5?"vneg":"","Collected revenue minus costs")}</div>
+    <div class="fx-sub"><h5>Collection</h5><span>${pct(m.rev?m.col/m.rev:0)} of the revenue collected</span></div>
+    <div class="fx-cb" role="img" aria-label="Collected ${e(fmt(m.col,b))}, still to collect ${e(fmt(still,b))}, past due ${e(fmt(m.pastdue,b))}${m.unc>=0.5?`, uncollectible ${e(fmt(m.unc,b))}`:""}">${seg(m.col,"good","Collected")}${seg(still,"thin","Still to collect")}${seg(m.pastdue,"loss","Past due")}${seg(m.unc,"none","Uncollectible")}</div>
+    <ul class="fx-cl"><li class="tl-good"><i></i>Collected <b>${e(fmt(m.col,b))}</b></li><li class="tl-thin"><i></i>Still to collect <b>${e(fmt(still,b))}</b></li><li class="tl-loss"><i></i>Past due <b>${e(fmt(m.pastdue,b))}</b></li>${m.unc>=0.5?`<li class="tl-none"><i></i>Uncollectible <b>${e(fmt(m.unc,b))}</b></li>`:""}</ul>
+    ${m.unc>=0.5?`<p class="fx-note">The Revenue tracker counts ${e(fmt(m.unc,b))} of uncollectible invoices as still to collect, so its Collected figure is lower by that much.</p>`:""}
+    <div class="fx-sub"><h5>Clients</h5></div>
+    <div class="fx-cli"><div><b>${e(String(Math.round((m.paying||0)*10)/10))}</b><span>paying clients</span></div><div><b>${m.churn||0}</b><span>lost this month</span></div></div>
+    ${m.lost&&m.lost.length?`<p class="fx-lost"><span class="fx-kl">Lost</span>${m.lost.map(e).join(", ")}</p>`:""}${rs.length?`<div class="fx-rs" aria-label="Why they left">${rs.map(([r,n])=>`<span>${e(r)}${n>1?` ×${n}`:""}</span>`).join("")}</div>`:""}
+    <div class="fx-sub"><h5>Biggest clients this month</h5><span>${top.length?pct(sum(top,x=>x[1])/(m.rev||1))+" of the revenue":""}</span></div>
+    ${top.length?`<ul class="fx-hb">${top.map(([n,v])=>`<li><span class="n">${e(n)}</span><span class="t"><i style="width:${(v/tmax*100).toFixed(1)}%"></i></span><b>${e(fmt(v,b))}</b><small>${pct(v/(m.rev||1))}</small></li>`).join("")}</ul>`:`<p class="fx-none">No invoices count in this month.</p>`}
+   </div>
+   <div class="fx-ds" id="fxS2"><h4>Notes</h4>
+    ${noteH("Finance notes",m.pnl,"pnl","No finance notes for this month.")}
+    ${noteH("Admin notes",m.admin,"admin","No admin notes for this month.")}
+    ${m.target?noteH("Sales target",m.target,"target",""):""}${m.why?noteH("Why this churn?",m.why,"why",""):""}${m.ap?noteH("Churn action plan for next month",m.ap,"ap",""):""}
+   </div>
+   <div class="fx-ds" id="fxS3"><h4>Invoices behind ${e(mN(m.key))}'s revenue</h4>
+    <p class="fx-hint">Each invoice counts for the part of it that falls in ${e(mN(m.key))}: a retainer is spread over the days it covers, and the rest moves into the next month. Together they make the month's revenue.</p>
+    <div class="fx-chips" role="group" aria-label="Show"><button type="button" data-fx="only" data-v="0" aria-pressed="${!S.only}">All<b>${its.length}</b></button><button type="button" data-fx="only" data-v="1" aria-pressed="${S.only}">Not paid yet<b>${np.length}</b></button></div>
+    ${ig("Invoiced in "+e(mN(m.key)),A)}${ig("Carried over from "+e(mN(prevKey(m.key))),R)}
+    ${L.length?"":`<p class="fx-none">${S.only?"Every invoice behind this month is paid.":"No invoices count in this month."}</p>`}
+    <div class="fx-tot"><span>${S.only?"Not paid yet":"Total: "+e(mN(m.key))+"'s revenue"}</span><b>${e(fmt(S.only?sum(np,x=>x.part):m.rev,b))}</b></div>
+    ${m.uncN?`<p class="fx-note">${m.uncN} uncollectible invoice${m.uncN===1?" is":"s are"} left out, as in the Revenue tracker.</p>`:""}
+   </div></div>`}
+function podMonthH(m){const b="pod",p=prevM(b,m.key),t=tone(m.profit,m.rev),C=D.pod.cats,tx=D.pod.tx.filter(x=>x.d.slice(0,7)===m.key),notes=(D.pod.notes||{})[m.key]||[];
+  const costs=C.filter(c=>c.kind==="cost"&&m.cat[c.k]>=0.005).sort((a,c)=>m.cat[c.k]-m.cat[a.k]),revs=C.filter(c=>c.kind==="rev"&&m.cat[c.k]>=0.005),cmax=costs.length?m.cat[costs[0].k]:1;
+  const bars=(L,mx,den)=>`<ul class="fx-hb">${L.map(c=>`<li><span class="n">${e(c.name)}</span><span class="t"><i style="width:${(m.cat[c.k]/mx*100).toFixed(1)}%"></i></span><b>${e(fmt(m.cat[c.k],b))}</b><small>${pct(m.cat[c.k]/(den||1))}</small></li>`).join("")}</ul>`;
+  const row=x=>`<li class="fx-ir"><div class="fx-ic"><b>${e(x.who)}</b><small>${e([day(x.d),x.what].filter(Boolean).join(" · "))}</small></div><span></span><b class="fx-ia${x.amt<0?" neg":""}">${e(fmt(x.amt,b,{c:1}))}</b></li>`;
+  const groups=[...revs,...costs].map(c=>{const T=tx.filter(x=>x.cat===c.k),rev=c.kind==="rev",amt=m.cat[c.k];
+    const L=c.k==="yt"&&!T.length?`<li class="fx-ir"><div class="fx-ic"><b>YouTube payout</b><small>From the workbook's P&L summary; it has no line items for YouTube</small></div><span></span><b class="fx-ia">${e(fmt(amt,b,{c:1}))}</b></li>`:T.map(row).join("");
+    return `<div class="fx-ig"><h5>${e(c.name)}<span>${e(fmt(rev?amt:-amt,b,{c:1}))}${T.length?` · ${T.length}`:""}</span></h5><ul class="fx-il">${L}</ul></div>`}).join("");
+  const n=tx.length+(m.cat.yt>=0.005?1:0);
+  return hdrH(b,m)+`<div class="fx-db" id="fxDB">
+   <nav class="fx-jump" aria-label="In this month"><button type="button" data-fx="jump" data-v="fxS1">Summary</button><button type="button" data-fx="jump" data-v="fxS2">Notes${notes.length?`<b>${notes.length}</b>`:""}</button><button type="button" data-fx="jump" data-v="fxS3">Transactions<b>${n}</b></button></nav>
+   <div class="fx-ds" id="fxS1"><div class="fx-st">
+     ${srow("Revenue",e(fmt(m.rev,b)),"",p?`${e(mN(p.key))}: ${e(fmt(p.rev,b))} · ${e(chgS(chg(m.rev,p.rev)))}`:"")}
+     ${srow("Costs",e(fmt(-m.costs,b)),"",p?`${e(mN(p.key))}: ${e(fmt(-p.costs,b))} · ${e(chgS(chg(m.costs,p.costs)))}`:"")}
+     ${srow("Profit / loss",e(fmt(m.profit,b)),"tot tl-"+t,[`≈ ${e(inGBP(m.profit))} at the workbook's rate (0.75)`,mgn(m.profit,m.rev),p?`${e(mN(p.key))}: ${e(fmt(p.profit,b))}`:""].filter(Boolean).join(" · "))}</div>
+    <div class="fx-sub"><h5>Where the money went</h5><span>${e(fmt(m.costs,b))}</span></div>${costs.length?bars(costs,cmax,m.costs):`<p class="fx-none">No costs this month.</p>`}
+    <div class="fx-sub"><h5>Where the money came from</h5><span>${e(fmt(m.rev,b))}</span></div>${revs.length?bars(revs,Math.max(...revs.map(c=>m.cat[c.k])),m.rev):`<p class="fx-none">No revenue this month.</p>`}
+   </div>
+   <div class="fx-ds" id="fxS2"><h4>Notes</h4>${notes.length?`<div class="fx-nb"><h5>In the accountant's workbook</h5><div class="fx-nt"><ul>${notes.map(x=>`<li>${e(x)}</li>`).join("")}</ul></div></div>`:`<p class="fx-none">No notes from the accountant for this month.</p>`}</div>
+   <div class="fx-ds" id="fxS3"><h4>Transactions</h4><p class="fx-hint">Every line in the accountant's workbook for ${e(mN(m.key))}, by category. They add up to the month's revenue and costs.</p>
+    ${groups||`<p class="fx-none">Nothing booked this month.</p>`}
+    <div class="fx-tot"><span>Profit / loss</span><b class="${m.profit<=-0.5?"neg":""}">${e(fmt(m.profit,b,{c:1}))}</b></div></div></div>`}
+function lateH(y){const b="rv",I=D.rv.invoices,L=D.rv.late.filter(x=>x.m.slice(0,4)===y).map(x=>Object.assign({},I[x.id]||{},x)),T=sum(L,x=>x.amt);
+  const ago=d=>{const n=Math.round((Date.parse(D.at)-Date.parse(d))/864e5);return n>0?`${n} days late`:"due"};
+  const ms=[...new Set(L.map(x=>x.m))];
+  return `<div class="fx-dh"><div class="fx-dt"><h3 id="fxDT" tabindex="-1">Past due · ${e(y)}</h3><p>Rise Voice · ${L.length} invoice${L.length===1?"":"s"}</p></div><button type="button" class="fx-x" data-fx="close" aria-label="Close">✕</button></div>
+   <div class="fx-db" id="fxDB"><div class="fx-ds"><p class="fx-hint">Invoices still marked Past Due, under the month they were due. Each counts in full, as in the Revenue tracker's past due.</p>
+   ${ms.map(k=>{const G=L.filter(x=>x.m===k);return `<div class="fx-ig"><h5>Due in ${e(mN(k))}<span>${e(fmt(sum(G,x=>x.amt),b))} · ${G.length}</span></h5><ul class="fx-il">${G.map(x=>`<li class="fx-ir"><div class="fx-ic"><b>${e(x.payer||x.n)}</b><small>${e([x.type,"due "+day(x.due),ago(x.due)].filter(Boolean).join(" · "))}</small></div><span class="fx-is tl-loss"><i aria-hidden="true"></i>Past Due</span><b class="fx-ia">${e(fmt(x.amt,b))}</b></li>`).join("")}</ul></div>`}).join("")||`<p class="fx-none">Nothing past due.</p>`}
+   <div class="fx-tot"><span>Total past due</span><b class="neg">${e(fmt(T,b))}</b></div></div></div>`}
+function drawD(keep){const d=q("fxDr");if(!d||!S.open)return;const o=S.open,db=q("fxDB"),top=keep&&db?db.scrollTop:0,fa=keep&&document.activeElement&&d.contains(document.activeElement)?document.activeElement:null;
+  const sel=fa&&fa.dataset.fx?`[data-fx="${fa.dataset.fx}"][data-v="${fa.dataset.v||""}"]`:null;
+  d.innerHTML=o.late?lateH(o.late):(()=>{const m=find(o.b,o.k);return m?(o.b==="rv"?rvMonthH(m):podMonthH(m)):""})();
+  const nb=q("fxDB");if(nb&&keep)nb.scrollTop=top;if(sel){const x=d.querySelector(sel);if(x)x.focus({preventScroll:true})}}
+function markOn(){const o=S.open;document.querySelectorAll("#fxPanel .fx-col,#fxPanel .fx-t tbody tr").forEach(el=>el.classList.toggle("on",!!(o&&!o.late&&o.b===S.biz&&el.dataset.m===o.k)))}
+function openD(o,from){const d=q("fxDr");if(!d)return;const was=!!S.open;S.open=o;S.only=false;S.more={};if(!was)S.back=from||document.activeElement;drawD();
+  q("fxScrim").hidden=false;d.hidden=false;requestAnimationFrame(()=>d.classList.add("in"));document.documentElement.classList.add("fx-lock");markOn();tip(null);
+  const h=q("fxDT");if(h)h.focus({preventScroll:true})}
+function closeD(){if(!S.open)return;S.open=null;const d=q("fxDr"),s=q("fxScrim");if(d){d.classList.remove("in");d.hidden=true;d.innerHTML=""}if(s)s.hidden=true;document.documentElement.classList.remove("fx-lock");markOn();
+  const bk=S.back;S.back=null;if(bk&&document.contains(bk))bk.focus({preventScroll:true})}
+function step(dir){const o=S.open;if(!o||o.late)return;const L=MO(o.b),i=L.findIndex(m=>m.key===o.k),j=i+dir;if(i<0||j<0||j>=L.length)return;
+  o.k=L[j].key;S.only=false;S.more={};drawD();markOn();const x=document.querySelector(`#fxDr [data-fx="step"][data-v="${dir}"]`);(x&&!x.disabled?x:q("fxDT")).focus({preventScroll:true})}
+
+/* ---- clicks, keys, hover ---- */
+document.addEventListener("click",ev=>{const v=q("v-finance");if(!v||v.hidden)return;const a=ev.target.closest&&ev.target.closest("[data-fx]");if(!a||!v.contains(a))return;
+  const k=a.dataset.fx,val=a.dataset.v;
+  if(k==="biz"){if(S.biz!==val){closeD();S.biz=val;render();const n=document.querySelector(`.fx-bz[data-v="${val}"]`);if(n)n.focus({preventScroll:true})}}
+  else if(k==="year"){if(S.year!==val){closeD();S.year=val;q("fxPanel").innerHTML=panelH();const n=document.querySelector(`.fx-seg [data-v="${val}"]`);if(n)n.focus({preventScroll:true})}}
+  else if(k==="open"){const tr=a.closest("tr");openD({b:S.biz,k:a.dataset.m},tr?tr.querySelector(".fx-mb"):a)}
+  else if(k==="late")openD({b:"rv",late:S.year},a);
+  else if(k==="close")closeD();
+  else if(k==="step")step(+val);
+  else if(k==="only"){S.only=val==="1";drawD(true)}
+  else if(k==="more"){S.more[val]=!S.more[val];drawD(true)}
+  else if(k==="jump"){const t=q(val);if(t)t.scrollIntoView({behavior:"smooth",block:"start"})}});
+document.addEventListener("keydown",ev=>{if(!S.open)return;const d=q("fxDr");if(!d||d.hidden)return;
+  if(ev.key==="Escape"){ev.preventDefault();closeD();return}
+  if((ev.key==="ArrowLeft"||ev.key==="ArrowRight")&&!S.open.late&&!ev.altKey&&!ev.metaKey&&!ev.ctrlKey){ev.preventDefault();step(ev.key==="ArrowLeft"?-1:1);return}
+  if(ev.key==="Tab"){const f=[...d.querySelectorAll('button:not([disabled]),[href],[tabindex]:not([tabindex="-1"])')].filter(x=>x.offsetParent!==null);if(!f.length)return;
+    const a=f[0],z=f[f.length-1];if(ev.shiftKey&&(document.activeElement===a||!d.contains(document.activeElement))){ev.preventDefault();z.focus()}else if(!ev.shiftKey&&document.activeElement===z){ev.preventDefault();a.focus()}}});
+/* hover or focus on a month: its numbers in a tooltip (costs and margin aren't on the bars) */
+function tip(col){const t=q("fxTip");if(!t)return;if(!col){t.hidden=true;return}const b=S.biz,m=find(b,col.dataset.m);if(!m){t.hidden=true;return}const tn=tone(m.profit,m.rev);
+  t.innerHTML=`<b>${e(mL(m.key))}</b>${isFc(m)?" · forecast":""}<br>Revenue ${e(fmt(m.rev,b))}<br>Costs ${e(fmt(m.costs,b))}<br>${m.profit<=-0.5?"Loss":"Profit"} ${e(fmt(m.profit,b))}${mgn(m.profit,m.rev)?` <small>(${mgn(m.profit,m.rev)})</small>`:""}${b==="pod"?`<br><small>≈ ${e(inGBP(m.profit))}</small>`:""}<br><small>${TT[tn][0].toUpperCase()+TT[tn].slice(1)} · click to open</small>`;
+  t.hidden=false;const P=q("fxPlot").getBoundingClientRect(),r=col.getBoundingClientRect();let x=r.left+r.width/2-P.left>P.width/2?r.left-P.left-t.offsetWidth-8:r.right-P.left+8;
+  t.style.left=Math.max(0,Math.min(x,P.width-t.offsetWidth))+"px";t.style.top=(T1+6)+"px"}
+document.addEventListener("mouseover",ev=>{const c=ev.target.closest&&ev.target.closest(".fx-col");if(!c){if(!(ev.target.closest&&ev.target.closest("#fxTip")))tip(null);return}tip(c)});
+document.addEventListener("focusin",ev=>{const c=ev.target.closest&&ev.target.closest(".fx-col");tip(c&&!S.open?c:null)});
+
+/* the Rise Voice tab without its finance parts (they live here now) */
 window.RV_FIN_TAB=true;{const f=q("rvFin");if(f)f.hidden=true}
 /* the tab */
-{const st0=showTab;showTab=function(t){st0(t);const v=q("v-finance");if(!v)return;v.hidden=t!=="finance";if(t==="finance"){["asof","rvAsof"].forEach(i=>{const x=q(i);if(x)x.hidden=true});if(!q("finBody").firstChild)render()}}}
+{const st0=showTab;showTab=function(t){st0(t);const v=q("v-finance");if(!v)return;v.hidden=t!=="finance";if(t!=="finance")closeD();
+  if(t==="finance"){["asof","rvAsof"].forEach(i=>{const x=q(i);if(x)x.hidden=true});if(!q("finBody").firstChild)render()}}}
 if(location.hash==="#finance")showTab("finance");
 })();
 </script>
