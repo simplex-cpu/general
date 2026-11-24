@@ -33,8 +33,8 @@ const chgS=x=>x==null||!isFinite(x)?"":(x>=0.005?"▲ ":x<=-0.005?"▼ ":"")+Mat
 const day=d=>d?(+d.slice(8,10))+" "+MS[+d.slice(5,7)-1]+(d.slice(0,4)!==D.at.slice(0,4)?" "+d.slice(0,4):""):"no date";
 const sum=(L,f)=>L.reduce((a,x)=>a+(+(f?f(x):x)||0),0);
 /* traffic lights: green = a profit with a 10%+ margin, amber = a thinner profit (or breaking even), red = a loss */
-const tone=(p,r)=>Math.abs(p)<0.5&&Math.abs(r)<0.5?"none":p<=-0.5?"loss":(r>0?p/r:0)<0.10?"thin":"good";
-const mgn=(p,r)=>r>0&&Math.abs(p/r)<=1?`${pct(p/r)} margin`:"";
+const tone=(p,r)=>p==null||Math.abs(p)<0.5&&Math.abs(r)<0.5?"none":p<=-0.5?"loss":(r>0?p/r:0)<0.10?"thin":"good";
+const mgn=(p,r)=>p!=null&&r>0&&Math.abs(p/r)<=1?`${pct(p/r)} margin`:"";
 const TT={good:"profit, 10%+ margin",thin:"profit under 10% margin",loss:"loss",none:"no activity"};
 const ST={"Collected":"good","To Collect":"thin","Past Due":"loss","Refunded":"none","Uncollectible":"none"};
 const BIZ={rv:{name:"Rise Voice"},pod:{name:"Podcast"}};
@@ -69,7 +69,7 @@ function kpisH(b){
       kpi("Collected profit",e(fmt(T.cprofit,b)),[`Profit ${e(fmt(T.profit,b))}`,mgn(T.profit,T.rev)].filter(Boolean).join(" · "),T.cprofit<=-0.5?"neg":"")+
       kpi("Past due",e(fmt(T.pastdue,b)),late.length?`${late.length} invoice${late.length===1?"":"s"} · See which →`:"",T.pastdue>=0.5?"neg":"",late.length?`data-fx="late" data-v="${CY}" aria-label="Past due ${e(fmt(T.pastdue,b))}: see the ${late.length} invoices"`:""));
     return `<div class="fx-kpis${cur?"":" one"}">${h}</div>`}
-  const L=D.pod.months,cur=L[L.length-1],p=prevM("pod",cur.key),T=tot(L),cs=D.pod.cats.filter(c=>c.kind==="cost").map(c=>[c,sum(L,m=>m.cat[c.k])]).sort((a,c)=>c[1]-a[1])[0];
+  const L=actual(D.pod.months),cur=L[L.length-1],p=prevM("pod",cur.key),T=tot(L),cs=D.pod.cats.filter(c=>c.kind==="cost").map(c=>[c,sum(L,m=>m.cat[c.k])]).sort((a,c)=>c[1]-a[1])[0];
   return `<div class="fx-kpis">${grp(`Latest month · ${e(mL(cur.key))}`,`<button type="button" class="fx-link" data-fx="open" data-m="${cur.key}">Open ${e(mN(cur.key))} →</button>`,
       kpi("Revenue",e(fmt(cur.rev,b)),p?`${e(mS(p.key))} ${e(fmt(p.rev,b))} · ${e(chgS(chg(cur.rev,p.rev)))}`:"")+
       kpi("Costs",e(fmt(cur.costs,b)),p?`${e(mS(p.key))} ${e(fmt(p.costs,b))} · ${e(chgS(chg(cur.costs,p.costs)))}`:"")+
@@ -82,21 +82,23 @@ function kpisH(b){
 /* ---- the chart: revenue (top) and profit/loss (below) for the same months; a month is one button ---- */
 const G=58,T1=26,H1=150,T2=34,H2=150,XL=26,PT=18,PB=18;
 function niceStep(r){const raw=(r||1)/3,p=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/p;return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
-const two=(v,b)=>`<span class="f">${e(fmt(v,b))}</span><span class="c">${e(fmt(v,b,{k:1}))}</span>`;
-const ariaM=(b,m)=>`${mL(m.key)}${isFc(m)?", forecast":""}: revenue ${fmt(m.rev,b)}, costs ${fmt(m.costs,b)}, ${m.profit<=-0.5?"loss":"profit"} ${fmt(m.profit,b)}${mgn(m.profit,m.rev)?` (${mgn(m.profit,m.rev)})`:""}. Open the month.`;
+const two=(v,b)=>v==null?`<span class="f">—</span><span class="c">—</span>`:`<span class="f">${e(fmt(v,b))}</span><span class="c">${e(fmt(v,b,{k:1}))}</span>`;
+const fv=(v,b,o)=>v==null?"—":fmt(v,b,o);
+const actual=L=>L.filter(m=>!isFc(m));
+const ariaM=(b,m)=>`${mL(m.key)}${isFc(m)?", forecast":""}: revenue ${fmt(m.rev,b)}, `+(m.profit==null?"costs and profit not forecast":`costs ${fmt(m.costs,b)}, ${m.profit<=-0.5?"loss":"profit"} ${fmt(m.profit,b)}`)+`${mgn(m.profit,m.rev)?` (${mgn(m.profit,m.rev)})`:""}. Open the month.`;
 function chartH(b){const L=MO(b);if(!L.length)return "";
   const rtop=Math.max(1,...L.map(m=>m.rev)),rs=niceStep(rtop);
-  const pmx=Math.max(0,...L.map(m=>m.profit)),pmn=Math.min(0,...L.map(m=>m.profit)),ps=niceStep(pmx-pmn);
+  const PV=L.filter(m=>m.profit!=null).map(m=>m.profit),pmx=Math.max(0,...PV),pmn=Math.min(0,...PV),ps=niceStep(pmx-pmn);
   let ptop=pmx,pbot=pmn;if(ptop-pbot<1)ptop=1;
   const y1=v=>v/rtop*(H1-PT),y2=v=>PB+(v-pbot)/(ptop-pbot)*(H2-PT-PB),O2=H1+T2,z=y2(0);
   const ticks=(lo,hi,st)=>{const t=[];for(let v=Math.ceil(lo/st-1e-9)*st,i=0;v<=hi+st/1e6&&i<12;i++,v+=st)t.push(Math.abs(v)<st/1e6?0:v);return t};
   const grid=ticks(0,rtop,rs).map(v=>`<div class="fx-gl" style="top:${(T1+H1-y1(v)).toFixed(1)}px"><span>${e(fmt(v,b,{k:1}))}</span></div>`).join("")
     +ticks(pbot,ptop,ps).map(v=>`<div class="fx-gl${Math.abs(v)<1e-9?" z":""}" style="top:${(T1+O2+H2-y2(v)).toFixed(1)}px"><span>${e(fmt(v,b,{k:1}))}</span></div>`).join("");
-  const cols=L.map(m=>{const fc=isFc(m),t=tone(m.profit,m.rev),hr=m.rev>=0.5?Math.max(2,y1(m.rev)):0,yp=y2(m.profit),up=m.profit>=0,on=!!(S.open&&!S.open.late&&S.open.b===b&&S.open.k===m.key);
-    const pt=up?O2+H2-yp:O2+H2-z,ph=Math.abs(m.profit)>=0.5?Math.max(2,Math.abs(yp-z)):0;
+  const cols=L.map(m=>{const fc=isFc(m),t=tone(m.profit,m.rev),hr=m.rev>=0.5?Math.max(2,y1(m.rev)):0,yp=y2(m.profit??0),up=(m.profit??0)>=0,on=!!(S.open&&!S.open.late&&S.open.b===b&&S.open.k===m.key);
+    const pt=up?O2+H2-yp:O2+H2-z,ph=m.profit!=null&&Math.abs(m.profit)>=0.5?Math.max(2,Math.abs(yp-z)):0;
     return `<button type="button" class="fx-col${fc?" fc":""}${on?" on":""}${b==="rv"&&m.key===NOWK?" now":""}" data-fx="open" data-m="${m.key}" aria-label="${e(ariaM(b,m))}">
       ${hr?`<span class="fx-bar rev" style="top:${(H1-hr).toFixed(1)}px;height:${hr.toFixed(1)}px"></span>`:""}<span class="fx-v${m.rev<0.5?" zero":""}" style="top:${(H1-hr-17).toFixed(1)}px">${two(m.rev,b)}</span>
-      ${ph?`<span class="fx-bar tl-${t}${up?"":" dn"}" style="top:${pt.toFixed(1)}px;height:${ph.toFixed(1)}px"></span>`:""}<span class="fx-v${m.profit<=-0.5?" neg":""}" style="top:${(up?O2+H2-yp-17:O2+H2-yp+3).toFixed(1)}px">${two(m.profit,b)}</span>
+      ${ph?`<span class="fx-bar tl-${t}${up?"":" dn"}" style="top:${pt.toFixed(1)}px;height:${ph.toFixed(1)}px"></span>`:""}<span class="fx-v${m.profit==null?" zero":m.profit<=-0.5?" neg":""}" style="top:${(up?O2+H2-yp-17:O2+H2-yp+3).toFixed(1)}px">${two(m.profit,b)}</span>
       <span class="fx-xl" style="top:${O2+H2}px">${e(mS(m.key))}</span></button>`}).join("");
   const yrs=b==="rv"?YEARS:[D.pod.months[0].key.slice(0,4)];
   return `<div class="fx-card"><div class="fx-ch"><h4>By month</h4><div class="fx-seg" role="group" aria-label="Year">${yrs.map(y=>`<button type="button" data-fx="year" data-v="${y}" aria-pressed="${b!=="rv"||y===S.year}">${y}</button>`).join("")}</div></div>
@@ -107,11 +109,11 @@ function chartH(b){const L=MO(b);if(!L.length)return "";
    </div></div></div>`}
 
 /* ---- every month in a table (the chart's table view, and another way in) ---- */
-function tableH(b){const L=MO(b),T=tot(L),rv=b==="rv";
+function tableH(b){const L=MO(b),rv=b==="rv",T=tot(rv?L:actual(L));
   const pf=(v,r)=>{const t=tone(v,r);return `<span class="fx-pf tl-${t}"><i aria-hidden="true"></i>${e(fmt(v,b))}<span class="fx-vh"> (${TT[t]})</span></span>`};
   const nv=(v,o)=>`<span class="${v<=-0.5?"neg":""}">${e(fmt(v,b,o))}</span>`;
   const head=rv?["Month","Revenue","Collected","To collect","Costs","Profit","Collected profit","Clients lost"]:["Month","Revenue","Costs","Profit / loss","Profit / loss in £"];
-  const cells=m=>rv?[e(fmt(m.rev,b)),e(fmt(m.col,b)),e(fmt(m.tocol,b)),e(fmt(m.costs,b)),pf(m.profit,m.rev),nv(m.cprofit),String(m.churn||0)]:[e(fmt(m.rev,b)),e(fmt(m.costs,b)),pf(m.profit,m.rev),nv(m.profit*D.pod.rate,{sym:"£"})];
+  const cells=m=>rv?[e(fmt(m.rev,b)),e(fmt(m.col,b)),e(fmt(m.tocol,b)),e(fmt(m.costs,b)),pf(m.profit,m.rev),nv(m.cprofit),String(m.churn||0)]:[e(fmt(m.rev,b)),e(fv(m.costs,b)),m.profit==null?"—":pf(m.profit,m.rev),m.profit==null?"—":nv(m.profit*D.pod.rate,{sym:"£"})];
   const rows=L.map(m=>{const fc=isFc(m),now=rv&&m.key===NOWK,on=!!(S.open&&!S.open.late&&S.open.b===b&&S.open.k===m.key);
     return `<tr class="${fc?"fc":""}${on?" on":""}" data-fx="open" data-m="${m.key}"><th scope="row"><button type="button" class="fx-mb" data-fx="open" data-m="${m.key}">${e(mN(m.key))}</button>${now?`<span class="fx-tag now">This month</span>`:""}${fc?`<span class="fx-tag">Forecast</span>`:""}</th>${cells(m).map(c=>`<td>${c}</td>`).join("")}</tr>`}).join("");
   const foot=rv?[e(fmt(T.rev,b)),e(fmt(T.col,b)),e(fmt(T.tocol,b)),e(fmt(T.costs,b)),pf(T.profit,T.rev),nv(T.cprofit),String(T.churn)]:[e(fmt(T.rev,b)),e(fmt(T.costs,b)),pf(T.profit,T.rev),nv(T.profit*D.pod.rate,{sym:"£"})];
@@ -176,26 +178,26 @@ function rvMonthH(m){const b="rv",p=prevM(b,m.key),t=tone(m.profit,m.rev),I=D.rv
     <div class="fx-tot"><span>${S.only?"Not paid yet":"Total: "+e(mN(m.key))+"'s revenue"}</span><b>${e(fmt(S.only?sum(np,x=>x.part):m.rev,b))}</b></div>
    </div></div>`}
 function podMonthH(m){const b="pod",p=prevM(b,m.key),t=tone(m.profit,m.rev),C=D.pod.cats,tx=D.pod.tx.filter(x=>x.d.slice(0,7)===m.key),notes=(D.pod.notes||{})[m.key]||[];
-  const costs=C.filter(c=>c.kind==="cost"&&m.cat[c.k]>=0.005).sort((a,c)=>m.cat[c.k]-m.cat[a.k]),revs=C.filter(c=>c.kind==="rev"&&m.cat[c.k]>=0.005),cmax=costs.length?m.cat[costs[0].k]:1;
+  const noC=m.costs==null,costs=C.filter(c=>c.kind==="cost"&&m.cat[c.k]>=0.005).sort((a,c)=>m.cat[c.k]-m.cat[a.k]),revs=C.filter(c=>c.kind==="rev"&&m.cat[c.k]>=0.005),cmax=costs.length?m.cat[costs[0].k]:1;
   const bars=(L,mx,den)=>`<ul class="fx-hb">${L.map(c=>`<li><span class="n">${e(c.name)}</span><span class="t"><i style="width:${(m.cat[c.k]/mx*100).toFixed(1)}%"></i></span><b>${e(fmt(m.cat[c.k],b))}</b><small>${pct(m.cat[c.k]/(den||1))}</small></li>`).join("")}</ul>`;
   const row=x=>`<li class="fx-ir"><div class="fx-ic"><b>${e(x.who)}</b><small>${e([day(x.d),x.what].filter(Boolean).join(" · "))}</small></div><span></span><b class="fx-ia${x.amt<0?" neg":""}">${e(fmt(x.amt,b,{c:1}))}</b></li>`;
   const groups=[...revs,...costs].map(c=>{const T=tx.filter(x=>x.cat===c.k),rev=c.kind==="rev",amt=m.cat[c.k];
-    const L=c.k==="yt"&&!T.length?`<li class="fx-ir"><div class="fx-ic"><b>YouTube payout</b><small>From the workbook's P&L summary; it has no line items for YouTube</small></div><span></span><b class="fx-ia">${e(fmt(amt,b,{c:1}))}</b></li>`:T.map(row).join("");
+    const L=c.k==="yt"&&!T.length?`<li class="fx-ir"><div class="fx-ic"><b>${noC?"YouTube revenue forecast":"YouTube payout"}</b><small>${noC?"From the Forecast column of the accountant's workbook":"From the workbook's P&L summary; it has no line items for YouTube"}</small></div><span></span><b class="fx-ia">${e(fmt(amt,b,{c:1}))}</b></li>`:T.map(row).join("");
     return `<div class="fx-ig"><h5>${e(c.name)}<span>${e(fmt(rev?amt:-amt,b,{c:1}))}${T.length?` · ${T.length}`:""}</span></h5><ul class="fx-il">${L}</ul></div>`}).join("");
   const n=tx.length+(m.cat.yt>=0.005?1:0);
   return hdrH(b,m)+`<div class="fx-db" id="fxDB">
    <nav class="fx-jump" aria-label="In this month"><button type="button" data-fx="jump" data-v="fxS1">Summary</button><button type="button" data-fx="jump" data-v="fxS2">Notes${notes.length?`<b>${notes.length}</b>`:""}</button><button type="button" data-fx="jump" data-v="fxS3">Transactions<b>${n}</b></button></nav>
    <div class="fx-ds" id="fxS1"><div class="fx-st">
      ${srow("Revenue",e(fmt(m.rev,b)),"",p?`${e(mN(p.key))}: ${e(fmt(p.rev,b))} · ${e(chgS(chg(m.rev,p.rev)))}`:"")}
-     ${srow("Costs",e(fmt(-m.costs,b)),"",p?`${e(mN(p.key))}: ${e(fmt(-p.costs,b))} · ${e(chgS(chg(m.costs,p.costs)))}`:"")}
-     ${srow("Profit / loss",e(fmt(m.profit,b)),"tot tl-"+t,[`≈ ${e(inGBP(m.profit))} at the workbook's rate (0.75)`,mgn(m.profit,m.rev),p?`${e(mN(p.key))}: ${e(fmt(p.profit,b))}`:""].filter(Boolean).join(" · "))}</div>
-    <div class="fx-sub"><h5>Where the money went</h5><span>${e(fmt(m.costs,b))}</span></div>${costs.length?bars(costs,cmax,m.costs):`<p class="fx-none">No costs this month.</p>`}
+     ${noC?srow("Costs","—","","Not forecast in the workbook"):srow("Costs",e(fmt(-m.costs,b)),"",p&&p.costs!=null?`${e(mN(p.key))}: ${e(fmt(-p.costs,b))} · ${e(chgS(chg(m.costs,p.costs)))}`:"")}
+     ${noC?srow("Profit / loss","—","tot",""):srow("Profit / loss",e(fmt(m.profit,b)),"tot tl-"+t,[`≈ ${e(inGBP(m.profit))} at the workbook's rate (0.75)`,mgn(m.profit,m.rev),p?`${e(mN(p.key))}: ${e(fmt(p.profit,b))}`:""].filter(Boolean).join(" · "))}</div>
+    <div class="fx-sub"><h5>Where the money went</h5><span>${e(fv(m.costs,b))}</span></div>${noC?`<p class="fx-none">Costs aren't forecast in the workbook.</p>`:costs.length?bars(costs,cmax,m.costs):`<p class="fx-none">No costs this month.</p>`}
     <div class="fx-sub"><h5>Where the money came from</h5><span>${e(fmt(m.rev,b))}</span></div>${revs.length?bars(revs,Math.max(...revs.map(c=>m.cat[c.k])),m.rev):`<p class="fx-none">No revenue this month.</p>`}
    </div>
    <div class="fx-ds" id="fxS2"><h4>Notes</h4>${notes.length?`<div class="fx-nb"><h5>In the accountant's workbook</h5><div class="fx-nt"><ul>${notes.map(x=>`<li>${e(x)}</li>`).join("")}</ul></div></div>`:`<p class="fx-none">No notes from the accountant for this month.</p>`}</div>
    <div class="fx-ds" id="fxS3"><h4>Transactions</h4><p class="fx-hint">Every line in the accountant's workbook for ${e(mN(m.key))}, by category. They add up to the month's revenue and costs.</p>
     ${groups||`<p class="fx-none">Nothing booked this month.</p>`}
-    <div class="fx-tot"><span>Profit / loss</span><b class="${m.profit<=-0.5?"neg":""}">${e(fmt(m.profit,b,{c:1}))}</b></div></div></div>`}
+    ${noC?"":`<div class="fx-tot"><span>Profit / loss</span><b class="${m.profit<=-0.5?"neg":""}">${e(fmt(m.profit,b,{c:1}))}</b></div>`}</div></div>`}
 function lateH(y){const b="rv",I=D.rv.invoices,L=D.rv.late.filter(x=>x.m.slice(0,4)===y).map(x=>Object.assign({},I[x.id]||{},x)),T=sum(L,x=>x.amt);
   const ago=d=>{const n=Math.round((Date.parse(D.at)-Date.parse(d))/864e5);return n>0?`${n} days late`:"due"};
   const ms=[...new Set(L.map(x=>x.m))];
@@ -238,7 +240,7 @@ document.addEventListener("keydown",ev=>{const t=ev.target;if(!S.open&&t&&t.clas
     const a=f[0],z=f[f.length-1];if(ev.shiftKey&&(document.activeElement===a||!d.contains(document.activeElement))){ev.preventDefault();z.focus()}else if(!ev.shiftKey&&document.activeElement===z){ev.preventDefault();a.focus()}}});
 /* hover or focus on a month: its numbers in a tooltip (costs and margin aren't on the bars) */
 function tip(col){const t=q("fxTip");if(!t)return;if(!col){t.hidden=true;return}const b=S.biz,m=find(b,col.dataset.m);if(!m){t.hidden=true;return}const tn=tone(m.profit,m.rev);
-  t.innerHTML=`<b>${e(mL(m.key))}</b>${isFc(m)?" · forecast":""}<br>Revenue ${e(fmt(m.rev,b))}<br>Costs ${e(fmt(m.costs,b))}<br>${m.profit<=-0.5?"Loss":"Profit"} ${e(fmt(m.profit,b))}${mgn(m.profit,m.rev)?` <small>(${mgn(m.profit,m.rev)})</small>`:""}${b==="pod"?`<br><small>≈ ${e(inGBP(m.profit))}</small>`:""}<br><small>${TT[tn][0].toUpperCase()+TT[tn].slice(1)} · click to open</small>`;
+  t.innerHTML=`<b>${e(mL(m.key))}</b>${isFc(m)?" · forecast":""}<br>Revenue ${e(fmt(m.rev,b))}${m.profit==null?"<br>Costs and profit not forecast":`<br>Costs ${e(fmt(m.costs,b))}<br>${m.profit<=-0.5?"Loss":"Profit"} ${e(fmt(m.profit,b))}`}${mgn(m.profit,m.rev)?` <small>(${mgn(m.profit,m.rev)})</small>`:""}${b==="pod"&&m.profit!=null?`<br><small>≈ ${e(inGBP(m.profit))}</small>`:""}<br><small>${m.profit==null?"Click to open":TT[tn][0].toUpperCase()+TT[tn].slice(1)+" · click to open"}</small>`;
   t.hidden=false;const P=q("fxPlot").getBoundingClientRect(),r=col.getBoundingClientRect();let x=r.left+r.width/2-P.left>P.width/2?r.left-P.left-t.offsetWidth-8:r.right-P.left+8;
   t.style.left=Math.max(0,Math.min(x,P.width-t.offsetWidth))+"px";t.style.top=(T1+6)+"px"}
 document.addEventListener("mouseover",ev=>{const c=ev.target.closest&&ev.target.closest(".fx-col");if(!c){if(!(ev.target.closest&&ev.target.closest("#fxTip")))tip(null);return}tip(c)});
